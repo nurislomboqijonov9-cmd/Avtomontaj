@@ -112,14 +112,19 @@ def transcribe_groq(wav):
     return segs, (j.get("text") or "").strip(), (j.get("language") or "?")
 
 def transcribe(wav):
-    """Avval Gemini (o'zbekchaga aniq), bo'lmasa Groq."""
-    if GEMINI_KEY:
-        try:
-            segs,full,lang=transcribe_gemini(wav)
-            if segs: return segs,full,lang
-        except Exception as e:
-            print("Gemini xato -> Groq:", str(e)[:150])
-    return transcribe_groq(wav)
+    """Avval Gemini (o'zbekchaga aniq), bo'lmasa Groq. Qaysi AI ishlaganini ham qaytaradi."""
+    if not GEMINI_KEY:
+        segs,full,_=transcribe_groq(wav)
+        return segs, full, "GROQ (GEMINI_API_KEY yo'q!)"
+    try:
+        segs,full,_=transcribe_gemini(wav)
+        if segs:
+            return segs, full, "GEMINI ✅"
+        gerr="Gemini bo'sh natija qaytardi"
+    except Exception as e:
+        gerr=str(e)[:250]
+    segs,full,_=transcribe_groq(wav)
+    return segs, full, f"GROQ (gemini xato: {gerr})"
 
 def words_from_segments(segments):
     """Segment matnini so'zlarga bo'lib, vaqtni harf-uzunligiga qarab taqsimlaydi (uzluksiz subtitr)."""
