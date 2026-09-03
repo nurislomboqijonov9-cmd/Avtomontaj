@@ -30,6 +30,12 @@ GROQ_KEY = os.environ.get("GROQ_API_KEY","").strip()
 GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY","").strip()
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL","gemini-2.0-flash").strip()
+# --- Vertex AI (Google Cloud, $300 kredit) ---
+GCP_PROJECT = os.environ.get("GCP_PROJECT_ID","").strip()
+GCP_LOCATION = (os.environ.get("GCP_LOCATION","us-central1") or "us-central1").strip()
+GCP_SA_JSON = os.environ.get("GCP_SA_JSON","").strip()          # service account JSON (butun matn)
+VERTEX_TOKEN = os.environ.get("VERTEX_ACCESS_TOKEN","").strip() # yoki tayyor token (AQ...)
+VERTEX_MODEL = os.environ.get("VERTEX_MODEL","gemini-2.5-flash").strip()
 FONTS_DIR = os.path.join(HERE,"fonts") if os.path.isdir(os.path.join(HERE,"fonts")) else HERE
 
 CFG = {
@@ -148,20 +154,90 @@ def transcribe_groq(wav):
         if t: segs.append({"text":t,"start":float(s["start"]),"end":float(s["end"])})
     return segs, (j.get("text") or "").strip(), (j.get("language") or "?")
 
+def _vertex_token():
+    if VERTEX_TOKEN: return VERTEX_TOKEN
+    import json as _json
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as GRequest
+    info=_json.loads(GCP_SA_JSON)
+    creds=service_account.Credentials.from_service_account_info(
+        info, scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    creds.refresh(GRequest())
+    return creds.token
+
+def transcribe_vertex(wav):
+    """Vertex AI Gemini -> (segments, matn, model)."""
+    import base64, json as _json
+    token=_vertex_token()
+    mp3=wav+".mp3"; run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
+    src=mp3 if os.path.exists(mp3) else wav
+    mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
+    b64=base64.b64encode(open(src,"rb").read()).decode()
+    prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
+            "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
+            "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
+            "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
+    body={"contents":[{"role":"user","parts":[{"text":prompt},{"inlineData":{"mimeType":mime,"data":b64}}]}],
+          "generationConfig":{"temperature":0,"responseMimeType":"application/json"}}
+    if GCP_LOCATION=="global":
+        host="aiplatform.googleapis.com"; loc="global"
+    else:
+        host=f"{GCP_LOCATION}-aiplatform.googleapis.com"; loc=GCP_LOCATION
+    headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+    models=[]
+    for m in [VERTEX_MODEL,"gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-flash-002","gemini-1.5-flash"]:
+        if m and m not in models: models.append(m)
+    errors=[]
+    for model in models:
+        url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:generateContent"
+        try:
+            r=requests.post(url,headers=headers,json=body,timeout=300)
+            if r.status_code>=400:
+                errors.append(f"{model}:{r.status_code} {r.text[:70]}"); continue
+            j=r.json()
+            txt=j["candidates"][0]["content"]["parts"][0]["text"]
+            arr=_json.loads(txt)
+            if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
+            segs=[]
+            for s in arr:
+                t=str(s.get("text","")).strip()
+                if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+            if segs and all(s["end"]<=s["start"] for s in segs):
+                for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
+            if segs:
+                return segs, " ".join(s["text"] for s in segs), f"VERTEX:{model}"
+            errors.append(f"{model}:bo'sh")
+        except Exception as e:
+            errors.append(f"{model}:{str(e)[:50]}")
+    raise RuntimeError(" | ".join(errors[:2]))
+
 def transcribe(wav):
-    """Avval Gemini (o'zbekchaga aniq), bo'lmasa Groq. Qaysi AI ishlaganini ham qaytaradi."""
-    if not GEMINI_KEY:
+    """Vertex (kredit) -> Gemini(AIza) -> Groq."""
+    if GCP_PROJECT and (GCP_SA_JSON or VERTEX_TOKEN):
+        try:
+            segs,full,eng=transcribe_vertex(wav)
+            if segs: return segs,full,eng+" ✅"
+            verr="bo'sh natija"
+        except Exception as e:
+            verr=str(e)[:250]
+        if GEMINI_KEY:
+            try:
+                segs,full,eng=transcribe_gemini(wav)
+                if segs: return segs,full,eng+" ✅"
+            except Exception: pass
         segs,full,_=transcribe_groq(wav)
-        return segs, full, "GROQ (GEMINI_API_KEY yo'q!)"
-    try:
-        segs,full,eng=transcribe_gemini(wav)
-        if segs:
-            return segs, full, eng + " ✅"
-        gerr="Gemini bo'sh natija qaytardi"
-    except Exception as e:
-        gerr=str(e)[:250]
+        return segs,full,f"GROQ (vertex xato: {verr})"
+    if GEMINI_KEY:
+        try:
+            segs,full,eng=transcribe_gemini(wav)
+            if segs: return segs,full,eng+" ✅"
+            gerr="bo'sh natija"
+        except Exception as e:
+            gerr=str(e)[:250]
+        segs,full,_=transcribe_groq(wav)
+        return segs,full,f"GROQ (gemini xato: {gerr})"
     segs,full,_=transcribe_groq(wav)
-    return segs, full, f"GROQ (gemini xato: {gerr})"
+    return segs,full,"GROQ (kalit yo'q)"
 
 def words_from_segments(segments):
     """Segment matnini so'zlarga bo'lib, vaqtni harf-uzunligiga qarab taqsimlaydi (uzluksiz subtitr)."""
