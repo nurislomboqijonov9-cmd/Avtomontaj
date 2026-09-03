@@ -37,6 +37,7 @@ CFG = {
     "asosiy_rang":"#FFFFFF", "faol_rang":"#FFEA00", "chegara_rang":"#000000",
     "chegara":4, "bosh_harf":True, "past_chetdan":340,
     "zoom":True, "ovoz_tozalash":True,
+    "takror_olib_tashlash":True,   # takror aytilgan gaplarni olib tashlash
 }
 
 # ---------- yordamchi ----------
@@ -64,26 +65,36 @@ def ts(t):
 
 # ---------- transkripsiya ----------
 def transcribe(wav):
+    """Groq Whisper -> (segments, to'liq matn, til). Segmentlar doim to'liq keladi."""
     with open(wav,"rb") as f:
         r=requests.post(GROQ_URL,
             headers={"Authorization":f"Bearer {GROQ_KEY}"},
             files={"file":(os.path.basename(wav),f,"audio/wav")},
             data={"model":CFG["groq_model"],
-                  "language":"uz",                     # MAJBURIY o'zbek tili
+                  "language":"uz",            # MAJBURIY o'zbek tili
                   "temperature":"0",
-                  "prompt":"Bu yozuv o'zbek tilida. Matnni o'zbekcha yozing.",
-                  "response_format":"verbose_json","timestamp_granularities[]":"word"},
-            timeout=180)
-    r.raise_for_status(); j=r.json(); words=[]
-    if j.get("words"):
-        for w in j["words"]:
-            t=(w.get("word") or "").strip()
-            if t: words.append({"w":t,"s":float(w["start"]),"e":float(w["end"])})
-    else:
-        for s in j.get("segments",[]):
-            t=(s.get("text") or "").strip()
-            if t: words.append({"w":t,"s":float(s["start"]),"e":float(s["end"])})
-    return words
+                  "response_format":"verbose_json"},
+            timeout=300)
+    r.raise_for_status(); j=r.json()
+    segs=[]
+    for s in j.get("segments",[]):
+        t=(s.get("text") or "").strip()
+        if t: segs.append({"text":t,"start":float(s["start"]),"end":float(s["end"])})
+    return segs, (j.get("text") or "").strip(), (j.get("language") or "?")
+
+def words_from_segments(segments):
+    """Segment matnini so'zlarga bo'lib, vaqtni harf-uzunligiga qarab taqsimlaydi (uzluksiz subtitr)."""
+    out=[]
+    for s in segments:
+        toks=s["text"].split()
+        if not toks: continue
+        dur=max(0.3, s["end"]-s["start"]); wsum=sum(max(1,len(t)) for t in toks)
+        t=s["start"]
+        for tok in toks:
+            d=dur*max(1,len(tok))/wsum
+            out.append({"w":tok,"s":round(t,3),"e":round(t+d,3)}); t+=d
+        out[-1]["e"]=s["end"]
+    return out
 
 # ---------- kesish ----------
 def detect_silences(p):
@@ -185,29 +196,18 @@ def render(cut,ass,outp):
     return c==0 and os.path.exists(outp)
 
 # ---------- takror gaplarni topish ----------
-def _sentences(words):
-    """So'zlarni pauzaga qarab gaplarga bo'ladi."""
-    sents=[]; cur=[]
-    for w in words:
-        if cur and w["s"]-cur[-1]["e"]>0.55:
-            sents.append(cur); cur=[]
-        cur.append(w)
-    if cur: sents.append(cur)
-    return sents
-
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
 
-def duplicate_ranges(words):
-    """Ketma-ket kelgan o'xshash (takror) gaplarning BIRINCHISINI olib tashlash uchun vaqt oralig'i."""
-    sents=_sentences(words); rem=[]
-    for i in range(len(sents)-1):
-        a=[_norm(x["w"]) for x in sents[i] if _norm(x["w"])]
-        b=[_norm(x["w"]) for x in sents[i+1] if _norm(x["w"])]
-        if len(a)<2 or len(b)<2: continue
+def duplicate_ranges(segments):
+    """Ketma-ket kelgan o'xshash (takror) SEGMENTlarning BIRINCHISI uchun olib tashlash oralig'i (ehtiyotkor)."""
+    rem=[]
+    for i in range(len(segments)-1):
+        a=[_norm(x) for x in segments[i]["text"].split() if _norm(x)]
+        b=[_norm(x) for x in segments[i+1]["text"].split() if _norm(x)]
+        if len(a)<3 or len(b)<3: continue
         sa,sb=set(a),set(b); jac=len(sa&sb)/max(1,len(sa|sb))
-        # o'xshashlik yuqori va uzunligi yaqin -> takror. Birinchisini olib tashlaymiz.
-        if jac>=0.6 and abs(len(a)-len(b))<=max(2,len(a)//3):
-            rem.append((sents[i][0]["s"]-0.05, sents[i][-1]["e"]+0.05))
+        if jac>=0.75 and abs(len(a)-len(b))<=2:
+            rem.append((segments[i]["start"]-0.05, segments[i]["end"]+0.05))
     return rem
 
 def subtract_ranges(segs, removes):
@@ -227,17 +227,17 @@ def subtract_ranges(segs, removes):
 def process_video(inp,work):
     base=os.path.join(work,"job"); wav=base+"_16k.wav"
     run(["ffmpeg","-y","-loglevel","error","-i",inp,"-ar","16000","-ac","1",wav])
-    words=transcribe(wav)
+    segments, full_text, lang = transcribe(wav)
+    words = words_from_segments(segments)          # uzluksiz subtitr
     dur=ffdur(inp)
-    # 1) jimliklar  2) takror gaplar -> ikkalasini ham kesamiz
     keep=keep_segments(dur,detect_silences(inp),CFG["kesish_pad"])
-    dups=duplicate_ranges(words)
+    dups=duplicate_ranges(segments) if CFG.get("takror_olib_tashlash",True) else []
     segs=subtract_ranges(keep,dups) if dups else keep
     cut=base+"_cut.mp4"; segs=cut_video(inp,cut,segs)
     words=remap(words,segs) if len(segs)>1 else words
     ass=base+".ass"; open(ass,"w",encoding="utf-8").write(build_ass(words,1080,1920))
     out=base+"_final.mp4"; ok=render(cut,ass,out)
-    return (out if ok else None), len(words), dur, ffdur(cut)
+    return (out if ok else None), len(words), dur, ffdur(cut), full_text, lang
 
 # ---------- Telegram (Pyrogram) ----------
 app = Client("montaj", api_id=API_ID, api_hash=API_HASH, bot_token=TG_TOKEN,
@@ -257,12 +257,14 @@ async def on_video(client, m):
         inp=os.path.join(work,"in.mp4")
         await m.download(file_name=inp)
         await status.edit_text("🎬 Montaj qilinyapti... (1-3 daqiqa)")
-        out,nw,d0,d1=await asyncio.to_thread(process_video, inp, work)
+        out,nw,d0,d1,text,lang=await asyncio.to_thread(process_video, inp, work)
         if not out:
             return await status.edit_text("Xatolik yuz berdi.")
         await status.edit_text("📤 Tayyor, yuborilyapti...")
         await client.send_video(m.chat.id, out,
-            caption=f"✅ Tayyor! {d0:.0f}s→{d1:.0f}s, {nw} so'z subtitr.")
+            caption=f"✅ Tayyor! {d0:.0f}s→{d1:.0f}s | til: {lang} | {nw} so'z")
+        if text:
+            await m.reply_text("📝 Tanilgan matn (tekshirish uchun):\n\n"+text[:3500])
         await status.delete()
     except Exception as e:
         try: await status.edit_text(f"Xatolik: {str(e)[:250]}")
