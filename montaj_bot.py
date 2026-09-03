@@ -28,6 +28,8 @@ API_HASH = os.environ.get("API_HASH","").strip()
 TG_TOKEN = os.environ.get("TELEGRAM_TOKEN","").strip()
 GROQ_KEY = os.environ.get("GROQ_API_KEY","").strip()
 GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY","").strip()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL","gemini-2.0-flash").strip()
 FONTS_DIR = os.path.join(HERE,"fonts") if os.path.isdir(os.path.join(HERE,"fonts")) else HERE
 
 CFG = {
@@ -64,23 +66,60 @@ def ts(t):
     return "%d:%02d:%05.2f"%(int(t//3600),int((t%3600)//60),t%60)
 
 # ---------- transkripsiya ----------
-def transcribe(wav):
-    """Groq Whisper -> (segments, to'liq matn, til). Segmentlar doim to'liq keladi."""
+def transcribe_gemini(wav):
+    """Gemini -> (segments, matn, til). O'zbekchani ancha yaxshi taniydi."""
+    import base64, json as _json
+    mp3=wav+".mp3"
+    run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
+    src=mp3 if os.path.exists(mp3) else wav
+    mime="audio/mpeg" if src.endswith(".mp3") else "audio/wav"
+    b64=base64.b64encode(open(src,"rb").read()).decode()
+    prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
+            "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
+            "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
+            "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
+    body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
+          "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
+    url=f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}"
+    r=requests.post(url,json=body,timeout=300); r.raise_for_status()
+    j=r.json()
+    txt=j["candidates"][0]["content"]["parts"][0]["text"]
+    arr=_json.loads(txt)
+    if isinstance(arr,dict):
+        arr=arr.get("segments") or arr.get("data") or []
+    segs=[]
+    for s in arr:
+        t=str(s.get("text","")).strip()
+        if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+    # vaqtlar bo'sh bo'lsa tartib bilan taxminan to'ldiramiz
+    if segs and all(s["end"]<=s["start"] for s in segs):
+        for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
+    full=" ".join(s["text"] for s in segs)
+    return segs, full, "uzbek(gemini)"
+
+def transcribe_groq(wav):
+    """Groq Whisper (zaxira) -> (segments, matn, til)."""
     with open(wav,"rb") as f:
         r=requests.post(GROQ_URL,
             headers={"Authorization":f"Bearer {GROQ_KEY}"},
             files={"file":(os.path.basename(wav),f,"audio/wav")},
-            data={"model":CFG["groq_model"],
-                  "language":"uz",            # MAJBURIY o'zbek tili
-                  "temperature":"0",
-                  "response_format":"verbose_json"},
-            timeout=300)
-    r.raise_for_status(); j=r.json()
-    segs=[]
+            data={"model":CFG["groq_model"],"language":"uz","temperature":"0",
+                  "response_format":"verbose_json"}, timeout=300)
+    r.raise_for_status(); j=r.json(); segs=[]
     for s in j.get("segments",[]):
         t=(s.get("text") or "").strip()
         if t: segs.append({"text":t,"start":float(s["start"]),"end":float(s["end"])})
     return segs, (j.get("text") or "").strip(), (j.get("language") or "?")
+
+def transcribe(wav):
+    """Avval Gemini (o'zbekchaga aniq), bo'lmasa Groq."""
+    if GEMINI_KEY:
+        try:
+            segs,full,lang=transcribe_gemini(wav)
+            if segs: return segs,full,lang
+        except Exception as e:
+            print("Gemini xato -> Groq:", str(e)[:150])
+    return transcribe_groq(wav)
 
 def words_from_segments(segments):
     """Segment matnini so'zlarga bo'lib, vaqtni harf-uzunligiga qarab taqsimlaydi (uzluksiz subtitr)."""
@@ -224,12 +263,29 @@ def subtract_ranges(segs, removes):
         if b-cur>0.15: out.append((cur,b))
     return out
 
+def normalize_segments(segs, dur):
+    """Vaqtlarni tartiblaydi: 0..dur oralig'iga, o'sish tartibida, end>start."""
+    segs=[s for s in segs if s.get("text","").strip()]
+    segs.sort(key=lambda s:s["start"])
+    out=[]; prev_end=0.0
+    for s in segs:
+        st=max(0.0,min(float(s["start"]), dur))
+        en=float(s["end"])
+        if en<=st: en=st+1.2
+        st=max(st, prev_end-0.05)          # ustma-ust tushmasin
+        en=min(en, dur)
+        if en-st<0.2: en=min(dur, st+0.6)
+        out.append({"text":s["text"].strip(),"start":round(st,3),"end":round(en,3)})
+        prev_end=en
+    return out
+
 def process_video(inp,work):
     base=os.path.join(work,"job"); wav=base+"_16k.wav"
     run(["ffmpeg","-y","-loglevel","error","-i",inp,"-ar","16000","-ac","1",wav])
-    segments, full_text, lang = transcribe(wav)
-    words = words_from_segments(segments)          # uzluksiz subtitr
     dur=ffdur(inp)
+    segments, full_text, lang = transcribe(wav)
+    segments = normalize_segments(segments, dur)
+    words = words_from_segments(segments)          # uzluksiz subtitr
     keep=keep_segments(dur,detect_silences(inp),CFG["kesish_pad"])
     dups=duplicate_ranges(segments) if CFG.get("takror_olib_tashlash",True) else []
     segs=subtract_ranges(keep,dups) if dups else keep
