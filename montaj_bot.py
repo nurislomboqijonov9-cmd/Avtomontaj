@@ -51,7 +51,7 @@ CFG = {
     "zoom": True,
     "ovoz_tozalash": True,
 }
-FONTS_DIR = os.path.join(HERE, "fonts")
+FONTS_DIR = os.path.join(HERE, "fonts") if os.path.isdir(os.path.join(HERE, "fonts")) else HERE
 
 # ================= YORDAMCHI =================
 def run(cmd, capture=False):
