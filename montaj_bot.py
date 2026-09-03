@@ -72,73 +72,59 @@ def ts(t):
     return "%d:%02d:%05.2f"%(int(t//3600),int((t%3600)//60),t%60)
 
 # ---------- transkripsiya ----------
-def _gemini_models():
-    """Kalitga mavjud, generateContent'ni qo'llaydigan modellar ro'yxati."""
-    url=f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_KEY}"
-    r=requests.get(url,timeout=30)
-    if r.status_code>=400:
-        raise RuntimeError(f"ListModels {r.status_code}: {r.text[:150]}")
-    out=[]
-    for m in r.json().get("models",[]):
-        if "generateContent" in m.get("supportedGenerationMethods",[]):
-            out.append(m["name"].split("/")[-1])
-    return out
-
-def _score_model(n):
-    low=n.lower()
-    if any(x in low for x in ["embedding","aqa","vision","imagen","image","tts","learnlm","gemma"]):
-        return -100
-    s=0
-    if "flash" in low: s+=10
-    if "2.5" in low: s+=4
-    elif "2.0" in low: s+=3
-    elif "1.5" in low: s+=2
-    if "latest" in low: s+=1
-    if "lite" in low: s-=2
-    if "preview" in low or "exp" in low: s-=1
-    return s
-
 def transcribe_gemini(wav):
-    """Gemini -> (segments, matn, ishlagan model). Modelni Google ro'yxatidan o'zi tanlaydi."""
-    import base64, json as _json
+    """Gemini (RASMIY SDK) -> (segments, matn, model@versiya). 3 API versiyani sinaydi."""
+    import json as _json
+    from google import genai
+    from google.genai import types
     mp3=wav+".mp3"
     run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
     src=mp3 if os.path.exists(mp3) else wav
     mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
-    b64=base64.b64encode(open(src,"rb").read()).decode()
+    audio=open(src,"rb").read()
     prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
             "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
             "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
             "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
-    body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
-          "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
-    avail=_gemini_models()                      # <-- Google'dan haqiqiy ro'yxat
-    cands=[m for m in sorted(avail,key=_score_model,reverse=True) if _score_model(m)>0]
-    if not cands:
-        raise RuntimeError("audio-model topilmadi. Mavjud: "+", ".join(avail[:8]))
+    cfg=types.GenerateContentConfig(temperature=0, response_mime_type="application/json")
+    part=types.Part.from_bytes(data=audio, mime_type=mime)
+    def parse(resp):
+        arr=_json.loads(resp.text)
+        if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
+        segs=[]
+        for s in arr:
+            t=str(s.get("text","")).strip()
+            if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+        if segs and all(s["end"]<=s["start"] for s in segs):
+            for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
+        return segs
     errors=[]
-    for model in cands[:4]:
-        url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_KEY}"
+    for ver in ["v1beta","v1","v1alpha"]:
         try:
-            r=requests.post(url,json=body,timeout=300)
-            if r.status_code>=400:
-                errors.append(f"{model}:{r.status_code}"); continue
-            j=r.json()
-            txt=j["candidates"][0]["content"]["parts"][0]["text"]
-            arr=_json.loads(txt)
-            if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
-            segs=[]
-            for s in arr:
-                t=str(s.get("text","")).strip()
-                if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
-            if segs and all(s["end"]<=s["start"] for s in segs):
-                for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
-            if segs:
-                return segs, " ".join(s["text"] for s in segs), f"GEMINI:{model}"
-            errors.append(f"{model}:bo'sh")
+            client=genai.Client(api_key=GEMINI_KEY, http_options=types.HttpOptions(api_version=ver))
         except Exception as e:
-            errors.append(f"{model}:{str(e)[:50]}")
-    raise RuntimeError("mavjud: "+",".join(cands[:5])+" || "+" | ".join(errors[:2]))
+            errors.append(f"{ver}:client {str(e)[:35]}"); continue
+        avail=[]
+        try:
+            for m in client.models.list():
+                nm=(m.name or "").split("/")[-1]
+                acts=getattr(m,"supported_actions",None) or []
+                if nm and ((not acts) or ("generateContent" in acts)): avail.append(nm)
+        except Exception: pass
+        prefer=[GEMINI_MODEL,"gemini-2.5-flash","gemini-flash-latest","gemini-3.5-flash","gemini-2.0-flash"]
+        cands=[m for m in prefer if m and (not avail or m in avail)]
+        for m in avail:
+            if "flash" in m.lower() and m not in cands: cands.append(m)
+        if not cands: cands=["gemini-2.5-flash"]
+        for model in cands[:5]:
+            try:
+                resp=client.models.generate_content(model=model, contents=[prompt, part], config=cfg)
+                segs=parse(resp)
+                if segs: return segs, " ".join(s["text"] for s in segs), f"GEMINI:{model}@{ver}"
+                errors.append(f"{ver}/{model}:bo'sh")
+            except Exception as e:
+                errors.append(f"{ver}/{model}:{str(e)[:40]}")
+    raise RuntimeError(" | ".join(errors[:3]))
 
 def transcribe_groq(wav):
     """Groq Whisper (zaxira) -> (segments, matn, til)."""
