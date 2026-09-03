@@ -67,12 +67,12 @@ def ts(t):
 
 # ---------- transkripsiya ----------
 def transcribe_gemini(wav):
-    """Gemini -> (segments, matn, til). O'zbekchani ancha yaxshi taniydi."""
+    """Gemini -> (segments, matn, ishlagan model). Bir necha model nomini sinaydi."""
     import base64, json as _json
     mp3=wav+".mp3"
     run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
     src=mp3 if os.path.exists(mp3) else wav
-    mime="audio/mpeg" if src.endswith(".mp3") else "audio/wav"
+    mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
     b64=base64.b64encode(open(src,"rb").read()).decode()
     prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
             "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
@@ -80,22 +80,33 @@ def transcribe_gemini(wav):
             "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
     body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
           "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
-    url=f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}"
-    r=requests.post(url,json=body,timeout=300); r.raise_for_status()
-    j=r.json()
-    txt=j["candidates"][0]["content"]["parts"][0]["text"]
-    arr=_json.loads(txt)
-    if isinstance(arr,dict):
-        arr=arr.get("segments") or arr.get("data") or []
-    segs=[]
-    for s in arr:
-        t=str(s.get("text","")).strip()
-        if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
-    # vaqtlar bo'sh bo'lsa tartib bilan taxminan to'ldiramiz
-    if segs and all(s["end"]<=s["start"] for s in segs):
-        for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
-    full=" ".join(s["text"] for s in segs)
-    return segs, full, "uzbek(gemini)"
+    candidates=[]
+    for m in [GEMINI_MODEL,"gemini-2.5-flash","gemini-2.0-flash","gemini-flash-latest",
+              "gemini-1.5-flash","gemini-2.5-pro"]:
+        if m and m not in candidates: candidates.append(m)
+    errors=[]
+    for model in candidates:
+        url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_KEY}"
+        try:
+            r=requests.post(url,json=body,timeout=300)
+            if r.status_code>=400:
+                errors.append(f"{model}: {r.status_code} {r.text[:120]}"); continue
+            j=r.json()
+            txt=j["candidates"][0]["content"]["parts"][0]["text"]
+            arr=_json.loads(txt)
+            if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
+            segs=[]
+            for s in arr:
+                t=str(s.get("text","")).strip()
+                if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+            if segs and all(s["end"]<=s["start"] for s in segs):
+                for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
+            if segs:
+                return segs, " ".join(s["text"] for s in segs), f"GEMINI:{model}"
+            errors.append(f"{model}: bo'sh")
+        except Exception as e:
+            errors.append(f"{model}: {str(e)[:80]}")
+    raise RuntimeError(" | ".join(errors[:3]))
 
 def transcribe_groq(wav):
     """Groq Whisper (zaxira) -> (segments, matn, til)."""
@@ -117,9 +128,9 @@ def transcribe(wav):
         segs,full,_=transcribe_groq(wav)
         return segs, full, "GROQ (GEMINI_API_KEY yo'q!)"
     try:
-        segs,full,_=transcribe_gemini(wav)
+        segs,full,eng=transcribe_gemini(wav)
         if segs:
-            return segs, full, "GEMINI ✅"
+            return segs, full, eng + " ✅"
         gerr="Gemini bo'sh natija qaytardi"
     except Exception as e:
         gerr=str(e)[:250]
