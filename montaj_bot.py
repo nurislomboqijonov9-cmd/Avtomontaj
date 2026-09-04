@@ -330,14 +330,17 @@ def render(cut,ass,outp):
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
 
 def duplicate_ranges(segments):
-    """Ketma-ket kelgan o'xshash (takror) SEGMENTlarning BIRINCHISI uchun olib tashlash oralig'i (ehtiyotkor)."""
+    """Takror aytilgan yoki qayta boshlangan (restart) gaplarning birinchisini olib tashlaydi."""
     rem=[]
     for i in range(len(segments)-1):
         a=[_norm(x) for x in segments[i]["text"].split() if _norm(x)]
         b=[_norm(x) for x in segments[i+1]["text"].split() if _norm(x)]
-        if len(a)<3 or len(b)<3: continue
-        sa,sb=set(a),set(b); jac=len(sa&sb)/max(1,len(sa|sb))
-        if jac>=0.75 and abs(len(a)-len(b))<=2:
+        if len(a)<2 or len(b)<2: continue
+        sa,sb=set(a),set(b)
+        jac=len(sa&sb)/max(1,len(sa|sb))       # umumiy o'xshashlik
+        cont=len(sa&sb)/len(sa)                 # a ning qancha qismi keyingisida bor (restart)
+        # to'liq takror (jac yuqori) YOKI qayta boshlash (a deyarli b ichida)
+        if jac>=0.6 or cont>=0.75:
             rem.append((segments[i]["start"]-0.05, segments[i]["end"]+0.05))
     return rem
 
