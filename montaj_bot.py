@@ -73,54 +73,42 @@ def ts(t):
 
 # ---------- transkripsiya ----------
 def transcribe_gemini(wav):
-    """Gemini (RASMIY SDK) -> (segments, matn, model@versiya). 3 API versiyani sinaydi."""
-    import json as _json
-    from google import genai
-    from google.genai import types
+    """Gemini (oddiy REST, SDK'siz) -> (segments, matn, model@ver). Import muammosi yo'q."""
+    import base64, json as _json
     mp3=wav+".mp3"
     run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
     src=mp3 if os.path.exists(mp3) else wav
     mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
-    audio=open(src,"rb").read()
+    b64=base64.b64encode(open(src,"rb").read()).decode()
     prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
             "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
             "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
             "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
-    cfg=types.GenerateContentConfig(temperature=0, response_mime_type="application/json")
-    part=types.Part.from_bytes(data=audio, mime_type=mime)
-    def parse(resp):
-        arr=_json.loads(resp.text)
-        if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
-        segs=[]
-        for s in arr:
-            t=str(s.get("text","")).strip()
-            if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
-        if segs and all(s["end"]<=s["start"] for s in segs):
-            for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
-        return segs
+    body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
+          "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
+    models=[]
+    for m in [GEMINI_MODEL,"gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash","gemini-1.5-flash"]:
+        if m and m not in models: models.append(m)
     errors=[]
-    for ver in ["v1beta","v1","v1alpha"]:
-        try:
-            client=genai.Client(api_key=GEMINI_KEY, http_options=types.HttpOptions(api_version=ver))
-        except Exception as e:
-            errors.append(f"{ver}:client {str(e)[:35]}"); continue
-        avail=[]
-        try:
-            for m in client.models.list():
-                nm=(m.name or "").split("/")[-1]
-                acts=getattr(m,"supported_actions",None) or []
-                if nm and ((not acts) or ("generateContent" in acts)): avail.append(nm)
-        except Exception: pass
-        prefer=[GEMINI_MODEL,"gemini-2.5-flash","gemini-flash-latest","gemini-3.5-flash","gemini-2.0-flash"]
-        cands=[m for m in prefer if m and (not avail or m in avail)]
-        for m in avail:
-            if "flash" in m.lower() and m not in cands: cands.append(m)
-        if not cands: cands=["gemini-2.5-flash"]
-        for model in cands[:5]:
+    for ver in ["v1beta","v1"]:
+        for model in models:
+            url=f"https://generativelanguage.googleapis.com/{ver}/models/{model}:generateContent?key={GEMINI_KEY}"
             try:
-                resp=client.models.generate_content(model=model, contents=[prompt, part], config=cfg)
-                segs=parse(resp)
-                if segs: return segs, " ".join(s["text"] for s in segs), f"GEMINI:{model}@{ver}"
+                r=requests.post(url,json=body,timeout=300)
+                if r.status_code>=400:
+                    errors.append(f"{ver}/{model}:{r.status_code}"); continue
+                j=r.json()
+                txt=j["candidates"][0]["content"]["parts"][0]["text"]
+                arr=_json.loads(txt)
+                if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
+                segs=[]
+                for s in arr:
+                    t=str(s.get("text","")).strip()
+                    if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+                if segs and all(s["end"]<=s["start"] for s in segs):
+                    for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
+                if segs:
+                    return segs, " ".join(s["text"] for s in segs), f"GEMINI:{model}@{ver}"
                 errors.append(f"{ver}/{model}:bo'sh")
             except Exception as e:
                 errors.append(f"{ver}/{model}:{str(e)[:40]}")
