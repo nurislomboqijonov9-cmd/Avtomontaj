@@ -12,7 +12,7 @@ Muhit o'zgaruvchilari (Railway "Variables"):
   TELEGRAM_TOKEN   (@BotFather)
   GROQ_API_KEY     (console.groq.com)
 """
-import os, re, json, asyncio, tempfile, subprocess, shutil, requests
+import os, re, json, time, asyncio, tempfile, subprocess, shutil, requests
 from pyrogram import Client, filters
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +29,7 @@ TG_TOKEN = os.environ.get("TELEGRAM_TOKEN","").strip()
 GROQ_KEY = os.environ.get("GROQ_API_KEY","").strip()
 GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY","").strip()
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL","gemini-2.0-flash").strip()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL","gemini-flash-latest").strip()
 # --- Vertex AI (Google Cloud, $300 kredit) ---
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID","").strip()
 GCP_LOCATION = (os.environ.get("GCP_LOCATION","us-central1") or "us-central1").strip()
@@ -87,14 +87,24 @@ def transcribe_gemini(wav):
     body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
           "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
     models=[]
-    for m in [GEMINI_MODEL,"gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash","gemini-1.5-flash"]:
+    for m in [GEMINI_MODEL,"gemini-flash-latest","gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-flash"]:
         if m and m not in models: models.append(m)
+    def post_retry(url):
+        last=None
+        for k in range(4):
+            rr=requests.post(url,json=body,timeout=300)
+            if rr.status_code<400: return rr
+            last=rr
+            if rr.status_code in (429,500,502,503,504):   # vaqtinchalik xato -> qayta urin
+                time.sleep(2*(k+1)); continue
+            return rr
+        return last
     errors=[]
     for ver in ["v1beta","v1"]:
         for model in models:
             url=f"https://generativelanguage.googleapis.com/{ver}/models/{model}:generateContent?key={GEMINI_KEY}"
             try:
-                r=requests.post(url,json=body,timeout=300)
+                r=post_retry(url)
                 if r.status_code>=400:
                     errors.append(f"{ver}/{model}:{r.status_code}"); continue
                 j=r.json()
@@ -161,11 +171,21 @@ def transcribe_vertex(wav):
     models=[]
     for m in [VERTEX_MODEL,"gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-flash-002","gemini-1.5-flash"]:
         if m and m not in models: models.append(m)
+    def post_retry(url):
+        last=None
+        for k in range(4):
+            rr=requests.post(url,headers=headers,json=body,timeout=300)
+            if rr.status_code<400: return rr
+            last=rr
+            if rr.status_code in (429,500,502,503,504):   # vaqtinchalik -> qayta urin
+                time.sleep(2*(k+1)); continue
+            return rr
+        return last
     errors=[]
     for model in models:
         url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:generateContent"
         try:
-            r=requests.post(url,headers=headers,json=body,timeout=300)
+            r=post_retry(url)
             if r.status_code>=400:
                 errors.append(f"{model}:{r.status_code} {r.text[:70]}"); continue
             j=r.json()
@@ -193,14 +213,10 @@ def transcribe(wav):
             if segs: return segs,full,eng+" ✅"
             verr="bo'sh natija"
         except Exception as e:
-            verr=str(e)[:250]
-        if GEMINI_KEY:
-            try:
-                segs,full,eng=transcribe_gemini(wav)
-                if segs: return segs,full,eng+" ✅"
-            except Exception: pass
+            verr=str(e)[:300]
+        # Vertex majburiy rejim: xatoni YASHIRMAYMIZ (Gemini'ga o'tmaymiz), sababni ko'rsatamiz
         segs,full,_=transcribe_groq(wav)
-        return segs,full,f"GROQ (vertex xato: {verr})"
+        return segs,full,f"GROQ (VERTEX xato: {verr})"
     if GEMINI_KEY:
         try:
             segs,full,eng=transcribe_gemini(wav)
