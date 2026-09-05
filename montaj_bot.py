@@ -87,9 +87,10 @@ def transcribe_gemini(wav):
     mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
     b64=base64.b64encode(open(src,"rb").read()).decode()
     prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
-            "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
+            "HAR BIR SO'Z uchun audiodagi aniq boshlanish (s) va tugash (e) vaqtini soniyada ber. "
+            "Vaqtlar ovozga aniq mos kelsin (sinxron muhim). "
             "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
-            "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
+            "JSON massiv qaytar: [{\"w\":\"so'z\",\"s\":0.0,\"e\":0.0}].")
     body={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime,"data":b64}}]}],
           "generationConfig":{"temperature":0,"response_mime_type":"application/json"}}
     models=[]
@@ -119,8 +120,8 @@ def transcribe_gemini(wav):
                 if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
                 segs=[]
                 for s in arr:
-                    t=str(s.get("text","")).strip()
-                    if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+                    t=str(s.get("w") or s.get("text") or "").strip()
+                    if t: segs.append({"text":t,"start":float(s.get("s", s.get("start",0)) or 0),"end":float(s.get("e", s.get("end",0)) or 0)})
                 if segs and all(s["end"]<=s["start"] for s in segs):
                     for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
                 if segs:
@@ -164,9 +165,10 @@ def transcribe_vertex(wav):
     mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
     b64=base64.b64encode(open(src,"rb").read()).decode()
     prompt=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
-            "Har bir gap/ibora uchun boshlanish va tugash vaqti (soniyada) bilan segment ber. "
+            "HAR BIR SO'Z uchun audiodagi aniq boshlanish (s) va tugash (e) vaqtini soniyada ber. "
+            "Vaqtlar ovozga aniq mos kelsin (sinxron muhim). "
             "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
-            "JSON massiv qaytar: [{\"start\":son,\"end\":son,\"text\":\"...\"}].")
+            "JSON massiv qaytar: [{\"w\":\"so'z\",\"s\":0.0,\"e\":0.0}].")
     body={"contents":[{"role":"user","parts":[{"text":prompt},{"inlineData":{"mimeType":mime,"data":b64}}]}],
           "generationConfig":{"temperature":0,"responseMimeType":"application/json"}}
     if GCP_LOCATION=="global":
@@ -200,8 +202,8 @@ def transcribe_vertex(wav):
             if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or []
             segs=[]
             for s in arr:
-                t=str(s.get("text","")).strip()
-                if t: segs.append({"text":t,"start":float(s.get("start",0) or 0),"end":float(s.get("end",0) or 0)})
+                t=str(s.get("w") or s.get("text") or "").strip()
+                if t: segs.append({"text":t,"start":float(s.get("s", s.get("start",0)) or 0),"end":float(s.get("e", s.get("end",0)) or 0)})
             if segs and all(s["end"]<=s["start"] for s in segs):
                 for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
             if segs:
@@ -440,15 +442,17 @@ def pexels_image(query, dest):
     return dest
 
 def build_brolls(full_text, dur, work):
-    """Fail-safe: xato bo'lsa bo'sh ro'yxat (video baribir chiqadi).
-    Rasm manbasi: Vertex Imagen (bo'lsa) -> Pexels (bo'lsa)."""
+    """Fail-safe: xato bo'lsa bo'sh ro'yxat + sabab (video baribir chiqadi).
+    Rasm manbasi: Vertex Imagen (bo'lsa) -> Pexels (bo'lsa). Qaytaradi: (ro'yxat, izoh)."""
     use_imagen = bool(GCP_PROJECT and (GCP_SA_JSON or VERTEX_TOKEN))
-    if not (CFG.get("broll") and full_text and (use_imagen or PEXELS_KEY)): return []
+    if not CFG.get("broll"): return [], "o'chirilgan"
+    if not (use_imagen or PEXELS_KEY): return [], "manba yo'q"
+    if not full_text: return [], "matn yo'q"
     try:
         plan=broll_plan(full_text, dur, CFG.get("broll_soni",4))
     except Exception as e:
-        print("broll_plan xato:", str(e)[:120]); return []
-    d=CFG.get("broll_davomiylik",2.5); out=[]
+        return [], f"plan xato: {str(e)[:120]}"
+    d=CFG.get("broll_davomiylik",2.5); out=[]; err=""
     for i,(q,t) in enumerate(plan):
         try:
             p=os.path.join(work,f"broll_{i}.png")
@@ -456,9 +460,12 @@ def build_brolls(full_text, dur, work):
             if got:
                 st=max(0.0, min(dur-d, t-d/2))
                 out.append((p, round(st,2), d))
+            else:
+                err="rasm olinmadi (Imagen/Pexels bo'sh)"
         except Exception as e:
-            print("broll rasm xato:", str(e)[:80])
-    return out
+            err=str(e)[:100]
+    note=f"{len(out)} ta" if out else (err or "0")
+    return out, note
 
 # ---------- takror gaplarni topish ----------
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
@@ -512,18 +519,25 @@ def process_video(inp,work):
     base=os.path.join(work,"job"); wav=base+"_16k.wav"
     run(["ffmpeg","-y","-loglevel","error","-i",inp,"-ar","16000","-ac","1",wav])
     dur=ffdur(inp)
-    segments, full_text, lang = transcribe(wav)
+    segments, full_text, lang = transcribe(wav)      # segments = SO'Z-darajali (har biri 1 so'z, aniq vaqt)
     segments = normalize_segments(segments, dur)
-    words = words_from_segments(segments)          # uzluksiz subtitr
+    words = words_from_segments(segments)            # aniq so'z vaqtlari (sinxron)
+    # takror-topish uchun so'zlardan gaplar tuzamiz (pauzaga qarab)
+    sents=[]; cur=[]
+    for sg in segments:
+        if cur and sg["start"]-cur[-1]["end"]>0.5: sents.append(cur); cur=[]
+        cur.append(sg)
+    if cur: sents.append(cur)
+    sent_segs=[{"text":" ".join(x["text"] for x in s),"start":s[0]["start"],"end":s[-1]["end"]} for s in sents]
     keep=keep_segments(dur,detect_silences(inp),CFG["kesish_pad"])
-    dups=duplicate_ranges(segments) if CFG.get("takror_olib_tashlash",True) else []
+    dups=duplicate_ranges(sent_segs) if CFG.get("takror_olib_tashlash",True) else []
     segs=subtract_ranges(keep,dups) if dups else keep
     cut=base+"_cut.mp4"; segs=cut_video(inp,cut,segs)
     words=remap(words,segs) if len(segs)>1 else words
     ass=base+".ass"; open(ass,"w",encoding="utf-8").write(build_ass(words,1080,1920))
-    brolls=build_brolls(full_text, ffdur(cut), work)     # gapga mos rasm (fail-safe)
+    brolls,bnote=build_brolls(full_text, ffdur(cut), work)   # gapga mos rasm (fail-safe)
     out=base+"_final.mp4"; ok=render(cut,ass,out,brolls)
-    return (out if ok else None), len(words), dur, ffdur(cut), full_text, lang
+    return (out if ok else None), len(words), dur, ffdur(cut), full_text, lang+f" | broll:{bnote}"
 
 # ---------- Telegram (Pyrogram) ----------
 app = Client("montaj", api_id=API_ID, api_hash=API_HASH, bot_token=TG_TOKEN,
