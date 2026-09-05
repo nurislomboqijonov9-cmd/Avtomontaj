@@ -36,6 +36,7 @@ GCP_LOCATION = (os.environ.get("GCP_LOCATION","us-central1") or "us-central1").s
 GCP_SA_JSON = os.environ.get("GCP_SA_JSON","").strip()          # service account JSON (butun matn)
 VERTEX_TOKEN = os.environ.get("VERTEX_ACCESS_TOKEN","").strip() # yoki tayyor token (AQ...)
 VERTEX_MODEL = os.environ.get("VERTEX_MODEL","gemini-2.5-flash").strip()
+PEXELS_KEY = os.environ.get("PEXELS_API_KEY","").strip()   # b-roll (bepul stok rasm) uchun
 FONTS_DIR = os.path.join(HERE,"fonts") if os.path.isdir(os.path.join(HERE,"fonts")) else HERE
 
 CFG = {
@@ -43,9 +44,14 @@ CFG = {
     "jimlik_dB":-30, "jimlik_min_soniya":0.9, "kesish_pad":0.12,
     "sozlar_soni":3, "shrift":"Anton", "shrift_olcham":90,
     "asosiy_rang":"#FFFFFF", "faol_rang":"#FFEA00", "chegara_rang":"#000000",
-    "chegara":4, "bosh_harf":True, "past_chetdan":340,
+    "chegara":4, "bosh_harf":True, "past_chetdan":660,
+    "broll_y":0.72,                # b-roll vertikal joyi (0=tepa,1=past) — subtitr ostida
     "zoom":True, "ovoz_tozalash":True,
     "takror_olib_tashlash":True,   # takror aytilgan gaplarni olib tashlash
+    "subtitr_kechikish":0.20,      # subtitrni shuncha soniya kechiktirish (ovozga mos kelsin)
+    "broll":True,                  # gapga mos rasm (b-roll) qo'shish (PEXELS_API_KEY kerak)
+    "broll_soni":4,                # nechta b-roll
+    "broll_davomiylik":2.5,        # har biri necha soniya ko'rinadi
 }
 
 # ---------- yordamchi ----------
@@ -321,26 +327,138 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
         for i,w in enumerate(cue):
             parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==i else d for j,d in enumerate(disp)]
             ov="{\\fad(50,0)\\fscx92\\fscy92\\t(0,110,\\fscx100\\fscy100)}" if i==0 else ""
-            lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(w["s"]),ts(w["e"]),ov," ".join(parts)))
+            off=CFG.get("subtitr_kechikish",0.0)
+            lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(w["s"]+off),ts(w["e"]+off),ov," ".join(parts)))
     return head+"\n".join(lines)+"\n"
 
 # ---------- render ----------
-def render(cut,ass,outp):
+def render(cut,ass,outp,brolls=None):
+    brolls=brolls or []
     W,H=1080,1920
     ae=ass.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
     if CFG["zoom"]:
-        vf=(f"scale={int(W*1.12)}:{int(H*1.12)}:force_original_aspect_ratio=increase,crop={int(W*1.12)}:{int(H*1.12)},"
-            f"zoompan=z='min(1.0+0.0004*in,1.05)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps=30,"
-            f"eq=contrast=1.05:saturation=1.08,setsar=1,{sub}")
+        basev=(f"[0:v]scale={int(W*1.12)}:{int(H*1.12)}:force_original_aspect_ratio=increase,crop={int(W*1.12)}:{int(H*1.12)},"
+               f"zoompan=z='min(1.0+0.0004*in,1.05)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps=30,"
+               f"eq=contrast=1.05:saturation=1.08,setsar=1,{sub}[base]")
     else:
-        vf=f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,{sub}"
+        basev=(f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,{sub}[base]")
     af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if CFG["ovoz_tozalash"] else "aresample=48000"
-    c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",cut,"-vf",vf,"-af",af,
+    parts=[basev]; cur="[base]"; inputs=["-i",cut]; bw=int(W*0.78)
+    for k,(p,s,d) in enumerate(brolls):
+        inputs+=["-loop","1","-t",f"{d}","-i",p]
+        idx=k+1
+        parts.append(f"[{idx}:v]scale={bw}:-1,format=yuva420p,"
+                     f"fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(0.01,d-0.3):.2f}:d=0.3:alpha=1,"
+                     f"setpts=PTS+{s:.2f}/TB[ov{k}]")
+        nxt=f"[vb{k}]"
+        parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(H*CFG.get('broll_y',0.66))}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
+        cur=nxt
+    parts.append(f"[0:a]{af}[aout]")
+    fc=";".join(parts)
+    cmd=["ffmpeg","-y","-hide_banner","-loglevel","error"]+inputs+[
+        "-filter_complex",fc,"-map",cur,"-map","[aout]",
         "-r","30","-c:v","libx264","-preset","medium","-crf","20","-pix_fmt","yuv420p",
-        "-c:a","aac","-b:a","160k",outp])
+        "-c:a","aac","-b:a","160k",outp]
+    c,_=run(cmd)
     return c==0 and os.path.exists(outp)
+
+# ---------- B-ROLL (gapga mos rasm) ----------
+def _ai_json(prompt):
+    """Vertex (bo'lsa) yoki Gemini API orqali JSON javob oladi."""
+    if GCP_PROJECT and (GCP_SA_JSON or VERTEX_TOKEN):
+        token=_vertex_token()
+        if GCP_LOCATION=="global": host="aiplatform.googleapis.com"; loc="global"
+        else: host=f"{GCP_LOCATION}-aiplatform.googleapis.com"; loc=GCP_LOCATION
+        url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{VERTEX_MODEL}:generateContent"
+        body={"contents":[{"role":"user","parts":[{"text":prompt}]}],
+              "generationConfig":{"temperature":0.4,"responseMimeType":"application/json"}}
+        r=requests.post(url,headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"},json=body,timeout=60)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    url=f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}"
+    body={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.4,"response_mime_type":"application/json"}}
+    r=requests.post(url,json=body,timeout=60); r.raise_for_status()
+    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+def broll_plan(full_text, dur, n=4):
+    prompt=(f"Video transkripti (o'zbekcha): \"{full_text[:1500]}\"\n"
+            f"Video uzunligi: {int(dur)} soniya.\n"
+            f"Shu gap mazmuniga mos {n} ta B-ROLL rasm g'oyasini ber. "
+            f"Har biri uchun: 'prompt' = INGLIZCHA, aniq, tasviriy rasm generatsiya prompti "
+            f"(fotorealistik, kinematik, ichida MATN/YOZUV bo'lmasin), "
+            f"va 'at' = videodagi joyi 0.0 dan 1.0 gacha. Butun video bo'ylab tarqat. "
+            f"JSON qaytar: [{{\"prompt\":\"...\",\"at\":0.0}}].")
+    txt=_ai_json(prompt)
+    import json as _json
+    arr=_json.loads(txt)
+    if isinstance(arr,dict): arr=arr.get("brolls") or arr.get("data") or arr.get("items") or []
+    out=[]
+    for it in arr:
+        q=str(it.get("prompt") or it.get("keyword") or "").strip()
+        at=float(it.get("at",0) or 0)
+        if q: out.append((q, max(0.0,min(1.0,at))*dur))
+    return out
+
+def imagen_vertex(prompt, dest):
+    """Vertex Imagen bilan rasm chizadi (matn-to-rasm). $300 kreditdan."""
+    import base64, json as _json
+    token=_vertex_token()
+    if GCP_LOCATION=="global": host="us-central1-aiplatform.googleapis.com"; loc="us-central1"
+    else: host=f"{GCP_LOCATION}-aiplatform.googleapis.com"; loc=GCP_LOCATION
+    headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+    body={"instances":[{"prompt":prompt}],
+          "parameters":{"sampleCount":1,"aspectRatio":"16:9"}}
+    for model in ["imagen-4.0-fast-generate-001","imagen-4.0-generate-001",
+                  "imagen-3.0-generate-002","imagen-3.0-generate-001","imagegeneration@006"]:
+        url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:predict"
+        try:
+            r=requests.post(url,headers=headers,json=body,timeout=120)
+            if r.status_code>=400: continue
+            preds=r.json().get("predictions",[])
+            if not preds: continue
+            b64=preds[0].get("bytesBase64Encoded") or preds[0].get("image",{}).get("bytesBase64Encoded")
+            if not b64: continue
+            with open(dest,"wb") as f: f.write(base64.b64decode(b64))
+            return dest
+        except Exception:
+            continue
+    return None
+
+def pexels_image(query, dest):
+    r=requests.get("https://api.pexels.com/v1/search",
+        headers={"Authorization":PEXELS_KEY},
+        params={"query":query,"per_page":3,"orientation":"landscape"},timeout=30)
+    if r.status_code>=400: return None
+    photos=r.json().get("photos",[])
+    if not photos: return None
+    src=photos[0]["src"].get("large2x") or photos[0]["src"].get("large") or photos[0]["src"].get("original")
+    im=requests.get(src,timeout=30)
+    if im.status_code>=400: return None
+    with open(dest,"wb") as f: f.write(im.content)
+    return dest
+
+def build_brolls(full_text, dur, work):
+    """Fail-safe: xato bo'lsa bo'sh ro'yxat (video baribir chiqadi).
+    Rasm manbasi: Vertex Imagen (bo'lsa) -> Pexels (bo'lsa)."""
+    use_imagen = bool(GCP_PROJECT and (GCP_SA_JSON or VERTEX_TOKEN))
+    if not (CFG.get("broll") and full_text and (use_imagen or PEXELS_KEY)): return []
+    try:
+        plan=broll_plan(full_text, dur, CFG.get("broll_soni",4))
+    except Exception as e:
+        print("broll_plan xato:", str(e)[:120]); return []
+    d=CFG.get("broll_davomiylik",2.5); out=[]
+    for i,(q,t) in enumerate(plan):
+        try:
+            p=os.path.join(work,f"broll_{i}.png")
+            got = imagen_vertex(q,p) if use_imagen else pexels_image(q,p)
+            if got:
+                st=max(0.0, min(dur-d, t-d/2))
+                out.append((p, round(st,2), d))
+        except Exception as e:
+            print("broll rasm xato:", str(e)[:80])
+    return out
 
 # ---------- takror gaplarni topish ----------
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
@@ -403,7 +521,8 @@ def process_video(inp,work):
     cut=base+"_cut.mp4"; segs=cut_video(inp,cut,segs)
     words=remap(words,segs) if len(segs)>1 else words
     ass=base+".ass"; open(ass,"w",encoding="utf-8").write(build_ass(words,1080,1920))
-    out=base+"_final.mp4"; ok=render(cut,ass,out)
+    brolls=build_brolls(full_text, ffdur(cut), work)     # gapga mos rasm (fail-safe)
+    out=base+"_final.mp4"; ok=render(cut,ass,out,brolls)
     return (out if ok else None), len(words), dur, ffdur(cut), full_text, lang
 
 # ---------- Telegram (Pyrogram) ----------
