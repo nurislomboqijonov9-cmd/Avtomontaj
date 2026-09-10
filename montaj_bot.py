@@ -323,14 +323,22 @@ Style: Main,{CFG['shrift']},{CFG['shrift_olcham']},{base},{base},{outl},&H640000
 [Events]
 Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
 """
+    off=CFG.get("subtitr_kechikish",0.0)
+    cues=group_cues(words,CFG["sozlar_soni"])
+    # so'zlarni tekislaymiz: har bir so'z KEYINGI so'z boshlangunча ko'rinadi (bo'shliq yo'q -> chirillamaydi)
+    flat=[]
+    for cue in cues:
+        for wi,w in enumerate(cue):
+            flat.append((cue,wi,w))
     lines=[]
-    for cue in group_cues(words,CFG["sozlar_soni"]):
-        disp=[(w["w"].upper() if upper else w["w"]).replace("{","(").replace("}",")") for w in cue]
-        for i,w in enumerate(cue):
-            parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==i else d for j,d in enumerate(disp)]
-            ov="{\\fad(50,0)\\fscx92\\fscy92\\t(0,110,\\fscx100\\fscy100)}" if i==0 else ""
-            off=CFG.get("subtitr_kechikish",0.0)
-            lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(w["s"]+off),ts(w["e"]+off),ov," ".join(parts)))
+    for idx,(cue,wi,w) in enumerate(flat):
+        start=w["s"]
+        end=flat[idx+1][2]["s"] if idx+1<len(flat) else w["e"]+0.4   # keyingi so'z boshigacha (uzluksiz)
+        if end<=start: end=start+0.25
+        disp=[(x["w"].upper() if upper else x["w"]).replace("{","(").replace("}",")") for x in cue]
+        parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
+        ov="{\\fad(60,0)\\fscx94\\fscy94\\t(0,120,\\fscx100\\fscy100)}" if wi==0 else ""  # faqat cue paydo bo'lganда yumshoq
+        lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov," ".join(parts)))
     return head+"\n".join(lines)+"\n"
 
 # ---------- render ----------
@@ -403,6 +411,42 @@ def broll_plan(full_text, dur, n=4):
         if q: out.append((q, max(0.0,min(1.0,at))*dur))
     return out
 
+def gemini_image_vertex(prompt, dest):
+    """Vertex generateContent (bu endpoint ishlayapti) orqali rasm chizadi.
+    gemini-2.5-flash-image / gemini-2.0-flash...-image modellari inlineData(base64) qaytaradi."""
+    import base64, json as _json
+    token=_vertex_token()
+    if GCP_LOCATION=="global":
+        host="aiplatform.googleapis.com"; loc="global"
+    else:
+        host=f"{GCP_LOCATION}-aiplatform.googleapis.com"; loc=GCP_LOCATION
+    headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+    full=("Generate a single photorealistic, cinematic 16:9 image. "
+          "NO text, NO letters, NO captions, NO watermark in the image. Subject: "+prompt)
+    body={"contents":[{"role":"user","parts":[{"text":full}]}],
+          "generationConfig":{"responseModalities":["TEXT","IMAGE"]}}
+    errs=[]
+    for model in ["gemini-2.5-flash-image","gemini-2.0-flash-preview-image-generation",
+                  "gemini-2.5-flash-image-preview"]:
+        url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:generateContent"
+        try:
+            r=requests.post(url,headers=headers,json=body,timeout=120)
+            if r.status_code>=400:
+                errs.append(f"{model}:{r.status_code} {r.text[:50]}"); continue
+            j=r.json()
+            b64=None
+            for cand in j.get("candidates",[]):
+                for part in cand.get("content",{}).get("parts",[]):
+                    inl=part.get("inlineData") or part.get("inline_data")
+                    if inl and inl.get("data"): b64=inl["data"]; break
+                if b64: break
+            if not b64: errs.append(f"{model}:rasm yo'q"); continue
+            with open(dest,"wb") as f: f.write(base64.b64decode(b64))
+            return dest
+        except Exception as e:
+            errs.append(f"{model}:{str(e)[:40]}")
+    raise RuntimeError(" || ".join(errs[:2]) or "gemini-image ishlamadi")
+
 def imagen_vertex(prompt, dest):
     """Vertex Imagen bilan rasm chizadi (matn-to-rasm). $300 kreditdan."""
     import base64, json as _json
@@ -412,21 +456,23 @@ def imagen_vertex(prompt, dest):
     headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
     body={"instances":[{"prompt":prompt}],
           "parameters":{"sampleCount":1,"aspectRatio":"16:9"}}
+    errs=[]
     for model in ["imagen-4.0-fast-generate-001","imagen-4.0-generate-001",
                   "imagen-3.0-generate-002","imagen-3.0-generate-001","imagegeneration@006"]:
         url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:predict"
         try:
             r=requests.post(url,headers=headers,json=body,timeout=120)
-            if r.status_code>=400: continue
+            if r.status_code>=400:
+                errs.append(f"{model}:{r.status_code} {r.text[:60]}"); continue
             preds=r.json().get("predictions",[])
-            if not preds: continue
+            if not preds: errs.append(f"{model}:preds bo'sh"); continue
             b64=preds[0].get("bytesBase64Encoded") or preds[0].get("image",{}).get("bytesBase64Encoded")
-            if not b64: continue
+            if not b64: errs.append(f"{model}:b64 yo'q"); continue
             with open(dest,"wb") as f: f.write(base64.b64decode(b64))
             return dest
-        except Exception:
-            continue
-    return None
+        except Exception as e:
+            errs.append(f"{model}:{str(e)[:40]}")
+    raise RuntimeError(" || ".join(errs[:2]) or "imagen ishlamadi")
 
 def pexels_image(query, dest):
     r=requests.get("https://api.pexels.com/v1/search",
@@ -453,17 +499,30 @@ def build_brolls(full_text, dur, work):
     except Exception as e:
         return [], f"plan xato: {str(e)[:120]}"
     d=CFG.get("broll_davomiylik",2.5); out=[]; err=""
+    def make_image(q,p):
+        """Vertex bo'lsa: avval gemini-image (ishonchli endpoint), keyin Imagen. Aks holda Pexels."""
+        if use_imagen:
+            e1=""
+            try:
+                return gemini_image_vertex(q,p)
+            except Exception as ex:
+                e1=str(ex)[:70]
+            try:
+                return imagen_vertex(q,p)
+            except Exception as ex:
+                raise RuntimeError(f"gem-img[{e1}] / imagen[{str(ex)[:70]}]")
+        return pexels_image(q,p)
     for i,(q,t) in enumerate(plan):
         try:
             p=os.path.join(work,f"broll_{i}.png")
-            got = imagen_vertex(q,p) if use_imagen else pexels_image(q,p)
+            got = make_image(q,p)
             if got:
                 st=max(0.0, min(dur-d, t-d/2))
                 out.append((p, round(st,2), d))
             else:
-                err="rasm olinmadi (Imagen/Pexels bo'sh)"
+                err="rasm olinmadi (bo'sh)"
         except Exception as e:
-            err=str(e)[:100]
+            err=str(e)[:160]; break   # rasm-model umuman ishlamasa, qayta-qayta urinmaymiz
     note=f"{len(out)} ta" if out else (err or "0")
     return out, note
 
