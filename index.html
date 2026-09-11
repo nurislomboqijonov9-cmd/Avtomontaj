@@ -178,8 +178,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.92);backdrop-f
           <div class="card">
             <h3>💬 Subtitr</h3>
             <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> Subtitr yoqilgan</label>
-            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">-0.12</b>s <span class="hint">(orqada qolsa − ga, oldinda ketsa + ga suring, pleyerda jonli ko'rasiz)</span></div>
-              <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="-0.12" oninput="subChanged()"></div>
+            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">0.00</b>s <span class="hint">(orqada qolsa − ga, oldinda ketsa + ga suring, pleyerda jonli ko'rasiz)</span></div>
+              <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="0" oninput="subChanged()"></div>
             <div class="field"><div class="lbl">Balandligi (pastdan): <b id="mvV">660</b></div>
               <input type="range" id="mv" min="120" max="1300" step="10" value="660" oninput="subChanged()"></div>
             <div class="field"><div class="lbl">Shrift o'lchami: <b id="szV">90</b></div>
@@ -323,7 +323,7 @@ function upload(f){
   xhr.onerror=()=>$("upTxt").innerHTML='<span class=err>Tarmoq xatosi</span>';
   xhr.send(fd);
 }
-function defaultSub(){return{on:true,delay:-0.12,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
+function defaultSub(){return{on:true,delay:0.0,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
 function currentSub(){return{delay:S.sub.delay,margin_v:S.sub.margin,size:S.sub.size,words:S.sub.words,
   active:S.sub.active,base:S.sub.base,upper:S.sub.upper,font:"Anton",outline:"#000000",border:4}}
 

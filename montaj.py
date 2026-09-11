@@ -351,18 +351,18 @@ def transcribe(wav):
 
 # ---------- so'z / vaqt ----------
 def normalize_words(segs, dur):
-    """So'zlarni tartiblaydi: o'sish tartibi, ustma-ust tushmasin, 0..dur."""
+    """So'zlarni tartiblaydi. STT'ning ANIQ boshlanish vaqtini SAQLAYDI —
+    ustma-ustlikда oldingi so'z oxirini qisqartiradi (so'z boshini surmaydi)."""
     segs=[s for s in segs if str(s.get("text","")).strip()]
-    segs.sort(key=lambda s:s["start"])
-    out=[]; prev_end=0.0
+    segs.sort(key=lambda s:float(s["start"]))
+    out=[]
     for s in segs:
-        st=max(0.0,min(float(s["start"]),dur))
+        st=max(0.0,min(float(s["start"]),dur))       # aniq boshlanish — SAQLANADI
         en=float(s["end"])
-        if en<=st: en=st+0.4
-        st=max(st,prev_end)              # oldingidan keyin (uzluksiz, ustma-ust yo'q)
-        en=min(max(en,st+0.15),dur)
+        if en<=st: en=st+0.25
+        en=min(en,dur)
+        if out and out[-1]["e"]>st: out[-1]["e"]=round(st,3)   # oldingi so'z oxirini qisqartiramiz
         out.append({"w":s["text"].strip(),"s":round(st,3),"e":round(en,3)})
-        prev_end=en
     return out
 
 def normalize_segments(segs, dur):

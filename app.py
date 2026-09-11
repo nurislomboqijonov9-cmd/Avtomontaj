@@ -226,7 +226,7 @@ async def auto(req: Request, x_auth: str = Header("")):
     n = int(body.get("broll_n", 4))
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     broll_y = float(body.get("broll_y", 0.72)); do_broll = bool(body.get("broll", True))
-    sub = body.get("subtitle") or {"delay": -0.12, "margin_v": 660, "size": 90, "words": 3,
+    sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
         "active": "#ffea00", "base": "#ffffff", "upper": True, "font": "Anton",
         "outline": "#000000", "border": 4}
     jid = new_job()
