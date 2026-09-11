@@ -93,11 +93,15 @@ async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
             chunk = await file.read(1024 * 1024)
             if not chunk: break
             f.write(chunk)
-    dur = montaj.ffdur(inp)
-    meta = {"id": pid, "input": os.path.basename(inp), "name": file.filename or "video",
+    # BARQAROR kadr tezligiga keltiramiz (subtitr drift'ini yo'q qiladi)
+    norm = os.path.join(d, "input_cfr.mp4")
+    work_input = montaj.prepare_cfr(inp, norm)
+    use = os.path.basename(work_input)
+    dur = montaj.ffdur(work_input)
+    meta = {"id": pid, "input": use, "orig": os.path.basename(inp), "name": file.filename or "video",
             "created": int(time.time()), "duration": round(dur, 2), "stage": "uploaded"}
     save_meta(pid, meta)
-    return {"project": pid, "video_url": f"/media/{pid}/{os.path.basename(inp)}",
+    return {"project": pid, "video_url": f"/media/{pid}/{use}",
             "duration": meta["duration"], "name": meta["name"]}
 
 # ---------- 2) TAHLIL ----------

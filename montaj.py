@@ -40,6 +40,15 @@ def run(cmd, capture=False):
         return p.returncode,p.stdout
     return subprocess.run(cmd).returncode,""
 
+def prepare_cfr(src, dst, fps=30):
+    """Videoni BARQAROR kadr tezligiga (CFR) va 48k audioga keltiradi.
+    VFR (o'zgaruvchan kadr) sabab bo'ladigan subtitr 'drift'ini yo'q qiladi."""
+    c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",src,
+        "-r",str(fps),"-vsync","cfr","-c:v","libx264","-preset","veryfast","-crf","18",
+        "-c:a","aac","-ar","48000","-ac","2","-movflags","+faststart",dst])
+    if c==0 and os.path.exists(dst) and ffdur(dst)>0: return dst
+    return src
+
 def ffdur(p):
     c,o=run(["ffprobe","-v","error","-show_entries","format=duration",
              "-of","default=noprint_wrappers=1:nokey=1",p],capture=True)
@@ -192,7 +201,8 @@ def stt_words_gcp(clip_path):
 def gemini_words_clip(clip_path):
     """Gemini'дан bo'lak matni (o'zbekcha sifatli) — [{w,s,e}] (vaqt taxminiy)."""
     b64=base64.b64encode(open(clip_path,"rb").read()).decode()
-    txt,model=_vertex_audio_call(b64,"audio/mp3",_PROMPT_WORDS)
+    mime="audio/wav" if clip_path.endswith(".wav") else "audio/mp3"
+    txt,model=_vertex_audio_call(b64,mime,_PROMPT_WORDS)
     arr=json.loads(txt)
     if isinstance(arr,dict): arr=arr.get("words") or arr.get("segments") or arr.get("data") or []
     out=[]
@@ -271,8 +281,9 @@ def transcribe_words_vertex(wav, chunk=18.0, overlap=1.5, _clip_fn=None, _dur=No
         if _clip_fn is not None:
             ws=_clip_fn(s,e)
         else:
-            clip=wav+f".{int(s*100)}.mp3"
-            run(["ffmpeg","-y","-loglevel","error","-ss",f"{s:.2f}","-to",f"{e:.2f}","-i",wav,"-b:a","64k",clip])
+            clip=wav+f".{int(s*100)}.wav"    # WAV — kodek kechikishi yo'q, sample-aniq
+            run(["ffmpeg","-y","-loglevel","error","-ss",f"{s:.2f}","-to",f"{e:.2f}","-i",wav,
+                 "-ar","16000","-ac","1","-c:a","pcm_s16le",clip])
             ws=_clip_words_real(clip)         # STT vaqti + Gemini matni
             used_model="STT+Gemini"
             try: os.remove(clip)
