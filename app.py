@@ -59,7 +59,14 @@ STATIC = os.path.join(HERE, "static")
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return open(os.path.join(STATIC, "index.html"), encoding="utf-8").read()
+    # index.html qayerda bo'lsa ham topamiz (static/ ichida yoki asosiy papkada)
+    for p in [os.path.join(STATIC, "index.html"),
+              os.path.join(HERE, "index.html"),
+              os.path.join(HERE, "static", "index.html")]:
+        if os.path.exists(p):
+            return open(p, encoding="utf-8").read()
+    return HTMLResponse("<h2>index.html topilmadi.</h2>"
+        "<p>index.html faylini repo'ga (static/ papkasiga yoki asosiy papkaga) yuklang.</p>", status_code=500)
 
 @app.get("/api/config")
 def config():
