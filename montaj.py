@@ -71,11 +71,13 @@ def _vertex_host():
     return f"{GCP_LOCATION}-aiplatform.googleapis.com", GCP_LOCATION
 
 # ---------- transkripsiya ----------
+# IBORA (gap bo'lagi) darajasida — so'zma-so'z vaqtdan ko'ra BARQAROR va silliq.
 _PROMPT_ASR=("Quyidagi O'ZBEK tilidagi audioni juda ANIQ transkripsiya qil. "
-    "HAR BIR SO'Z uchun audiodagi aniq boshlanish (s) va tugash (e) vaqtini soniyada ber. "
-    "Vaqtlar ovozga aniq mos kelsin (sinxron muhim). "
+    "Matnni tabiiy IBORALARGA (2-6 so'zdan, pauzalarga qarab) bo'l. "
+    "HAR BIR IBORA uchun audiodagi aniq boshlanish (s) va tugash (e) vaqtini SONIYADA ber. "
+    "Vaqtlar ovozga juda aniq mos kelsin (sinxron eng muhim). "
     "Matn to'g'ri o'zbek lotin yozuvida bo'lsin (turkcha emas). "
-    "JSON massiv qaytar: [{\"w\":\"so'z\",\"s\":0.0,\"e\":0.0}].")
+    "JSON massiv qaytar: [{\"text\":\"ibora\",\"s\":0.0,\"e\":0.0}].")
 
 def _parse_words(arr):
     if isinstance(arr,dict): arr=arr.get("segments") or arr.get("data") or arr.get("words") or []
@@ -194,6 +196,36 @@ def normalize_words(segs, dur):
         prev_end=en
     return out
 
+def normalize_segments(segs, dur):
+    """IBORA segmentlarini tartiblaydi (o'sish, ustma-ust yo'q, 0..dur)."""
+    segs=[s for s in segs if str(s.get("text","")).strip()]
+    segs.sort(key=lambda s:float(s.get("start",0)))
+    out=[]; prev=0.0
+    for s in segs:
+        st=max(0.0,min(float(s.get("start",0)),dur))
+        en=float(s.get("end",0))
+        if en<=st: en=st+1.0
+        st=max(st,prev-0.02); en=min(en,dur)
+        if en-st<0.25: en=min(dur,st+0.6)
+        out.append({"text":str(s["text"]).strip(),"start":round(st,3),"end":round(en,3)})
+        prev=en
+    return out
+
+def words_from_segments(segments):
+    """Ibora segmentini so'zlarga bo'lib, vaqtni harf-uzunligiga qarab TEKIS taqsimlaydi.
+    Vertex'ning so'zma-so'z vaqtidan ko'ra barqarorroq va silliqroq (sinxron uchun)."""
+    out=[]
+    for s in segments:
+        toks=str(s["text"]).split()
+        if not toks: continue
+        dur=max(0.3, float(s["end"])-float(s["start"])); wsum=sum(max(1,len(t)) for t in toks)
+        t=float(s["start"])
+        for tok in toks:
+            d=dur*max(1,len(tok))/wsum
+            out.append({"w":tok,"s":round(t,3),"e":round(t+d,3)}); t+=d
+        out[-1]["e"]=round(float(s["end"]),3)
+    return out
+
 # ---------- kesish ----------
 def detect_silences(p, dB=-30, mind=0.9):
     c,o=run(["ffmpeg","-hide_banner","-i",p,"-af",
@@ -220,17 +252,41 @@ def keep_from_silence(dur,sils,pad=0.12):
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
 
 def duplicate_ranges(sent_segs):
-    """Takror/qayta boshlangan gaplarning birinchisini olib tashlash oralig'i."""
+    """Takror/qayta boshlangan gaplarning birinchisini olib tashlash oralig'i.
+    EHTIYOTKOR: faqat aniq takror bo'lganда (yaxshi gapni kesib yubormaslik uchun)."""
     rem=[]
     for i in range(len(sent_segs)-1):
         a=[_norm(x) for x in sent_segs[i]["text"].split() if _norm(x)]
         b=[_norm(x) for x in sent_segs[i+1]["text"].split() if _norm(x)]
-        if len(a)<2 or len(b)<2: continue
+        if len(a)<3 or len(b)<3: continue          # juda qisqa iboralarga tegmaymiz
         sa,sb=set(a),set(b)
         jac=len(sa&sb)/max(1,len(sa|sb)); cont=len(sa&sb)/len(sa)
-        if jac>=0.6 or cont>=0.75:
+        # ketma-ket va vaqtда yaqin bo'lsa (qayta boshlash) hamda juda o'xshash bo'lsa
+        near=(sent_segs[i+1]["start"]-sent_segs[i]["end"])<1.2
+        if near and (jac>=0.72 or cont>=0.85):
             rem.append((sent_segs[i]["start"]-0.05, sent_segs[i]["end"]+0.05))
     return rem
+
+def safe_silence_removes(sil_removes, words, margin=0.12):
+    """Faqat SO'Z ustidan o'tmaydigan jimlik-kesishlarni qoldiradi (gapni kesmaslik uchun).
+    So'zga tegib turgan qismini qirqib, faqat toza jimlik bo'lagini o'chiradi."""
+    if not words: return sil_removes
+    out=[]
+    for a,b in sil_removes:
+        # shu oraliqda so'z bormi?
+        seg_a,seg_b=a,b
+        # so'z bilan kesishsa, so'zdan chetlatamiz
+        for w in words:
+            ws,we=w["s"]-margin, w["e"]+margin
+            if we<=seg_a or ws>=seg_b: continue
+            # so'z oraliqni to'liq qoplasa -> bu kesishni tashlab yuboramiz
+            if ws<=seg_a and we>=seg_b: seg_a=seg_b=0; break
+            if ws<=seg_a<we: seg_a=we        # boshini so'zdan keyinga
+            if ws<we<=seg_b: pass
+            if ws<seg_b<=we: seg_b=ws        # oxirini so'zdan oldinga
+        if seg_b-seg_a>=0.35:                 # faqat sezilarli jimlik
+            out.append([round(seg_a,2),round(seg_b,2)])
+    return out
 
 def sentences_from_words(words):
     sents=[]; cur=[]
@@ -355,14 +411,17 @@ def broll_suggest(full_text, dur, n=4):
     return out
 
 def gemini_image_vertex(prompt, dest):
-    token=_vertex_token(); host,loc=_vertex_host()
+    token=_vertex_token()
+    # rasm modellari REGIONAL — us-central1 da bo'ladi (global emas)
+    host="us-central1-aiplatform.googleapis.com"; loc="us-central1"
     headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
     full=("Generate a single photorealistic, cinematic 16:9 image. "
           "NO text, NO letters, NO captions, NO watermark. Subject: "+prompt)
     body={"contents":[{"role":"user","parts":[{"text":full}]}],
           "generationConfig":{"responseModalities":["TEXT","IMAGE"]}}
     errs=[]
-    for model in ["gemini-2.5-flash-image","gemini-2.0-flash-preview-image-generation","gemini-2.5-flash-image-preview"]:
+    for model in ["gemini-2.5-flash-image","gemini-2.0-flash-preview-image-generation",
+                  "gemini-2.5-flash-image-preview","gemini-2.0-flash-exp"]:
         url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:generateContent"
         try:
             r=requests.post(url,headers=headers,json=body,timeout=120)
@@ -464,21 +523,25 @@ def analyze(video_path, work):
     wav=os.path.join(work,"a16k.wav")
     run(["ffmpeg","-y","-loglevel","error","-i",video_path,"-ar","16000","-ac","1",wav])
     dur=ffdur(video_path)
-    segs,full,eng=transcribe(wav)
-    words=normalize_words(segs,dur)
-    sents=sentences_from_words(words)
-    sils=detect_silences(video_path)
-    keep=keep_from_silence(dur,sils)
-    silence_removes=[]
+    segs,full,eng=transcribe(wav)                 # IBORA darajasida
+    segs=normalize_segments(segs,dur)
+    words=words_from_segments(segs)               # so'zlar TEKIS taqsimlandi (silliq sinxron)
+    sents=segs                                    # takror-aniqlash iboralar bo'yicha
+    # jimlik kesish — biroz konservativ (gapni kesmasin)
+    sils=detect_silences(video_path, dB=-32, mind=0.8)
+    keep=keep_from_silence(dur,sils,pad=0.10)
+    raw_sil=[]
     prev_e=0.0
     for a,b in keep:
-        if a-prev_e>0.25: silence_removes.append([round(prev_e,2),round(a,2)])
+        if a-prev_e>0.25: raw_sil.append([round(prev_e,2),round(a,2)])
         prev_e=b
-    if dur-prev_e>0.25: silence_removes.append([round(prev_e,2),round(dur,2)])
+    if dur-prev_e>0.25: raw_sil.append([round(prev_e,2),round(dur,2)])
+    # SO'Z ustidan kesmaslik uchun filtr (gapни kesmaydi)
+    silence_removes=safe_silence_removes(raw_sil, words, margin=0.12)
     dup_removes=[[round(a,2),round(b,2)] for a,b in duplicate_ranges(sents)]
     return {"duration":round(dur,2),"words":words,"full_text":full,"engine":eng,
             "silence_removes":silence_removes,"dup_removes":dup_removes,
-            "sentences":sents}
+            "sentences":[{"text":s["text"],"start":s["start"],"end":s["end"]} for s in sents]}
 
 def analyze_reference(video_path, work):
     """Namuna videoning subtitr TEMPI va kesish uslubini o'lchaydi (rasm-uslub emas — temp/ritm).
