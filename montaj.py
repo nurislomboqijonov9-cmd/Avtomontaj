@@ -91,41 +91,210 @@ def _parse_words(arr):
         for i,s in enumerate(segs): s["start"]=i*2.0; s["end"]=i*2.0+2.0
     return segs
 
-def transcribe_vertex(wav):
-    token=_vertex_token()
-    mp3=wav+".mp3"; run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
-    src=mp3 if os.path.exists(mp3) else wav
-    mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
-    b64=base64.b64encode(open(src,"rb").read()).decode()
-    body={"contents":[{"role":"user","parts":[{"text":_PROMPT_ASR},{"inlineData":{"mimeType":mime,"data":b64}}]}],
-          "generationConfig":{"temperature":0,"responseMimeType":"application/json"}}
-    host,loc=_vertex_host()
+# har bir SO'Z uchun aniq vaqt (qisqa bo'lak ichida)
+_PROMPT_WORDS=("Bu O'ZBEK tilidagi qisqa audio bo'lagi. Uni juda ANIQ transkripsiya qil. "
+    "HAR BIR SO'Z uchun shu bo'lak ichidagi aniq boshlanish (s) va tugash (e) vaqtini SONIYADA ber "
+    "(bo'lak boshi = 0.0). Vaqtlar ovozga juda aniq mos kelsin. "
+    "So'zlar tartibi audiodagidek bo'lsin, o'zbek lotin yozuvida (turkcha emas). "
+    "JSON massiv: [{\"w\":\"so'z\",\"s\":0.0,\"e\":0.0}].")
+
+def _vertex_audio_call(b64, mime, prompt):
+    """Vertex generateContentга audio + prompt yuboradi, matn qaytaradi (model fallback + retry)."""
+    token=_vertex_token(); host,loc=_vertex_host()
     headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+    body={"contents":[{"role":"user","parts":[{"text":prompt},{"inlineData":{"mimeType":mime,"data":b64}}]}],
+          "generationConfig":{"temperature":0,"responseMimeType":"application/json"}}
     models=[]
     for m in [VERTEX_MODEL,"gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-flash-002","gemini-1.5-flash"]:
         if m and m not in models: models.append(m)
-    def post_retry(url):
-        last=None
-        for k in range(4):
-            rr=requests.post(url,headers=headers,json=body,timeout=300)
-            if rr.status_code<400: return rr
-            last=rr
-            if rr.status_code in (429,500,502,503,504): time.sleep(2*(k+1)); continue
-            return rr
-        return last
     errs=[]
     for model in models:
         url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:generateContent"
         try:
-            r=post_retry(url)
-            if r.status_code>=400: errs.append(f"{model}:{r.status_code} {r.text[:60]}"); continue
-            txt=r.json()["candidates"][0]["content"]["parts"][0]["text"]
-            segs=_parse_words(json.loads(txt))
-            if segs: return segs," ".join(s["text"] for s in segs),f"VERTEX:{model}"
-            errs.append(f"{model}:bo'sh")
+            last=None
+            for k in range(4):
+                rr=requests.post(url,headers=headers,json=body,timeout=300)
+                if rr.status_code<400: last=rr; break
+                last=rr
+                if rr.status_code in (429,500,502,503,504): time.sleep(2*(k+1)); continue
+                break
+            if last.status_code>=400: errs.append(f"{model}:{last.status_code} {last.text[:50]}"); continue
+            return last.json()["candidates"][0]["content"]["parts"][0]["text"], model
         except Exception as e:
             errs.append(f"{model}:{str(e)[:50]}")
     raise RuntimeError(" | ".join(errs[:2]))
+
+STT_TEXT_FROM_GEMINI = (os.environ.get("STT_TEXT_FROM_GEMINI","1").strip() not in ("0","false","no",""))
+
+def _parse_offset(v):
+    """Google STT offset -> soniya. '1.200s' yoki {'seconds':1,'nanos':...}."""
+    if v is None: return 0.0
+    if isinstance(v,(int,float)): return float(v)
+    if isinstance(v,dict):
+        return float(v.get("seconds",0) or 0)+float(v.get("nanos",0) or 0)/1e9
+    s=str(v).strip()
+    if s.endswith("s"): s=s[:-1]
+    try: return float(s)
+    except: return 0.0
+
+def stt_words_gcp(clip_path):
+    """Google Cloud Speech-to-Text v2 (Chirp) — HAQIQIY akustik so'z vaqtlari. uz-UZ.
+    Qaytaradi: [{w,s,e}] (bo'lakka nisbatan)."""
+    token=_vertex_token()
+    b64=base64.b64encode(open(clip_path,"rb").read()).decode()
+    headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+    errs=[]
+    # (region, model) — chirp_2 regional; chirp/long global; oxirida v1 zaxira
+    for loc,model in [("us-central1","chirp_2"),("us-central1","chirp"),
+                      ("global","chirp_2"),("global","long")]:
+        host = "speech.googleapis.com" if loc=="global" else f"{loc}-speech.googleapis.com"
+        url=f"https://{host}/v2/projects/{GCP_PROJECT}/locations/{loc}/recognizers/_:recognize"
+        body={"config":{"autoDecodingConfig":{},"languageCodes":["uz-UZ"],"model":model,
+                        "features":{"enableWordTimeOffsets":True}},"content":b64}
+        try:
+            r=requests.post(url,headers=headers,json=body,timeout=120)
+            if r.status_code>=400: errs.append(f"v2/{loc}/{model}:{r.status_code} {r.text[:50]}"); continue
+            out=[]
+            for res in r.json().get("results",[]):
+                alts=res.get("alternatives",[])
+                if not alts: continue
+                for w in alts[0].get("words",[]):
+                    t=str(w.get("word","")).strip()
+                    if not t: continue
+                    s=_parse_offset(w.get("startOffset")); e=_parse_offset(w.get("endOffset"))
+                    out.append({"w":t,"s":s,"e":e if e>s else s+0.2})
+            if out: return out
+            errs.append(f"v2/{loc}/{model}:bo'sh")
+        except Exception as ex:
+            errs.append(f"v2/{loc}/{model}:{str(ex)[:40]}")
+    # v1 zaxira (sync, <60s)
+    try:
+        url="https://speech.googleapis.com/v1/speech:recognize"
+        body={"config":{"languageCode":"uz-UZ","enableWordTimeOffsets":True,
+                        "enableAutomaticPunctuation":True,"model":"latest_long"},
+              "audio":{"content":b64}}
+        r=requests.post(url,headers=headers,json=body,timeout=120)
+        if r.status_code<400:
+            out=[]
+            for res in r.json().get("results",[]):
+                alts=res.get("alternatives",[])
+                if not alts: continue
+                for w in alts[0].get("words",[]):
+                    t=str(w.get("word","")).strip()
+                    if t: out.append({"w":t,"s":_parse_offset(w.get("startTime")),"e":_parse_offset(w.get("endTime"))})
+            if out: return out
+            errs.append("v1:bo'sh")
+        else: errs.append(f"v1:{r.status_code} {r.text[:50]}")
+    except Exception as ex:
+        errs.append(f"v1:{str(ex)[:40]}")
+    raise RuntimeError(" | ".join(errs[:2]) or "STT ishlamadi")
+
+def gemini_words_clip(clip_path):
+    """Gemini'дан bo'lak matni (o'zbekcha sifatli) — [{w,s,e}] (vaqt taxminiy)."""
+    b64=base64.b64encode(open(clip_path,"rb").read()).decode()
+    txt,model=_vertex_audio_call(b64,"audio/mp3",_PROMPT_WORDS)
+    arr=json.loads(txt)
+    if isinstance(arr,dict): arr=arr.get("words") or arr.get("segments") or arr.get("data") or []
+    out=[]
+    for w in arr:
+        t=str(w.get("w") or w.get("text") or "").strip()
+        if t: out.append({"w":t,"s":float(w.get("s",w.get("start",0)) or 0),"e":float(w.get("e",w.get("end",0)) or 0)})
+    return out
+
+def _align_text_timing(gem_words, stt_words):
+    """Gemini MATNini STT VAQTIga moslaydi (so'z ketma-ketligi bo'yicha)."""
+    if not stt_words: return gem_words
+    if not gem_words: return stt_words
+    import difflib
+    a=[_norm(w["w"]) for w in gem_words]; b=[_norm(w["w"]) for w in stt_words]
+    sm=difflib.SequenceMatcher(a=a,b=b,autojunk=False); out=[]
+    for tag,i1,i2,j1,j2 in sm.get_opcodes():
+        if tag=="equal":
+            for k in range(i2-i1):
+                g=gem_words[i1+k]; s=stt_words[j1+k]
+                out.append({"w":g["w"],"s":s["s"],"e":s["e"]})
+        else:
+            gseg=gem_words[i1:i2]; sseg=stt_words[j1:j2]
+            if gseg and sseg:
+                t0=sseg[0]["s"]; t1=sseg[-1]["e"]; span=max(0.2,t1-t0); n=len(gseg)
+                for k,g in enumerate(gseg):
+                    out.append({"w":g["w"],"s":round(t0+span*k/n,3),"e":round(t0+span*(k+1)/n,3)})
+            elif sseg:
+                out.extend([{"w":s["w"],"s":s["s"],"e":s["e"]} for s in sseg])
+            elif gseg:
+                out.extend(gseg)
+    out.sort(key=lambda x:x["s"]); return out
+
+def _clip_words_real(clip):
+    """Bir bo'lak uchun: STT vaqti (aniq) + Gemini matni (sifatli), moslashtirilgan."""
+    stt=[]
+    try: stt=stt_words_gcp(clip)
+    except Exception: stt=[]
+    gem=[]
+    if STT_TEXT_FROM_GEMINI or not stt:
+        try: gem=gemini_words_clip(clip)
+        except Exception: gem=[]
+    if stt and gem: return _align_text_timing(gem,stt)
+    return stt or gem
+
+def merge_chunk_words(raw):
+    """raw = [(offset, [{w,s,e}...])...] -> bitta tartiblangan, dublikatsiz so'z ro'yxati."""
+    allw=[]
+    for off,ws in raw:
+        for w in ws:
+            t=str(w.get("w") or w.get("text") or "").strip()
+            if not t: continue
+            st=off+float(w.get("s", w.get("start",0)) or 0)
+            en=off+float(w.get("e", w.get("end",st)) or st)
+            allw.append({"w":t,"s":st,"e":en})
+    allw.sort(key=lambda x:x["s"])
+    out=[]
+    for w in allw:
+        if out:
+            last=out[-1]
+            # overlap zonasidagi takror so'zni tashlab yuboramiz
+            if _norm(w["w"])==_norm(last["w"]) and abs(w["s"]-last["s"])<0.7: continue
+            if w["s"]<last["e"]-0.02: w["s"]=last["e"]      # ustma-ust bo'lmasin
+        if w["e"]<=w["s"]: w["e"]=w["s"]+0.20
+        w["s"]=round(w["s"],3); w["e"]=round(w["e"],3)
+        out.append(w)
+    return out
+
+def transcribe_words_vertex(wav, chunk=18.0, overlap=1.5, _clip_fn=None, _dur=None):
+    """Audioni qisqa bo'laklarga bo'lib, HAR BIR SO'Z uchun aniq vaqt oladi (drift kam)."""
+    dur=_dur if _dur is not None else ffdur(wav)
+    if dur<=0: raise RuntimeError("audio uzunligi 0")
+    raw=[]; used_model=""
+    s=0.0
+    while s < dur-0.05:
+        e=min(dur, s+chunk)
+        if _clip_fn is not None:
+            ws=_clip_fn(s,e)
+        else:
+            clip=wav+f".{int(s*100)}.mp3"
+            run(["ffmpeg","-y","-loglevel","error","-ss",f"{s:.2f}","-to",f"{e:.2f}","-i",wav,"-b:a","64k",clip])
+            ws=_clip_words_real(clip)         # STT vaqti + Gemini matni
+            used_model="STT+Gemini"
+            try: os.remove(clip)
+            except: pass
+        raw.append((s, ws))
+        if e>=dur: break
+        s += (chunk-overlap)
+    words=merge_chunk_words(raw)
+    if not words: raise RuntimeError("so'z topilmadi")
+    full=" ".join(w["w"] for w in words)
+    return words, full, f"VERTEX-word:{used_model or 'ok'}"
+
+def transcribe_vertex(wav):
+    """IBORA darajasidagi zaxira yo'l (bir martalik)."""
+    mp3=wav+".mp3"; run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
+    src=mp3 if os.path.exists(mp3) else wav
+    mime="audio/mp3" if src.endswith(".mp3") else "audio/wav"
+    b64=base64.b64encode(open(src,"rb").read()).decode()
+    txt,model=_vertex_audio_call(b64,mime,_PROMPT_ASR)
+    segs=_parse_words(json.loads(txt))
+    if segs: return segs," ".join(s["text"] for s in segs),f"VERTEX:{model}"
+    raise RuntimeError("bo'sh natija")
 
 def transcribe_gemini(wav):
     mp3=wav+".mp3"; run(["ffmpeg","-y","-loglevel","error","-i",wav,"-b:a","64k",mp3])
@@ -523,10 +692,20 @@ def analyze(video_path, work):
     wav=os.path.join(work,"a16k.wav")
     run(["ffmpeg","-y","-loglevel","error","-i",video_path,"-ar","16000","-ac","1",wav])
     dur=ffdur(video_path)
-    segs,full,eng=transcribe(wav)                 # IBORA darajasida
-    segs=normalize_segments(segs,dur)
-    words=words_from_segments(segs)               # so'zlar TEKIS taqsimlandi (silliq sinxron)
-    sents=segs                                    # takror-aniqlash iboralar bo'yicha
+    eng=""
+    words=None
+    if have_vertex():
+        try:
+            words, full, eng = transcribe_words_vertex(wav)   # QISQA BO'LAKLI, har so'z aniq
+            words = normalize_words([{"text":w["w"],"start":w["s"],"end":w["e"]} for w in words], dur)
+        except Exception as e:
+            eng=f"(word-level xato: {str(e)[:80]})"; words=None
+    if not words:                                  # zaxira: ibora darajasi + tekis taqsim
+        segs,full,eng2=transcribe(wav)
+        segs=normalize_segments(segs,dur)
+        words=words_from_segments(segs)
+        eng=(eng+" "+eng2).strip()
+    sents=sentences_from_words(words)              # takror-aniqlash gaplar bo'yicha
     # jimlik kesish — biroz konservativ (gapni kesmasin)
     sils=detect_silences(video_path, dB=-32, mind=0.8)
     keep=keep_from_silence(dur,sils,pad=0.10)
