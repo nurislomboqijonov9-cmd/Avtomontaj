@@ -65,8 +65,9 @@ def index():
               os.path.join(HERE, "static", "index.html")]:
         if os.path.exists(p):
             return open(p, encoding="utf-8").read()
-    return HTMLResponse("<h2>index.html topilmadi.</h2>"
-        "<p>index.html faylini repo'ga (static/ papkasiga yoki asosiy papkaga) yuklang.</p>", status_code=500)
+    return HTMLResponse("<h2 style='font-family:sans-serif'>index.html topilmadi.</h2>"
+        "<p style='font-family:sans-serif'>index.html faylini GitHub repo'ga yuklang "
+        "(static/ papkasiga yoki asosiy papkaga). Server ishlayapti, faqat interfeys fayli yetishmayapti.</p>")
 
 @app.get("/api/config")
 def config():
@@ -212,6 +213,65 @@ async def render(req: Request, x_auth: str = Header("")):
                                      "subtitle_on": subtitle_on, "brolls": brolls_in})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
+    run_job(jid, fn)
+    return {"job": jid}
+
+# ---------- AVTOMATIK (hammasi bir tugmada) ----------
+@app.post("/api/auto")
+async def auto(req: Request, x_auth: str = Header("")):
+    check_auth(x_auth)
+    body = await req.json(); pid = body["project"]
+    d = pdir(pid); meta = load_meta(pid)
+    inp = os.path.join(d, meta["input"])
+    n = int(body.get("broll_n", 4))
+    zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
+    broll_y = float(body.get("broll_y", 0.72)); do_broll = bool(body.get("broll", True))
+    sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
+        "active": "#ffea00", "base": "#ffffff", "upper": True, "font": "Anton",
+        "outline": "#000000", "border": 4}
+    jid = new_job()
+    def fn(prog):
+        prog(8, "Transkripsiya (o'zbekcha)...")
+        res = montaj.analyze(inp, d)
+        words = res["words"]; full = res["full_text"]; dur = res["duration"]
+        removes = [list(r) for r in res["silence_removes"]] + [list(r) for r in res["dup_removes"]]
+        meta.update(words=words, full_text=full, engine=res["engine"], duration=dur,
+                    silence_removes=res["silence_removes"], dup_removes=res["dup_removes"])
+        prog(35, "Keraksiz joylar kesilyapti...")
+        cut, w2, cdur = montaj.apply_cut(inp, words, removes, d, dur)
+        meta.update(cut=os.path.basename(cut), cut_words=w2, cut_duration=cdur, removes=removes)
+        save_meta(pid, meta)
+        outb = []; bnote = ""
+        if do_broll:
+            prog(55, "Animatsiya rasmlarini chizyapti...")
+            try:
+                plan = montaj.broll_suggest(full, cdur, n)
+            except Exception as e:
+                plan = []; bnote = f"g'oya xato: {str(e)[:90]}"
+            for i, it in enumerate(plan):
+                try:
+                    nm = f"broll_a{i}.png"; dest = os.path.join(d, nm)
+                    montaj.gen_image(it["prompt"], dest)
+                    dd = 2.5; t = float(it["at"])
+                    outb.append({"image": nm, "image_url": f"/media/{pid}/{nm}", "prompt": it["prompt"],
+                                 "time": round(max(0, min(cdur - dd, t - dd / 2)), 2), "dur": dd, "on": True})
+                except Exception as e:
+                    bnote = str(e)[:130]; break
+            if not bnote: bnote = f"{len(outb)} ta"
+        prog(70, "Video render qilinyapti (1-3 daqiqa)...")
+        ass = os.path.join(d, "subs.ass")
+        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2, sub))
+        rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
+                    "y": broll_y, "w": 0.78} for b in outb]
+        out = os.path.join(d, "final.mp4")
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio):
+            raise RuntimeError("render xato")
+        meta.update(final="final.mp4", stage="done", finished=int(time.time()),
+                    render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio, "broll_y": broll_y})
+        save_meta(pid, meta)
+        return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
+                "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
+                "engine": res["engine"], "broll_note": bnote}
     run_job(jid, fn)
     return {"job": jid}
 

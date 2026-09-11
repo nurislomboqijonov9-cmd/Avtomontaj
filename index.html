@@ -130,7 +130,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.92);backdrop-f
             <span class="badge" id="engBadge"></span>
           </div>
         </div>
-        <button class="go" style="width:100%" id="renderBtn" onclick="doRender()">✅ Tayyorlash (yuklab olish)</button>
+        <button class="go" style="width:100%" id="autoBtn" onclick="runAuto()">🚀 Avtomatik montaj (hammasi o'zi)</button>
+        <button class="pri" style="width:100%;margin-top:8px" id="renderBtn" onclick="doRender()">✅ Qayta tayyorlash (tuzatishlardan keyin)</button>
         <div id="renderProg" class="prog" style="display:none"><div></div></div>
         <div id="renderTxt" class="hint" style="text-align:center"></div>
         <div id="resultBox" style="display:none;margin-top:12px" class="card">
@@ -177,8 +178,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.92);backdrop-f
           <div class="card">
             <h3>💬 Subtitr</h3>
             <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> Subtitr yoqilgan</label>
-            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">0.20</b>s</div>
-              <input type="range" id="delay" min="-0.6" max="0.8" step="0.02" value="0.20" oninput="subChanged()"></div>
+            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">0.00</b>s <span class="hint">(orqada qolsa − ga, oldinda ketsa + ga suring, pleyerda jonli ko'rasiz)</span></div>
+              <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="0" oninput="subChanged()"></div>
             <div class="field"><div class="lbl">Balandligi (pastdan): <b id="mvV">660</b></div>
               <input type="range" id="mv" min="120" max="1300" step="10" value="660" oninput="subChanged()"></div>
             <div class="field"><div class="lbl">Shrift o'lchami: <b id="szV">90</b></div>
@@ -317,14 +318,42 @@ function upload(f){
        sub:defaultSub()};
     $("uploadView").style.display="none";$("editorView").style.display="block";
     vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
-    analyze();
+    runAuto();   // yuklash bilanoq HAMMASI o'zi: kesish + subtitr + animatsiya + render
   };
   xhr.onerror=()=>$("upTxt").innerHTML='<span class=err>Tarmoq xatosi</span>';
   xhr.send(fd);
 }
-function defaultSub(){return{on:true,delay:0.20,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
+function defaultSub(){return{on:true,delay:0.0,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
+function currentSub(){return{delay:S.sub.delay,margin_v:S.sub.margin,size:S.sub.size,words:S.sub.words,
+  active:S.sub.active,base:S.sub.base,upper:S.sub.upper,font:"Anton",outline:"#000000",border:4}}
 
-// ---------- analyze ----------
+// ---------- AVTOMATIK: hammasi bir tugmada ----------
+async function runAuto(){
+  subChanged();
+  $("renderProg").style.display="block";$("renderProg").firstChild.style.width="0";
+  $("renderBtn").disabled=true;$("resultBox").style.display="none";
+  $("engBadge").textContent="⏳ avtomatik montaj...";
+  $("renderTxt").textContent="Boshlandi...";
+  try{
+    const body={project:S.project,broll_n:4,broll_y:+($("brollY").value||0.72),
+      zoom:$("zoom").checked,audio_clean:$("audio").checked,broll:true,subtitle:currentSub()};
+    const {job}=await api("/api/auto",body);
+    const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
+    // holatni to'ldiramiz (endi tuzatsa bo'ladi)
+    S.cut=true;S.words=res.words;S.cutWords=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
+    vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
+    S.removes=[];(res.removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"auto"}));
+    S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
+    renderWords();renderBrolls();renderRemoves();drawTimeline();
+    $("brollMsg").textContent="Animatsiya: "+(res.broll_note||"");
+    $("renderTxt").textContent="";
+    $("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
+    toast("Avtomatik tayyor! Pastda tuzatib qayta tayyorlashingiz mumkin.");loadHistory();
+  }catch(e){$("engBadge").textContent="";$("renderTxt").innerHTML='<span class=err>Avto xato: '+e.message+'</span>'}
+  finally{$("renderBtn").disabled=false}
+}
+
+// ---------- analyze (qo'lda, ixtiyoriy) ----------
 async function analyze(){
   $("cutMsg").textContent="";$("engBadge").textContent="⏳ tahlil...";
   try{
@@ -349,14 +378,13 @@ function activeRemoves(){
   });
 }
 function renderRemoves(){
-  const man=S.removes.filter(r=>r.type==="manual");
-  const nSil=S.removes.filter(r=>r.type==="silence").length;
-  const nDup=S.removes.filter(r=>r.type==="dup").length;
-  $("cutBadge").textContent=`jimlik:${nSil} takror:${nDup} qo'lda:${man.length}`;
+  const nAuto=S.removes.filter(r=>r.type==="auto").length;
+  const man=S.removes.filter(r=>r.type==="manual"||r.type==="auto");
+  $("cutBadge").textContent=`avto:${nAuto} qo'lda:${S.removes.filter(r=>r.type==="manual").length}`;
   let h="";
-  man.forEach((r,i)=>{
+  man.forEach((r)=>{
     const gi=S.removes.indexOf(r);
-    h+=`<div class="item row sb"><span>✂️ ${r.s.toFixed(1)}s – ${r.e.toFixed(1)}s (qo'lda)</span>
+    h+=`<div class="item row sb"><span>✂️ ${r.s.toFixed(1)}s – ${r.e.toFixed(1)}s ${r.type==="manual"?"(qo'lda)":"(avto)"}</span>
       <button class="sm gh" onclick="delRemove(${gi})">o'chirish</button></div>`;
   });
   $("remList").innerHTML=h;
@@ -374,7 +402,7 @@ async function doCut(){
   $("cutMsg").textContent="⏳ kesilyapti...";
   try{
     const rems=activeRemoves().map(r=>[r.s,r.e]);
-    const {job}=await api("/api/cut",{project:S.project,removes:rems,words:S.words});
+    const {job}=await api("/api/cut",{project:S.project,removes:rems});  // server asl so'zlardan kesadi
     const res=await waitJob(job,(p,s)=>$("cutMsg").textContent="⏳ "+(s||p+"%"));
     S.cut=true;S.cutWords=res.words;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";
@@ -535,7 +563,7 @@ async function doRender(){
     const {job}=await api("/api/render",body);
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";
-    $("resVid").src=res.final_url;$("dl").href=res.final_url;
+    $("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast("Tayyor! Yuklab oling.");loadHistory();
   }catch(e){$("renderTxt").innerHTML='<span class=err>Render xato: '+e.message+'</span>'}
   finally{$("renderBtn").disabled=false}
