@@ -1,74 +1,42 @@
-# 🎬 Montaj Bot — Telegram uchun avtomatik video montaj
+# 🎬 Montaj Studio — veb video-tahrirlagich
 
-Telegram botiga video tashlaysiz — bot uni **kesib, o'zbekcha subtitr qo'yib, animatsiyali, 9:16 formatda, ovozi tozalangan** holda qaytaradi. Instagram Reels / TikTok / YouTube Shorts / VK uchun tayyor.
+Videongizni yuklaysiz → bot o'zbekcha subtitr qo'yadi, keraksiz joylarni (jimlik, takror gaplar) kesadi, gapga mos animatsiya/rasm qo'shadi, 9:16 ga o'giradi, ovozini tozalaydi.
+**Farqi:** endi hammasini o'zingiz timeline'da tuzatasiz — qayerni kesish, subtitr qayerda turishi, qaysi joyga animatsiya qo'yish, tempini namuna videoga moslash. Tayyor videolar **Tarix** bo'limida saqlanadi.
 
-## Nima qiladi
-- 🎙️ **O'zbekcha aniq subtitr** — Groq Whisper large-v3 (bepul API)
-- ✂️ **Aqlli kesish** — uzun jimliklarni oladi, gap o'rtasidan kesmaydi
-- 💬 **So'z-ba-so'z animatsiyali subtitr** (viral uslub)
-- 📱 **9:16 format** + silliq zoom + rang jilosi
-- 🔊 **Ovoz tozalash** — shovqin olib tashlash, tiniqlashtirish, balandlik tenglash
-
----
-
-## 1-qadam: kerakli 2 ta bepul kalit
-
-**Telegram bot tokeni:**
-1. Telegram'da **@BotFather** ni oching
-2. `/newbot` → botga nom va username bering
-3. U bergan **tokenni** saqlang (masalan `12345:AAF...`)
-
-**Groq API kaliti (bepul):**
-1. **https://console.groq.com** ga kiring (Google bilan)
-2. **API Keys** → **Create API Key**
-3. Kalitni saqlang (`gsk_...`)
+## Bosqichlar
+1. **Kesish** — avto takliflar (jimlik + takror gaplar) ko'rinadi; yoqasiz/o'chirasiz yoki o'zingiz qo'lda kesasiz (pleyerni joyga qo'yib "Boshi/Oxiri").
+2. **Subtitr** — sinxron siljishi, balandligi (soqol ostida), o'lchami, rang, so'z soni. Pleyerda **jonli ko'rinadi** — sozni to'g'ri qo'yguncha.
+3. **Animatsiya** — "Avto g'oyalar" yoki qo'lda; har biriga Gemini rasm chizadi, joyini/vaqtini o'zingiz tanlaysiz.
+4. **Namuna uslub** — yoqtirgan videongizni yuklang, bot uning subtitr tempi/kesish uslubini o'lchab sizga moslaydi.
 
 ---
 
-## 2-qadam: ishga tushirish
+## Railway'ga o'rnatish (24/7 onlayn)
 
-### A) Doimiy server — Railway (24/7, tavsiya) ⭐
-1. Bu loyihani GitHub'ga yuklang (pastda qarang)
-2. **https://railway.app** ga kiring → **New Project** → **Deploy from GitHub repo** → shu repo'ni tanlang
-3. **Variables** bo'limiga ikkita o'zgaruvchi qo'shing:
-   - `TELEGRAM_TOKEN` = BotFather tokeni
-   - `GROQ_API_KEY` = Groq kaliti
-4. Deploy tugaydi — bot ishlaydi! Telegram'da botga video tashlang.
+1. Bu papkani GitHub'ga yuklang (yangi repo → **uploading an existing file** → hammasini tashlang → Commit).
+2. **railway.app** → **New Project** → **Deploy from GitHub repo** → shu repo.
+3. **Variables** bo'limiga qo'shing (eski bot bilan bir xil Vertex sozlamalari):
 
-(Render.com ham xuddi shunday ishlaydi — Dockerfile avtomatik topiladi.)
+   | O'zgaruvchi | Qiymat |
+   |---|---|
+   | `GCP_PROJECT_ID` | Google Cloud project ID |
+   | `GCP_LOCATION` | `us-central1` |
+   | `GCP_SA_JSON` | Service-account JSON (butun matn bir qatorda) |
+   | `VERTEX_MODEL` | `gemini-2.5-flash` (barqarorroq uchun `gemini-2.5-pro`) |
+   | `APP_PASSWORD` | maxfiy parol (ixtiyoriy, lekin tavsiya — Vertex kredit himoyasi) |
 
-### B) O'z kompyuteringizda
-1. **Python** va **ffmpeg** o'rnatilgan bo'lsin
-2. `pip install -r requirements.txt`
-3. `.env.example` faylidan nusxa olib, `.env` deb saqlang va kalitlarni qo'ying
-4. `python montaj_bot.py`
+   Ixtiyoriy zaxira: `GROQ_API_KEY`, `GEMINI_API_KEY`, `PEXELS_API_KEY`.
+4. Railway **Networking → Generate Domain** bosing → link paydo bo'ladi. O'sha linkni telefon/kompyuterdan ochasiz.
 
----
+> Dockerfile ffmpeg va shriftlarni avtomatik o'rnatadi. Deploy tugagach link ishlaydi.
 
-## 3-qadam: GitHub'ga yuklash
-
-**Eng oson (brauzerda):**
-1. https://github.com/new → repo nomini yozing → **Create**
-2. **uploading an existing file** havolasini bosing
-3. Shu papkadagi barcha fayllarni sudrab tashlang → **Commit**
-
-**Yoki terminalda:**
+## O'z kompyuteringizda ishlatish
 ```
-git init
-git add .
-git commit -m "montaj bot"
-git branch -M main
-git remote add origin https://github.com/FOYDALANUVCHI/REPO.git
-git push -u origin main
+pip install -r requirements.txt      # ffmpeg alohida o'rnatilgan bo'lsin
+cp .env.example .env                 # kalitlarni qo'ying
+python app.py                        # http://localhost:8080
 ```
-
-> ⚠️ `.env` faylini GitHub'ga yuklamang (kalitlar maxfiy) — `.gitignore` buni avtomatik himoya qiladi.
-
----
-
-## Sozlamalar
-`montaj_bot.py` ichidagi `CFG` bo'limidan o'zgartirasiz: subtitr rangi, shrift, o'lcham, kesish sezgirligi, zoom, ovoz tozalash va h.k.
 
 ## Eslatma
-- Telegram botlari **20MB gacha** videoni qabul qiladi (oddiy rejimda). Kattaroq video uchun self-hosted Telegram Bot API kerak.
-- Groq bepul limiti kunlik ko'p videoga yetadi.
+- **Rasm chizish** Vertex'da `gemini-2.5-flash-image` orqali. Ishlamasa avtomatik Imagen'ga, keyin Pexels'ga o'tadi. Xato bo'lsa animatsiya izohda sabab ko'rsatiladi (video baribir chiqadi).
+- Tarix serverdagi `data/` papkasida saqlanadi. Railway'da doimiy saqlash uchun **Volume** ulab, `DATA_DIR` ni /shu volumega yo'naltiring.

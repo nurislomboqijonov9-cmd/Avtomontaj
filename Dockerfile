@@ -1,13 +1,15 @@
 FROM python:3.11-slim
 
-# ffmpeg (video/audio uchun) o'rnatiladi
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# TELEGRAM_TOKEN va GROQ_API_KEY muhit o'zgaruvchilaridan olinadi
-CMD ["python", "montaj_bot.py"]
+ENV PORT=8080
+EXPOSE 8080
+CMD ["python", "-c", "import os,uvicorn; uvicorn.run('app:app',host='0.0.0.0',port=int(os.environ.get('PORT','8080')))"]

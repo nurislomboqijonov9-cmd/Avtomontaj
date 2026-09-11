@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Montaj Studio</title>
+<style>
+:root{
+  --bg:#0d0f14; --panel:#161a22; --panel2:#1e232e; --line:#2a3140;
+  --tx:#e8ecf3; --mut:#8b94a7; --acc:#ffea00; --accb:#3b82f6; --red:#ef4444;
+  --ok:#22c55e; --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:10px 14px;color:#fff;background:var(--panel2)}
+button:active{transform:scale(.98)}
+button.pri{background:var(--accb)}
+button.go{background:linear-gradient(135deg,#f59e0b,#ef4444);font-weight:700;font-size:17px;padding:15px}
+button.sm{padding:6px 10px;font-size:13px;border-radius:8px}
+button.gh{background:transparent;border:1px solid var(--line);color:var(--mut)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,textarea,select{font:inherit;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:9px}
+input[type=range]{padding:0;width:100%}
+a{color:var(--accb)}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hd{display:flex;align-items:center;gap:14px;padding:12px 16px;max-width:1180px;margin:0 auto}
+.logo{font-weight:800;font-size:19px;letter-spacing:.3px}
+.logo b{color:var(--acc)}
+.tabs{display:flex;gap:6px;margin-left:auto}
+.tab{background:transparent;color:var(--mut);border:1px solid transparent;padding:8px 14px;border-radius:10px}
+.tab.on{background:var(--panel2);color:var(--tx);border-color:var(--line)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--red);display:inline-block;margin-right:5px}
+.dot.ok{background:var(--ok)}
+.grid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:8px}
+.badge{font-size:12px;color:var(--mut);background:var(--panel2);padding:3px 8px;border-radius:20px}
+.videoBox{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:9/16;max-height:66vh;margin:0 auto;width:100%}
+.videoBox video{width:100%;height:100%;object-fit:contain;display:block}
+.capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;
+  text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
+.capOv .w{color:#fff}.capOv .w.act{color:var(--acc)}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:44px 18px;text-align:center;color:var(--mut);background:var(--panel)}
+.drop.hi{border-color:var(--accb);background:#12203a}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.sb{justify-content:space-between}
+.lbl{font-size:13px;color:var(--mut);margin-bottom:4px}
+.field{margin-bottom:12px}
+.sw{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.sw input{width:42px;height:24px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:20px;position:relative;transition:.2s;border:none;padding:0}
+.sw input:checked{background:var(--accb)}
+.sw input::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+.sw input:checked::after{left:21px}
+.timeline{position:relative;height:34px;background:var(--panel2);border-radius:8px;margin:10px 0;overflow:hidden;cursor:pointer}
+.tl-rem{position:absolute;top:0;bottom:0;background:rgba(239,68,68,.5)}
+.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--accb)}
+.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.words{max-height:230px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
+.wchip{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:13px;cursor:pointer}
+.wchip.now{background:var(--acc);color:#000;border-color:var(--acc)}
+.pill{font-size:12px;padding:3px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;color:var(--mut)}
+.pill.on{background:var(--accb);color:#fff;border-color:var(--accb)}
+.thumb{width:74px;height:44px;object-fit:cover;border-radius:6px;background:#000;flex:none}
+.prog{height:8px;background:var(--panel2);border-radius:20px;overflow:hidden;margin:8px 0}
+.prog>div{height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);width:0;transition:width .3s}
+.hint{font-size:12.5px;color:var(--mut)}
+.err{color:#fca5a5;font-size:13px}
+.hist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.hist .card{margin:0}
+.step{display:none}.step.on{display:block}
+.stepnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.stepnav .pill{font-size:13px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:11px 18px;border-radius:12px;z-index:99;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;text-align:center;gap:16px}
+</style>
+</head>
+<body>
+<header><div class="hd">
+  <div class="logo">Montaj <b>Studio</b></div>
+  <div class="tabs">
+    <button class="tab on" id="tabEdit" onclick="showTab('edit')">Tahrir</button>
+    <button class="tab" id="tabHist" onclick="showTab('hist')">Tarix</button>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+<!-- LOGIN -->
+<div id="login" class="center" style="display:none">
+  <div class="card" style="width:320px">
+    <h3>Kirish</h3>
+    <div class="field"><div class="lbl">Parol</div><input id="pw" type="password" style="width:100%"></div>
+    <button class="pri" style="width:100%" onclick="doLogin()">Kirish</button>
+    <div id="loginErr" class="err" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- EDIT TAB -->
+<div id="edit" style="display:none">
+  <!-- upload -->
+  <div id="uploadView">
+    <div class="drop" id="drop">
+      <div style="font-size:44px">🎬</div>
+      <h2 style="margin:8px 0">Video yuklang</h2>
+      <p class="hint">MP4 / MOV. Bu yerga tashlang yoki tanlang.<br>Bot avtomatik o'zbekcha subtitr qo'yadi, keraksiz joylarni kesadi — keyin o'zingiz tuzatasiz.</p>
+      <input id="file" type="file" accept="video/*" style="display:none">
+      <button class="pri" onclick="document.getElementById('file').click()">Fayl tanlash</button>
+      <div id="upProg" class="prog" style="display:none"><div></div></div>
+      <div id="upTxt" class="hint"></div>
+    </div>
+  </div>
+
+  <!-- editor -->
+  <div id="editorView" style="display:none">
+    <div class="grid">
+      <!-- LEFT: video + timeline -->
+      <div>
+        <div class="card">
+          <div class="videoBox">
+            <video id="vid" playsinline></video>
+            <div class="capOv" id="capOv"></div>
+          </div>
+          <div class="timeline" id="timeline"><div class="tl-cur" id="tlCur"></div></div>
+          <div class="row sb">
+            <span class="hint" id="tInfo">0.0s</span>
+            <span class="badge" id="engBadge"></span>
+          </div>
+        </div>
+        <button class="go" style="width:100%" id="renderBtn" onclick="doRender()">✅ Tayyorlash (yuklab olish)</button>
+        <div id="renderProg" class="prog" style="display:none"><div></div></div>
+        <div id="renderTxt" class="hint" style="text-align:center"></div>
+        <div id="resultBox" style="display:none;margin-top:12px" class="card">
+          <h3>🎉 Tayyor!</h3>
+          <video id="resVid" controls playsinline style="width:100%;border-radius:10px"></video>
+          <div class="row" style="margin-top:10px">
+            <a id="dl" class="pill on" download>⬇️ Yuklab olish</a>
+            <button class="gh sm" onclick="showTab('hist')">Tarixda ko'rish</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: steps -->
+      <div>
+        <div class="stepnav">
+          <button class="pill on" data-s="cut" onclick="goStep('cut')">1 · Kesish</button>
+          <button class="pill" data-s="sub" onclick="goStep('sub')">2 · Subtitr</button>
+          <button class="pill" data-s="broll" onclick="goStep('broll')">3 · Animatsiya</button>
+          <button class="pill" data-s="ref" onclick="goStep('ref')">4 · Namuna uslub</button>
+        </div>
+
+        <!-- STEP CUT -->
+        <div class="step on" id="step-cut">
+          <div class="card">
+            <h3>✂️ Kesish <span class="badge" id="cutBadge"></span></h3>
+            <div class="row" style="margin-bottom:10px">
+              <label class="sw"><input type="checkbox" id="rmSil" checked onchange="renderRemoves()"> Jimliklar</label>
+              <label class="sw"><input type="checkbox" id="rmDup" checked onchange="renderRemoves()"> Takror gaplar</label>
+            </div>
+            <div class="hint" style="margin-bottom:8px">Qo'lda kesish: pleyerni kerakli joyga qo'ying →</div>
+            <div class="row" style="margin-bottom:10px">
+              <button class="sm gh" onclick="setManual('s')">◧ Boshi = <span id="mS">–</span></button>
+              <button class="sm gh" onclick="setManual('e')">Oxiri = <span id="mE">–</span> ◨</button>
+              <button class="sm pri" onclick="addManual()">+ Kesish qo'shish</button>
+            </div>
+            <div id="remList"></div>
+            <button class="pri" style="width:100%;margin-top:10px" onclick="doCut()">Kesishni qo'llash</button>
+            <div class="hint" id="cutMsg" style="margin-top:6px"></div>
+          </div>
+        </div>
+
+        <!-- STEP SUB -->
+        <div class="step" id="step-sub">
+          <div class="card">
+            <h3>💬 Subtitr</h3>
+            <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> Subtitr yoqilgan</label>
+            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">0.20</b>s</div>
+              <input type="range" id="delay" min="-0.6" max="0.8" step="0.02" value="0.20" oninput="subChanged()"></div>
+            <div class="field"><div class="lbl">Balandligi (pastdan): <b id="mvV">660</b></div>
+              <input type="range" id="mv" min="120" max="1300" step="10" value="660" oninput="subChanged()"></div>
+            <div class="field"><div class="lbl">Shrift o'lchami: <b id="szV">90</b></div>
+              <input type="range" id="sz" min="48" max="140" step="2" value="90" oninput="subChanged()"></div>
+            <div class="field"><div class="lbl">Bir guruhda so'z: <b id="wpV">3</b></div>
+              <input type="range" id="wp" min="1" max="5" step="1" value="3" oninput="subChanged()"></div>
+            <div class="row">
+              <div style="flex:1"><div class="lbl">Faol rang</div><input type="color" id="cAcc" value="#ffea00" style="width:100%;height:38px" oninput="subChanged()"></div>
+              <div style="flex:1"><div class="lbl">Asosiy</div><input type="color" id="cBase" value="#ffffff" style="width:100%;height:38px" oninput="subChanged()"></div>
+            </div>
+            <label class="sw" style="margin-top:10px"><input type="checkbox" id="upper" checked onchange="subChanged()"> KATTA HARF</label>
+          </div>
+          <div class="card">
+            <h3>📝 Matn <span class="badge">so'zga bosib tuzating</span></h3>
+            <div class="words" id="wordList"></div>
+          </div>
+        </div>
+
+        <!-- STEP BROLL -->
+        <div class="step" id="step-broll">
+          <div class="card">
+            <h3>🖼️ Animatsiya / rasm</h3>
+            <div class="field"><div class="lbl">Balandligi (pastdan, hamma uchun): <b id="byV">0.72</b></div>
+              <input type="range" id="brollY" min="0.3" max="0.9" step="0.01" value="0.72" oninput="document.getElementById('byV').textContent=this.value"></div>
+            <div class="row" style="margin-bottom:10px">
+              <button class="pri sm" onclick="brollSuggest()">✨ Avto g'oyalar</button>
+              <button class="gh sm" onclick="addBroll()">+ Qo'lda qo'shish</button>
+            </div>
+            <div class="hint" id="brollMsg"></div>
+            <div id="brollList"></div>
+          </div>
+        </div>
+
+        <!-- STEP REF -->
+        <div class="step" id="step-ref">
+          <div class="card">
+            <h3>🎯 Namuna uslub</h3>
+            <p class="hint">Yoqtirgan videongizni yuklang — bot uning <b>subtitr tempini va kesish uslubini</b> o'lchab, sizning sozlamalaringizni shunga moslaydi.</p>
+            <input id="refFile" type="file" accept="video/*" style="display:none">
+            <button class="pri" onclick="document.getElementById('refFile').click()">Namuna video yuklash</button>
+            <div id="refProg" class="prog" style="display:none"><div></div></div>
+            <div id="refMsg" class="hint" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row sb">
+            <label class="sw"><input type="checkbox" id="zoom" checked> Silliq zoom</label>
+            <label class="sw"><input type="checkbox" id="audio" checked> Ovoz tozalash</label>
+          </div>
+        </div>
+        <button class="gh sm" onclick="resetAll()">🔄 Yangi video</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HIST TAB -->
+<div id="hist" style="display:none">
+  <h2>Tarix</h2>
+  <div id="histWrap" class="hist"></div>
+  <div id="histEmpty" class="hint">Hali tayyor video yo'q.</div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=(id)=>document.getElementById(id);
+let TOKEN=localStorage.getItem("mtoken")||"";
+let S=null;   // holat
+const vid=$("vid");
+
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600)}
+function hdr(){return TOKEN?{"X-Auth":TOKEN,"Content-Type":"application/json"}:{"Content-Type":"application/json"}}
+async function api(path,body){
+  const r=await fetch(path,{method:"POST",headers:hdr(),body:JSON.stringify(body||{})});
+  if(r.status===401){$("login").style.display="flex";$("edit").style.display="none";throw new Error("auth")}
+  if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||("xato "+r.status));
+  return r.json();
+}
+// job pollingi
+async function waitJob(jid,onProg){
+  while(true){
+    const j=await (await fetch("/api/job/"+jid)).json();
+    if(onProg)onProg(j.progress||0,j.step||"");
+    if(j.status==="done")return j.result;
+    if(j.status==="error")throw new Error(j.error||"job xato");
+    await new Promise(r=>setTimeout(r,900));
+  }
+}
+
+// ---------- init ----------
+(async()=>{
+  const cfg=await (await fetch("/api/config")).json();
+  if(cfg.auth && !TOKEN){$("login").style.display="flex";return}
+  startApp();
+})();
+async function doLogin(){
+  try{const r=await (await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("pw").value})})).json();
+    TOKEN=r.token||"";localStorage.setItem("mtoken",TOKEN);$("login").style.display="none";startApp();
+  }catch(e){$("loginErr").textContent="Parol noto'g'ri"}
+}
+function startApp(){$("edit").style.display="block";$("uploadView").style.display="block";setupDrop();loadHistory()}
+
+function showTab(t){
+  $("tabEdit").classList.toggle("on",t==="edit");$("tabHist").classList.toggle("on",t==="hist");
+  $("edit").style.display=t==="edit"?"block":"none";$("hist").style.display=t==="hist"?"block":"none";
+  if(t==="hist")loadHistory();
+}
+function goStep(s){
+  document.querySelectorAll(".step").forEach(e=>e.classList.remove("on"));
+  $("step-"+s).classList.add("on");
+  document.querySelectorAll(".stepnav .pill").forEach(e=>e.classList.toggle("on",e.dataset.s===s));
+}
+
+// ---------- upload ----------
+function setupDrop(){
+  const d=$("drop");
+  $("file").onchange=e=>{if(e.target.files[0])upload(e.target.files[0])};
+  ["dragover","dragenter"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add("hi")}));
+  ["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove("hi")}));
+  d.addEventListener("drop",e=>{if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])});
+}
+function upload(f){
+  $("upProg").style.display="block";$("upTxt").textContent="Yuklanyapti...";
+  const fd=new FormData();fd.append("file",f);
+  const xhr=new XMLHttpRequest();xhr.open("POST","/api/upload");
+  if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)$("upProg").firstChild.style.width=(e.loaded/e.total*100)+"%"};
+  xhr.onload=()=>{
+    if(xhr.status!==200){$("upTxt").innerHTML='<span class=err>Yuklashda xato</span>';return}
+    const r=JSON.parse(xhr.responseText);
+    S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,
+       words:[],removes:[],brolls:[],analyzed:false,cut:false,manual:{s:null,e:null},
+       sub:defaultSub()};
+    $("uploadView").style.display="none";$("editorView").style.display="block";
+    vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
+    analyze();
+  };
+  xhr.onerror=()=>$("upTxt").innerHTML='<span class=err>Tarmoq xatosi</span>';
+  xhr.send(fd);
+}
+function defaultSub(){return{on:true,delay:0.20,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
+
+// ---------- analyze ----------
+async function analyze(){
+  $("cutMsg").textContent="";$("engBadge").textContent="⏳ tahlil...";
+  try{
+    const {job}=await api("/api/analyze",{project:S.project});
+    const res=await waitJob(job,(p,s)=>{$("engBadge").textContent="⏳ "+(s||p+"%")});
+    S.words=res.words;S.fullText=res.full_text;S.duration=res.duration;
+    S.removes=[];
+    (res.silence_removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"silence"}));
+    (res.dup_removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"dup"}));
+    $("engBadge").textContent=res.engine;
+    renderRemoves();renderWords();drawTimeline();
+    toast("Tahlil tayyor. Endi kesib, tuzatib chiqing.");
+  }catch(e){$("engBadge").textContent="";$("cutMsg").innerHTML='<span class=err>Tahlil xato: '+e.message+'</span>'}
+}
+
+// ---------- CUT ----------
+function activeRemoves(){
+  return S.removes.filter(r=>{
+    if(r.type==="silence"&&!$("rmSil").checked)return false;
+    if(r.type==="dup"&&!$("rmDup").checked)return false;
+    return r.on!==false;
+  });
+}
+function renderRemoves(){
+  const man=S.removes.filter(r=>r.type==="manual");
+  const nSil=S.removes.filter(r=>r.type==="silence").length;
+  const nDup=S.removes.filter(r=>r.type==="dup").length;
+  $("cutBadge").textContent=`jimlik:${nSil} takror:${nDup} qo'lda:${man.length}`;
+  let h="";
+  man.forEach((r,i)=>{
+    const gi=S.removes.indexOf(r);
+    h+=`<div class="item row sb"><span>✂️ ${r.s.toFixed(1)}s – ${r.e.toFixed(1)}s (qo'lda)</span>
+      <button class="sm gh" onclick="delRemove(${gi})">o'chirish</button></div>`;
+  });
+  $("remList").innerHTML=h;
+  drawTimeline();
+}
+function setManual(k){S.manual[k]=vid.currentTime; $(k==="s"?"mS":"mE").textContent=vid.currentTime.toFixed(1)+"s"}
+function addManual(){
+  const {s,e}=S.manual;
+  if(s==null||e==null||e<=s){toast("Avval boshi va oxirini belgilang");return}
+  S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});
+  S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves();
+}
+function delRemove(i){S.removes.splice(i,1);renderRemoves()}
+async function doCut(){
+  $("cutMsg").textContent="⏳ kesilyapti...";
+  try{
+    const rems=activeRemoves().map(r=>[r.s,r.e]);
+    const {job}=await api("/api/cut",{project:S.project,removes:rems,words:S.words});
+    const res=await waitJob(job,(p,s)=>$("cutMsg").textContent="⏳ "+(s||p+"%"));
+    S.cut=true;S.cutWords=res.words;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
+    vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";
+    $("cutMsg").innerHTML='<span style="color:var(--ok)">✔ Kesildi. Uzunlik: '+res.duration.toFixed(1)+'s</span>';
+    renderWords();drawTimeline();toast("Kesildi — endi subtitr va animatsiyani tekshiring");
+  }catch(e){$("cutMsg").innerHTML='<span class=err>'+e.message+'</span>'}
+}
+
+// ---------- SUB ----------
+function subChanged(){
+  const s=S.sub;
+  s.delay=+$("delay").value;s.margin=+$("mv").value;s.size=+$("sz").value;s.words=+$("wp").value;
+  s.active=$("cAcc").value;s.base=$("cBase").value;s.upper=$("upper").checked;
+  $("delayV").textContent=s.delay.toFixed(2);$("mvV").textContent=s.margin;
+  $("szV").textContent=s.size;$("wpV").textContent=s.words;
+}
+function renderWords(){
+  const el=$("wordList");el.innerHTML="";
+  S.words.forEach((w,i)=>{
+    const c=document.createElement("span");c.className="wchip";c.textContent=w.w;c.dataset.i=i;
+    c.onclick=()=>{vid.currentTime=w.s+0.01;vid.play()};
+    c.ondblclick=()=>{const nv=prompt("So'zni tuzating:",w.w);if(nv!=null){w.w=nv;renderWords()}};
+    el.appendChild(c);
+  });
+}
+
+// ---------- BROLL ----------
+function brollTpl(b,i){
+  return `<div class="item">
+    <div class="row" style="align-items:flex-start">
+      <img class="thumb" src="${b.image_url||''}" style="${b.image_url?'':'display:none'}">
+      <div style="flex:1;min-width:150px">
+        <textarea data-i="${i}" class="bprompt" style="width:100%;height:46px" placeholder="Rasm tavsifi (ingliz/o'zbek)">${b.prompt||''}</textarea>
+      </div>
+    </div>
+    <div class="row sb" style="margin-top:8px">
+      <button class="sm gh" onclick="brollTime(${i})">⏱ Vaqt: ${(+b.time).toFixed(1)}s</button>
+      <span class="hint">Davomiyligi ${b.dur||2.5}s</span>
+      <label class="sw"><input type="checkbox" ${b.on!==false?'checked':''} onchange="S.brolls[${i}].on=this.checked;drawTimeline()"> yoq</label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="sm pri" onclick="brollGen(${i})">${b.image_url?'🔄 Qayta chizish':'🖼 Rasmni chizish'}</button>
+      <button class="sm gh" onclick="brollDel(${i})">o'chirish</button>
+      <span class="hint bstat" data-i="${i}"></span>
+    </div>
+  </div>`;
+}
+function renderBrolls(){
+  $("brollList").innerHTML=S.brolls.map((b,i)=>brollTpl(b,i)).join("");
+  document.querySelectorAll(".bprompt").forEach(t=>t.onchange=e=>S.brolls[+e.target.dataset.i].prompt=e.target.value);
+  drawTimeline();
+}
+function addBroll(){S.brolls.push({prompt:"",time:+vid.currentTime.toFixed(1),dur:2.5,on:true});renderBrolls()}
+function brollTime(i){S.brolls[i].time=+vid.currentTime.toFixed(1);renderBrolls()}
+function brollDel(i){S.brolls.splice(i,1);renderBrolls()}
+async function brollSuggest(){
+  $("brollMsg").textContent="⏳ g'oyalar...";
+  try{
+    const {job}=await api("/api/broll_suggest",{project:S.project,n:4});
+    const res=await waitJob(job,(p,s)=>$("brollMsg").textContent="⏳ "+(s||p+"%"));
+    (res.items||[]).forEach(it=>S.brolls.push({prompt:it.prompt,time:+(+it.at).toFixed(1),dur:2.5,on:true}));
+    $("brollMsg").textContent=`${(res.items||[]).length} ta g'oya qo'shildi — endi "Rasmni chizish" bosing`;
+    renderBrolls();
+  }catch(e){$("brollMsg").innerHTML='<span class=err>'+e.message+'</span>'}
+}
+async function brollGen(i){
+  const b=S.brolls[i];if(!b.prompt){toast("Avval tavsif yozing");return}
+  const stat=document.querySelector('.bstat[data-i="'+i+'"]');if(stat)stat.textContent="⏳ chizilyapti...";
+  try{
+    const {job}=await api("/api/broll_image",{project:S.project,prompt:b.prompt});
+    const res=await waitJob(job,(p,s)=>{if(stat)stat.textContent="⏳ "+(s||p+"%")});
+    b.image=res.image;b.image_url=res.image_url;renderBrolls();toast("Rasm tayyor");
+  }catch(e){if(stat)stat.innerHTML='<span class=err>'+e.message+'</span>'}
+}
+
+// ---------- TIMELINE + live caption ----------
+$("timeline").onclick=e=>{
+  const rc=e.currentTarget.getBoundingClientRect();
+  vid.currentTime=(e.clientX-rc.left)/rc.width*(S.duration||1);
+};
+function drawTimeline(){
+  const tl=$("timeline");tl.querySelectorAll(".tl-rem,.tl-br").forEach(n=>n.remove());
+  const D=S.duration||1;
+  activeRemoves().forEach(r=>{
+    const d=document.createElement("div");d.className="tl-rem";
+    d.style.left=(r.s/D*100)+"%";d.style.width=Math.max(0.5,(r.e-r.s)/D*100)+"%";tl.appendChild(d);
+  });
+  S.brolls.filter(b=>b.on!==false).forEach(b=>{
+    const d=document.createElement("div");d.className="tl-br";d.style.left=(b.time/D*100)+"%";tl.appendChild(d);
+  });
+}
+vid.addEventListener("timeupdate",()=>{
+  const t=vid.currentTime,D=S?S.duration:1;
+  $("tlCur").style.left=(t/D*100)+"%";$("tInfo").textContent=t.toFixed(1)+"s / "+D.toFixed(1)+"s";
+  liveCaption(t);highlightWord(t);
+});
+function liveCaption(t){
+  const ov=$("capOv");if(!S||!S.sub.on||!S.words.length){ov.innerHTML="";return}
+  const off=S.sub.delay, tt=t-off, n=S.sub.words;
+  // guruh
+  let cue=[],cur=[];
+  for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}
+  if(cur.length)cue.push(cur);
+  let show=null,active=-1;
+  for(const g of cue){if(tt>=g[0].s-0.05&&tt<=g[g.length-1].e+0.35){show=g;break}}
+  if(!show){ov.innerHTML="";return}
+  for(let i=0;i<show.length;i++){if(tt>=show[i].s)active=i}
+  const box=$("capOv");
+  box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";
+  box.style.fontSize=(S.sub.size/1920*100)+"cqh";
+  box.style.textTransform=S.sub.upper?"uppercase":"none";
+  ov.innerHTML=show.map((w,i)=>`<span class="w ${i===active?'act':''}" style="color:${i===active?S.sub.active:S.sub.base}">${w.w}</span>`).join(" ");
+}
+function highlightWord(t){
+  const off=S.sub.delay;
+  document.querySelectorAll(".wchip").forEach(c=>{
+    const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&t-off>=w.s&&t-off<=w.e);
+  });
+}
+// capOv o'lchamini videoBox balandligiga bog'lash uchun container-query birligi
+$("capOv").style.cssText+=";container-type:size";
+document.querySelector(".videoBox").style.containerType="size";
+
+// ---------- REFERENCE ----------
+$("refFile")&&($("refFile").onchange=e=>{if(e.target.files[0])uploadRef(e.target.files[0])});
+function uploadRef(f){
+  $("refProg").style.display="block";$("refProg").firstChild.style.width="10%";$("refMsg").textContent="Namuna yuklanyapti...";
+  const fd=new FormData();fd.append("file",f);
+  const xhr=new XMLHttpRequest();xhr.open("POST","/api/reference");if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)$("refProg").firstChild.style.width=(10+e.loaded/e.total*30)+"%"};
+  xhr.onload=async()=>{
+    if(xhr.status!==200){$("refMsg").innerHTML='<span class=err>Xato</span>';return}
+    const {job}=JSON.parse(xhr.responseText);
+    try{
+      const res=await waitJob(job,(p,s)=>{$("refProg").firstChild.style.width=(40+p*0.6)+"%";$("refMsg").textContent="⏳ "+(s||"")});
+      // sozlamalarni qo'llash
+      if(res.words_per_cue){$("wp").value=res.words_per_cue;subChanged()}
+      $("refMsg").innerHTML=`✔ Namuna uslubi qo'llandi: bir guruhda ~${res.words_per_cue} so'z, temp: ${res.pace}. `+
+        (res.fast_cut?'Tez kesish tavsiya etiladi.':'Uzun sahnalar.');
+      $("refProg").firstChild.style.width="100%";toast("Namuna uslubi qo'llandi");
+    }catch(err){$("refMsg").innerHTML='<span class=err>'+err.message+'</span>'}
+  };
+  xhr.send(fd);
+}
+
+// ---------- RENDER ----------
+async function doRender(){
+  if(!S){toast("Avval video yuklang");return}
+  subChanged();
+  $("renderProg").style.display="block";$("renderBtn").disabled=true;$("resultBox").style.display="none";
+  const y=+$("brollY").value;
+  const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
+  const body={project:S.project,words:S.words,subtitle_on:$("subOn").checked,
+    subtitle:{delay:S.sub.delay,margin_v:S.sub.margin,size:S.sub.size,words:S.sub.words,
+      active:S.sub.active,base:S.sub.base,upper:S.sub.upper,font:"Anton",outline:"#000000",border:4},
+    brolls,zoom:$("zoom").checked,audio_clean:$("audio").checked};
+  try{
+    const {job}=await api("/api/render",body);
+    const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
+    $("renderTxt").textContent="";$("resultBox").style.display="block";
+    $("resVid").src=res.final_url;$("dl").href=res.final_url;
+    toast("Tayyor! Yuklab oling.");loadHistory();
+  }catch(e){$("renderTxt").innerHTML='<span class=err>Render xato: '+e.message+'</span>'}
+  finally{$("renderBtn").disabled=false}
+}
+
+// ---------- HISTORY ----------
+async function loadHistory(){
+  try{
+    const r=await fetch("/api/history",{headers:TOKEN?{"X-Auth":TOKEN}:{}});
+    if(!r.ok)return;const {items}=await r.json();
+    $("histEmpty").style.display=items.length?"none":"block";
+    $("histWrap").innerHTML=items.map(it=>`<div class="card">
+      <video src="${it.final_url}" controls playsinline style="width:100%;border-radius:8px;background:#000"></video>
+      <div class="row sb" style="margin-top:8px">
+        <span class="hint">${new Date(it.finished*1000).toLocaleDateString()} · ${(+it.duration).toFixed(0)}s</span>
+        <a class="pill on" href="${it.final_url}" download>⬇️</a>
+      </div>
+      <button class="gh sm" style="margin-top:6px;width:100%" onclick="delHist('${it.project}')">o'chirish</button>
+    </div>`).join("");
+  }catch(e){}
+}
+async function delHist(pid){
+  if(!confirm("O'chirilsinmi?"))return;
+  await fetch("/api/history/"+pid,{method:"DELETE",headers:TOKEN?{"X-Auth":TOKEN}:{}});
+  loadHistory();
+}
+function resetAll(){S=null;$("editorView").style.display="none";$("uploadView").style.display="block";$("file").value="";$("upProg").firstChild.style.width="0";$("upTxt").textContent=""}
+</script>
+</body>
+</html>
