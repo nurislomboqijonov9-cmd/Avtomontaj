@@ -6,276 +6,383 @@
 <title>Montaj Studio</title>
 <style>
 :root{
-  --bg:#0d0f14; --panel:#161a22; --panel2:#1e232e; --line:#2a3140;
-  --tx:#e8ecf3; --mut:#8b94a7; --acc:#ffea00; --accb:#3b82f6; --red:#ef4444;
-  --ok:#22c55e; --r:14px;
+  --bg:#f4f6fb; --panel:#ffffff; --panel2:#f1f3f9; --line:#e6e9f2;
+  --tx:#141a26; --mut:#6b7386; --acc:#ff8a3d; --accb:#2f6bff; --acc2:#12c2a0;
+  --red:#ef4444; --ok:#12b886; --r:16px; --sh:0 6px 24px rgba(20,26,38,.06);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
-button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:10px 14px;color:#fff;background:var(--panel2)}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.55 -apple-system,"Segoe UI",Roboto,Inter,sans-serif}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:11px 16px;color:#fff;background:var(--panel2);color:var(--tx)}
 button:active{transform:scale(.98)}
-button.pri{background:var(--accb)}
-button.go{background:linear-gradient(135deg,#f59e0b,#ef4444);font-weight:700;font-size:17px;padding:15px}
-button.sm{padding:6px 10px;font-size:13px;border-radius:8px}
-button.gh{background:transparent;border:1px solid var(--line);color:var(--mut)}
-button:disabled{opacity:.45;cursor:not-allowed}
-input,textarea,select{font:inherit;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:9px}
-input[type=range]{padding:0;width:100%}
-a{color:var(--accb)}
-.wrap{max-width:1180px;margin:0 auto;padding:16px}
-header{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.hd{display:flex;align-items:center;gap:14px;padding:12px 16px;max-width:1180px;margin:0 auto}
-.logo{font-weight:800;font-size:19px;letter-spacing:.3px}
-.logo b{color:var(--acc)}
-.tabs{display:flex;gap:6px;margin-left:auto}
-.tab{background:transparent;color:var(--mut);border:1px solid transparent;padding:8px 14px;border-radius:10px}
-.tab.on{background:var(--panel2);color:var(--tx);border-color:var(--line)}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--red);display:inline-block;margin-right:5px}
-.dot.ok{background:var(--ok)}
-.grid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;align-items:start}
-@media(max-width:860px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
-.card h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:8px}
-.badge{font-size:12px;color:var(--mut);background:var(--panel2);padding:3px 8px;border-radius:20px}
-.videoBox{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:9/16;max-height:66vh;margin:0 auto;width:100%}
-.videoBox video{width:100%;height:100%;object-fit:contain;display:block}
-.capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;
-  text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
-.capOv .w{color:#fff}.capOv .w.act{color:var(--acc)}
-.drop{border:2px dashed var(--line);border-radius:16px;padding:44px 18px;text-align:center;color:var(--mut);background:var(--panel)}
-.drop.hi{border-color:var(--accb);background:#12203a}
+button.pri{background:var(--accb);color:#fff}
+button.go{background:linear-gradient(135deg,#ff9a3d,#ff5d8f);color:#fff;font-weight:800;font-size:16px;padding:15px 20px;box-shadow:0 8px 24px rgba(255,93,143,.28)}
+button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+button.gh{background:#fff;border:1px solid var(--line);color:var(--mut)}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,textarea,select{font:inherit;background:#fff;color:var(--tx);border:1px solid var(--line);border-radius:11px;padding:10px}
+input[type=range]{padding:0;width:100%;accent-color:var(--accb)}
+a{color:var(--accb);text-decoration:none}
+.app{display:flex;min-height:100vh}
+/* sidebar */
+.side{width:230px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;padding:6px 8px 14px}
+.brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#ff9a3d,#ff5d8f)}
+.brand b{color:var(--acc)}
+.langs{display:flex;gap:6px;padding:4px 6px 12px}
+.langs button{flex:1;padding:7px 0;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--mut);border-radius:10px}
+.langs button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.nav{display:flex;flex-direction:column;gap:3px}
+.nav button{display:flex;align-items:center;gap:10px;justify-content:flex-start;background:transparent;color:var(--mut);border-radius:11px;padding:10px 12px;font-weight:600}
+.nav button.on{background:var(--panel2);color:var(--tx)}
+.side .foot{margin-top:auto;font-size:12px;color:var(--mut);padding:10px 8px;border-top:1px solid var(--line)}
+.dotst{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px}
+.dotst.ok{background:var(--ok)}
+/* main */
+.main{flex:1;min-width:0;padding:22px;max-width:1160px;margin:0 auto;width:100%}
+.hero{background:linear-gradient(120deg,#dbe7ff, #ffe6d6 60%, #ffe0ec);border-radius:22px;padding:30px 28px;margin-bottom:20px}
+.hero h1{margin:0 0 6px;font-size:26px}
+.hero p{margin:0;color:#41506b}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:16px;box-shadow:var(--sh)}
+.card h3{margin:0 0 14px;font-size:15px;display:flex;align-items:center;gap:8px}
+.sect-t{font-size:13px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:2px 0 10px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.opt{border:1.5px solid var(--line);border-radius:14px;padding:13px;cursor:pointer;background:#fff;transition:.15s;user-select:none}
+.opt.on{border-color:var(--accb);background:#f2f6ff}
+.opt .t{font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.opt .d{font-size:12.5px;color:var(--mut);margin-top:3px}
+.opt .chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:#fff}
+.opt.on .chk{background:var(--accb);border-color:var(--accb)}
+/* presets */
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+.preset{border:2px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:#0d0f14;position:relative;aspect-ratio:9/13}
+.preset.on{border-color:var(--accb);box-shadow:0 0 0 3px rgba(47,107,255,.18)}
+.preset .pv{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:16px;background:linear-gradient(180deg,#2a2f3a,#0d0f14)}
+.preset .cap{font-weight:800;text-align:center;line-height:1.1;text-transform:uppercase;text-shadow:0 2px 0 #000;font-size:15px;padding:0 6px}
+.preset .nm{position:absolute;top:8px;left:8px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);padding:2px 8px;border-radius:20px}
+/* dropzone */
+.drop{border:2px dashed var(--line);border-radius:18px;padding:40px 18px;text-align:center;color:var(--mut);background:#fff;transition:.15s}
+.drop.hi{border-color:var(--accb);background:#f2f6ff}
+.drop .big{font-size:40px}
+.prog{height:9px;background:var(--panel2);border-radius:20px;overflow:hidden;margin:10px 0}
+.prog>div{height:100%;background:linear-gradient(90deg,#ff9a3d,#ff5d8f);width:0;transition:width .3s}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .row.sb{justify-content:space-between}
-.lbl{font-size:13px;color:var(--mut);margin-bottom:4px}
-.field{margin-bottom:12px}
+.lbl{font-size:13px;color:var(--mut);margin-bottom:5px}
+.field{margin-bottom:13px}
+.grid2{display:grid;grid-template-columns:minmax(280px,400px) 1fr;gap:18px;align-items:start}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}.side{width:64px}.side .txt,.langs,.brand b{display:none}}
+.videoBox{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:9/16;max-height:64vh;margin:0 auto;width:100%;container-type:size}
+.videoBox video{width:100%;height:100%;object-fit:contain;display:block}
+.capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
+.capOv .w{color:#fff}
+.timeline{position:relative;height:32px;background:var(--panel2);border-radius:9px;margin:10px 0;overflow:hidden;cursor:pointer}
+.tl-rem{position:absolute;top:0;bottom:0;background:rgba(239,68,68,.45)}
+.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--accb)}
+.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:var(--tx)}
+.item{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
+.words{max-height:220px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
+.wchip{background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer}
+.wchip.now{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tabs2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs2 .pill{font-size:13px;padding:8px 13px;border-radius:11px;background:#fff;border:1px solid var(--line);color:var(--mut);cursor:pointer}
+.tabs2 .pill.on{background:var(--accb);color:#fff;border-color:var(--accb)}
 .sw{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
-.sw input{width:42px;height:24px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:20px;position:relative;transition:.2s;border:none;padding:0}
+.sw input{width:42px;height:24px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:20px;position:relative;transition:.2s;border:none;padding:0;flex:none}
 .sw input:checked{background:var(--accb)}
 .sw input::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
 .sw input:checked::after{left:21px}
-.timeline{position:relative;height:34px;background:var(--panel2);border-radius:8px;margin:10px 0;overflow:hidden;cursor:pointer}
-.tl-rem{position:absolute;top:0;bottom:0;background:rgba(239,68,68,.5)}
-.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--accb)}
-.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:#fff}
-.item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
-.words{max-height:230px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
-.wchip{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:13px;cursor:pointer}
-.wchip.now{background:var(--acc);color:#000;border-color:var(--acc)}
-.pill{font-size:12px;padding:3px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;color:var(--mut)}
-.pill.on{background:var(--accb);color:#fff;border-color:var(--accb)}
-.thumb{width:74px;height:44px;object-fit:cover;border-radius:6px;background:#000;flex:none}
-.prog{height:8px;background:var(--panel2);border-radius:20px;overflow:hidden;margin:8px 0}
-.prog>div{height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);width:0;transition:width .3s}
-.hint{font-size:12.5px;color:var(--mut)}
-.err{color:#fca5a5;font-size:13px}
-.hist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
-.hist .card{margin:0}
 .step{display:none}.step.on{display:block}
-.stepnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.stepnav .pill{font-size:13px}
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:11px 18px;border-radius:12px;z-index:99;opacity:0;transition:.3s;pointer-events:none}
+.thumb{width:72px;height:44px;object-fit:cover;border-radius:7px;background:#000;flex:none}
+.hint{font-size:12.5px;color:var(--mut)}
+.err{color:#c92a2a;font-size:13px}
+.hist{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;padding:11px 18px;border-radius:12px;z-index:99;opacity:0;transition:.3s;pointer-events:none}
 .toast.show{opacity:1}
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;text-align:center;gap:16px}
+.center{display:grid;place-items:center;min-height:70vh}
+.badge{font-size:12px;color:var(--mut);background:var(--panel2);padding:3px 9px;border-radius:20px}
 </style>
 </head>
 <body>
-<header><div class="hd">
-  <div class="logo">Montaj <b>Studio</b></div>
-  <div class="tabs">
-    <button class="tab on" id="tabEdit" onclick="showTab('edit')">Tahrir</button>
-    <button class="tab" id="tabHist" onclick="showTab('hist')">Tarix</button>
-  </div>
-</div></header>
-
-<div class="wrap">
-
-<!-- LOGIN -->
-<div id="login" class="center" style="display:none">
-  <div class="card" style="width:320px">
-    <h3>Kirish</h3>
-    <div class="field"><div class="lbl">Parol</div><input id="pw" type="password" style="width:100%"></div>
-    <button class="pri" style="width:100%" onclick="doLogin()">Kirish</button>
-    <div id="loginErr" class="err" style="margin-top:8px"></div>
-  </div>
-</div>
-
-<!-- EDIT TAB -->
-<div id="edit" style="display:none">
-  <!-- upload -->
-  <div id="uploadView">
-    <div class="drop" id="drop">
-      <div style="font-size:44px">🎬</div>
-      <h2 style="margin:8px 0">Video yuklang</h2>
-      <p class="hint">MP4 / MOV. Bu yerga tashlang yoki tanlang.<br>Bot avtomatik o'zbekcha subtitr qo'yadi, keraksiz joylarni kesadi — keyin o'zingiz tuzatasiz.</p>
-      <input id="file" type="file" accept="video/*" style="display:none">
-      <button class="pri" onclick="document.getElementById('file').click()">Fayl tanlash</button>
-      <div id="upProg" class="prog" style="display:none"><div></div></div>
-      <div id="upTxt" class="hint"></div>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand"><span class="dot"></span><span>Montaj <b>Studio</b></span></div>
+    <div class="langs">
+      <button data-lang="uz" onclick="setLang('uz')">UZ</button>
+      <button data-lang="ru" onclick="setLang('ru')">RU</button>
+      <button data-lang="en" onclick="setLang('en')">EN</button>
     </div>
-  </div>
+    <nav class="nav">
+      <button id="navHome" class="on" onclick="showTab('home')">🏠 <span class="txt" data-i="nav_home">Bosh</span></button>
+      <button id="navHist" onclick="showTab('hist')">🗂️ <span class="txt" data-i="nav_hist">Tarix</span></button>
+    </nav>
+    <div class="foot">
+      <div><span class="dotst" id="vxDot"></span><span class="txt" id="vxTxt">Vertex</span></div>
+      <div style="margin-top:6px" class="txt" data-i="foot">Reels · TikTok · Shorts · VK</div>
+    </div>
+  </aside>
 
-  <!-- editor -->
-  <div id="editorView" style="display:none">
-    <div class="grid">
-      <!-- LEFT: video + timeline -->
-      <div>
-        <div class="card">
-          <div class="videoBox">
-            <video id="vid" playsinline></video>
-            <div class="capOv" id="capOv"></div>
-          </div>
-          <div class="timeline" id="timeline"><div class="tl-cur" id="tlCur"></div></div>
-          <div class="row sb">
-            <span class="hint" id="tInfo">0.0s</span>
-            <span class="badge" id="engBadge"></span>
-          </div>
-        </div>
-        <button class="go" style="width:100%" id="autoBtn" onclick="runAuto()">🚀 Avtomatik montaj (hammasi o'zi)</button>
-        <button class="pri" style="width:100%;margin-top:8px" id="renderBtn" onclick="doRender()">✅ Qayta tayyorlash (tuzatishlardan keyin)</button>
-        <div id="renderProg" class="prog" style="display:none"><div></div></div>
-        <div id="renderTxt" class="hint" style="text-align:center"></div>
-        <div id="resultBox" style="display:none;margin-top:12px" class="card">
-          <h3>🎉 Tayyor!</h3>
-          <video id="resVid" controls playsinline style="width:100%;border-radius:10px"></video>
-          <div class="row" style="margin-top:10px">
-            <a id="dl" class="pill on" download>⬇️ Yuklab olish</a>
-            <button class="gh sm" onclick="showTab('hist')">Tarixda ko'rish</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: steps -->
-      <div>
-        <div class="stepnav">
-          <button class="pill on" data-s="cut" onclick="goStep('cut')">1 · Kesish</button>
-          <button class="pill" data-s="sub" onclick="goStep('sub')">2 · Subtitr</button>
-          <button class="pill" data-s="broll" onclick="goStep('broll')">3 · Animatsiya</button>
-          <button class="pill" data-s="ref" onclick="goStep('ref')">4 · Namuna uslub</button>
-        </div>
-
-        <!-- STEP CUT -->
-        <div class="step on" id="step-cut">
-          <div class="card">
-            <h3>✂️ Kesish <span class="badge" id="cutBadge"></span></h3>
-            <div class="row" style="margin-bottom:10px">
-              <label class="sw"><input type="checkbox" id="rmSil" checked onchange="renderRemoves()"> Jimliklar</label>
-              <label class="sw"><input type="checkbox" id="rmDup" checked onchange="renderRemoves()"> Takror gaplar</label>
-            </div>
-            <div class="hint" style="margin-bottom:8px">Qo'lda kesish: pleyerni kerakli joyga qo'ying →</div>
-            <div class="row" style="margin-bottom:10px">
-              <button class="sm gh" onclick="setManual('s')">◧ Boshi = <span id="mS">–</span></button>
-              <button class="sm gh" onclick="setManual('e')">Oxiri = <span id="mE">–</span> ◨</button>
-              <button class="sm pri" onclick="addManual()">+ Kesish qo'shish</button>
-            </div>
-            <div id="remList"></div>
-            <button class="pri" style="width:100%;margin-top:10px" onclick="doCut()">Kesishni qo'llash</button>
-            <div class="hint" id="cutMsg" style="margin-top:6px"></div>
-          </div>
-        </div>
-
-        <!-- STEP SUB -->
-        <div class="step" id="step-sub">
-          <div class="card">
-            <h3>💬 Subtitr</h3>
-            <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> Subtitr yoqilgan</label>
-            <div class="field"><div class="lbl">Vaqt siljishi (sinxron): <b id="delayV">0.00</b>s <span class="hint">(orqada qolsa − ga, oldinda ketsa + ga suring, pleyerda jonli ko'rasiz)</span></div>
-              <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="0" oninput="subChanged()"></div>
-            <div class="field"><div class="lbl">Balandligi (pastdan): <b id="mvV">660</b></div>
-              <input type="range" id="mv" min="120" max="1300" step="10" value="660" oninput="subChanged()"></div>
-            <div class="field"><div class="lbl">Shrift o'lchami: <b id="szV">90</b></div>
-              <input type="range" id="sz" min="48" max="140" step="2" value="90" oninput="subChanged()"></div>
-            <div class="field"><div class="lbl">Bir guruhda so'z: <b id="wpV">3</b></div>
-              <input type="range" id="wp" min="1" max="5" step="1" value="3" oninput="subChanged()"></div>
-            <div class="row">
-              <div style="flex:1"><div class="lbl">Faol rang</div><input type="color" id="cAcc" value="#ffea00" style="width:100%;height:38px" oninput="subChanged()"></div>
-              <div style="flex:1"><div class="lbl">Asosiy</div><input type="color" id="cBase" value="#ffffff" style="width:100%;height:38px" oninput="subChanged()"></div>
-            </div>
-            <label class="sw" style="margin-top:10px"><input type="checkbox" id="upper" checked onchange="subChanged()"> KATTA HARF</label>
-          </div>
-          <div class="card">
-            <h3>📝 Matn <span class="badge">so'zga bosib tuzating</span></h3>
-            <div class="words" id="wordList"></div>
-          </div>
-        </div>
-
-        <!-- STEP BROLL -->
-        <div class="step" id="step-broll">
-          <div class="card">
-            <h3>🖼️ Animatsiya / rasm</h3>
-            <div class="field"><div class="lbl">Balandligi (pastdan, hamma uchun): <b id="byV">0.72</b></div>
-              <input type="range" id="brollY" min="0.3" max="0.9" step="0.01" value="0.72" oninput="document.getElementById('byV').textContent=this.value"></div>
-            <div class="row" style="margin-bottom:10px">
-              <button class="pri sm" onclick="brollSuggest()">✨ Avto g'oyalar</button>
-              <button class="gh sm" onclick="addBroll()">+ Qo'lda qo'shish</button>
-            </div>
-            <div class="hint" id="brollMsg"></div>
-            <div id="brollList"></div>
-          </div>
-        </div>
-
-        <!-- STEP REF -->
-        <div class="step" id="step-ref">
-          <div class="card">
-            <h3>🎯 Namuna uslub</h3>
-            <p class="hint">Yoqtirgan videongizni yuklang — bot uning <b>subtitr tempini va kesish uslubini</b> o'lchab, sizning sozlamalaringizni shunga moslaydi.</p>
-            <input id="refFile" type="file" accept="video/*" style="display:none">
-            <button class="pri" onclick="document.getElementById('refFile').click()">Namuna video yuklash</button>
-            <div id="refProg" class="prog" style="display:none"><div></div></div>
-            <div id="refMsg" class="hint" style="margin-top:8px"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="row sb">
-            <label class="sw"><input type="checkbox" id="zoom" checked> Silliq zoom</label>
-            <label class="sw"><input type="checkbox" id="audio" checked> Ovoz tozalash</label>
-          </div>
-        </div>
-        <button class="gh sm" onclick="resetAll()">🔄 Yangi video</button>
+  <main class="main">
+    <!-- LOGIN -->
+    <div id="login" class="center" style="display:none">
+      <div class="card" style="width:320px">
+        <h3 data-i="login">Kirish</h3>
+        <div class="field"><div class="lbl" data-i="password">Parol</div><input id="pw" type="password" style="width:100%"></div>
+        <button class="pri" style="width:100%" onclick="doLogin()" data-i="enter">Kirish</button>
+        <div id="loginErr" class="err" style="margin-top:8px"></div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- HIST TAB -->
-<div id="hist" style="display:none">
-  <h2>Tarix</h2>
-  <div id="histWrap" class="hist"></div>
-  <div id="histEmpty" class="hint">Hali tayyor video yo'q.</div>
-</div>
+    <!-- HOME -->
+    <div id="home" style="display:none">
+      <div class="hero">
+        <h1 data-i="hero_t">Video yuklang</h1>
+        <p data-i="hero_s">Bot avtomatik subtitr qo'yadi, keraksiz joylarni kesadi, animatsiya qo'shadi — nimani xohlasangiz, o'shani tanlang.</p>
+      </div>
 
+      <div class="card">
+        <div class="sect-t" data-i="what">Nima qilamiz?</div>
+        <div class="opts" id="opts"></div>
+      </div>
+
+      <div class="card" id="styleCard">
+        <div class="sect-t" data-i="style">Subtitr uslubi</div>
+        <div class="presets" id="presets"></div>
+      </div>
+
+      <div class="card">
+        <div class="drop" id="drop">
+          <div class="big">🎬</div>
+          <h2 style="margin:8px 0" data-i="add_media">Media qo'shish</h2>
+          <p class="hint" data-i="add_hint">MP4 / MOV — bu yerga tashlang yoki tanlang.</p>
+          <input id="file" type="file" accept="video/*" style="display:none">
+          <button class="go" onclick="document.getElementById('file').click()" data-i="choose">🚀 Video tanlash va montaj</button>
+          <div id="upProg" class="prog" style="display:none"><div></div></div>
+          <div id="homeMsg" class="hint"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDITOR -->
+    <div id="editor" style="display:none">
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="videoBox"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div></div>
+            <div class="timeline" id="timeline"><div class="tl-cur" id="tlCur"></div></div>
+            <div class="row sb"><span class="hint" id="tInfo">0.0s</span><span class="badge" id="engBadge"></span></div>
+          </div>
+          <div id="renderProg" class="prog" style="display:none"><div></div></div>
+          <div id="renderTxt" class="hint" style="text-align:center"></div>
+          <button class="go" style="width:100%" id="reautoBtn" onclick="runAuto()" data-i="reauto">🚀 Avtomatik montaj</button>
+          <button class="pri" style="width:100%;margin-top:8px" id="renderBtn" onclick="doRender()" data-i="rerender">✅ Qayta tayyorlash</button>
+          <div id="resultBox" style="display:none;margin-top:12px" class="card">
+            <h3 data-i="ready">🎉 Tayyor!</h3>
+            <video id="resVid" controls playsinline style="width:100%;border-radius:11px"></video>
+            <div class="row" style="margin-top:10px">
+              <a id="dl" class="badge" download style="background:var(--accb);color:#fff;padding:8px 14px" data-i="download">⬇️ Yuklab olish</a>
+              <button class="gh sm" onclick="showTab('hist')" data-i="in_hist">Tarixda</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="tabs2">
+            <button class="pill on" data-s="cut" onclick="goStep('cut')" data-i="tab_cut">Kesish</button>
+            <button class="pill" data-s="sub" onclick="goStep('sub')" data-i="tab_sub">Subtitr</button>
+            <button class="pill" data-s="broll" onclick="goStep('broll')" data-i="tab_broll">Animatsiya</button>
+            <button class="pill" data-s="ref" onclick="goStep('ref')" data-i="tab_ref">Namuna</button>
+          </div>
+
+          <div class="step on" id="step-cut">
+            <div class="card">
+              <h3>✂️ <span data-i="tab_cut">Kesish</span> <span class="badge" id="cutBadge"></span></h3>
+              <div class="row" style="margin-bottom:10px">
+                <button class="sm gh" onclick="setManual('s')"><span data-i="m_start">Boshi</span> = <span id="mS">–</span></button>
+                <button class="sm gh" onclick="setManual('e')"><span data-i="m_end">Oxiri</span> = <span id="mE">–</span></button>
+                <button class="sm pri" onclick="addManual()" data-i="m_add">+ Kesish</button>
+              </div>
+              <div id="remList"></div>
+              <button class="pri" style="width:100%;margin-top:10px" onclick="doCut()" data-i="apply_cut">Kesishni qo'llash</button>
+              <div class="hint" id="cutMsg" style="margin-top:6px"></div>
+            </div>
+          </div>
+
+          <div class="step" id="step-sub">
+            <div class="card">
+              <h3 data-i="tab_sub">Subtitr</h3>
+              <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> <span data-i="sub_on">Subtitr yoqilgan</span></label>
+              <div class="field"><div class="lbl"><span data-i="sync">Vaqt siljishi</span>: <b id="delayV">0.00</b>s</div>
+                <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="0" oninput="subChanged()"></div>
+              <div class="field"><div class="lbl"><span data-i="height">Balandligi</span>: <b id="mvV">660</b></div>
+                <input type="range" id="mv" min="120" max="1300" step="10" value="660" oninput="subChanged()"></div>
+              <div class="field"><div class="lbl"><span data-i="size">O'lcham</span>: <b id="szV">90</b></div>
+                <input type="range" id="sz" min="48" max="140" step="2" value="90" oninput="subChanged()"></div>
+              <div class="field"><div class="lbl"><span data-i="wpg">Guruhda so'z</span>: <b id="wpV">3</b></div>
+                <input type="range" id="wp" min="1" max="5" step="1" value="3" oninput="subChanged()"></div>
+              <div class="row">
+                <div style="flex:1"><div class="lbl" data-i="c_active">Faol rang</div><input type="color" id="cAcc" value="#ffea00" style="width:100%;height:38px" oninput="subChanged()"></div>
+                <div style="flex:1"><div class="lbl" data-i="c_base">Asosiy</div><input type="color" id="cBase" value="#ffffff" style="width:100%;height:38px" oninput="subChanged()"></div>
+              </div>
+              <label class="sw" style="margin-top:10px"><input type="checkbox" id="upper" checked onchange="subChanged()"> <span data-i="caps">KATTA HARF</span></label>
+            </div>
+            <div class="card">
+              <h3>📝 <span data-i="text">Matn</span> <span class="badge" data-i="dbl">2 marta bosib tuzating</span></h3>
+              <div class="words" id="wordList"></div>
+            </div>
+          </div>
+
+          <div class="step" id="step-broll">
+            <div class="card">
+              <h3>🖼️ <span data-i="tab_broll">Animatsiya</span></h3>
+              <div class="field"><div class="lbl"><span data-i="b_height">Balandligi</span>: <b id="byV">0.72</b></div>
+                <input type="range" id="brollY" min="0.3" max="0.9" step="0.01" value="0.72" oninput="document.getElementById('byV').textContent=this.value"></div>
+              <div class="row" style="margin-bottom:10px">
+                <button class="pri sm" onclick="brollSuggest()" data-i="b_auto">✨ Avto g'oyalar</button>
+                <button class="gh sm" onclick="addBroll()" data-i="b_manual">+ Qo'lda</button>
+              </div>
+              <div class="hint" id="brollMsg"></div>
+              <div id="brollList"></div>
+            </div>
+          </div>
+
+          <div class="step" id="step-ref">
+            <div class="card">
+              <h3>🎯 <span data-i="tab_ref">Namuna uslub</span></h3>
+              <p class="hint" data-i="ref_hint">Yoqtirgan videongizni yuklang — bot uning subtitr tempini o'lchab moslaydi.</p>
+              <input id="refFile" type="file" accept="video/*" style="display:none">
+              <button class="pri" onclick="document.getElementById('refFile').click()" data-i="ref_up">Namuna yuklash</button>
+              <div id="refProg" class="prog" style="display:none"><div></div></div>
+              <div id="refMsg" class="hint" style="margin-top:8px"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row sb">
+              <label class="sw"><input type="checkbox" id="zoom" checked> <span data-i="zoom">Zoom</span></label>
+              <label class="sw"><input type="checkbox" id="audio" checked> <span data-i="clean">Ovoz tozalash</span></label>
+            </div>
+          </div>
+          <button class="gh sm" onclick="resetAll()" data-i="new_video">🔄 Yangi video</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="hist" style="display:none">
+      <h2 data-i="nav_hist">Tarix</h2>
+      <div id="histWrap" class="hist"></div>
+      <div id="histEmpty" class="hint" data-i="hist_empty">Hali tayyor video yo'q.</div>
+    </div>
+  </main>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 const $=(id)=>document.getElementById(id);
 let TOKEN=localStorage.getItem("mtoken")||"";
-let S=null;   // holat
+let LANG=localStorage.getItem("mlang")||"uz";
+let S=null;
 const vid=$("vid");
 
-function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600)}
+// ---------- i18n ----------
+const I={
+ uz:{nav_home:"Bosh",nav_hist:"Tarix",foot:"Reels · TikTok · Shorts · VK",login:"Kirish",password:"Parol",enter:"Kirish",
+  hero_t:"Video yuklang",hero_s:"Bot avtomatik subtitr qo'yadi, keraksiz joylarni kesadi, animatsiya qo'shadi — nimani xohlasangiz tanlang.",
+  what:"Nima qilamiz?",style:"Subtitr uslubi",add_media:"Media qo'shish",add_hint:"MP4 / MOV — bu yerga tashlang yoki tanlang.",
+  choose:"🚀 Video tanlash va montaj",reauto:"🚀 Avtomatik montaj",rerender:"✅ Qayta tayyorlash",ready:"🎉 Tayyor!",download:"⬇️ Yuklab olish",in_hist:"Tarixda",
+  tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"Kesishni qo'llash",
+  sub_on:"Subtitr yoqilgan",sync:"Vaqt siljishi",height:"Balandligi",size:"O'lcham",wpg:"Guruhda so'z",c_active:"Faol rang",c_base:"Asosiy",caps:"KATTA HARF",
+  text:"Matn",dbl:"2 marta bosib tuzating",b_height:"Balandligi",b_auto:"✨ Avto g'oyalar",b_manual:"+ Qo'lda",ref_hint:"Yoqtirgan videongizni yuklang — bot uning subtitr tempini moslaydi.",
+  ref_up:"Namuna yuklash",zoom:"Zoom",clean:"Ovoz tozalash",new_video:"🔄 Yangi video",hist_empty:"Hali tayyor video yo'q.",
+  o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi",
+  proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish"},
+ ru:{nav_home:"Главная",nav_hist:"История",foot:"Reels · TikTok · Shorts · VK",login:"Вход",password:"Пароль",enter:"Войти",
+  hero_t:"Загрузите видео",hero_s:"Бот добавит субтитры, вырежет лишнее, добавит анимацию — выберите, что нужно.",
+  what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
+  choose:"🚀 Выбрать видео и смонтировать",reauto:"🚀 Авто‑монтаж",rerender:"✅ Пересобрать",ready:"🎉 Готово!",download:"⬇️ Скачать",in_hist:"В истории",
+  tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"Применить обрезку",
+  sub_on:"Субтитры включены",sync:"Сдвиг времени",height:"Высота",size:"Размер",wpg:"Слов в группе",c_active:"Активный цвет",c_base:"Основной",caps:"ЗАГЛАВНЫЕ",
+  text:"Текст",dbl:"двойной клик для правки",b_height:"Высота",b_auto:"✨ Авто‑идеи",b_manual:"+ Вручную",ref_hint:"Загрузите любимое видео — бот подстроит темп субтитров.",
+  ref_up:"Загрузить образец",zoom:"Zoom",clean:"Чистка звука",new_video:"🔄 Новое видео",hist_empty:"Пока нет готовых видео.",
+  o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Добавляет картинки по смыслу",
+  proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить"},
+ en:{nav_home:"Home",nav_hist:"History",foot:"Reels · TikTok · Shorts · VK",login:"Sign in",password:"Password",enter:"Sign in",
+  hero_t:"Upload a video",hero_s:"The bot adds captions, cuts dead space, adds animation — pick what you need.",
+  what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
+  choose:"🚀 Choose video & edit",reauto:"🚀 Auto edit",rerender:"✅ Re-render",ready:"🎉 Done!",download:"⬇️ Download",in_hist:"In history",
+  tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"Apply cut",
+  sub_on:"Captions on",sync:"Time offset",height:"Height",size:"Size",wpg:"Words per group",c_active:"Active color",c_base:"Base",caps:"UPPERCASE",
+  text:"Text",dbl:"double-click to edit",b_height:"Height",b_auto:"✨ Auto ideas",b_manual:"+ Manual",ref_hint:"Upload a video you like — the bot matches its caption pace.",
+  ref_up:"Upload reference",zoom:"Zoom",clean:"Clean audio",new_video:"🔄 New video",hist_empty:"No finished videos yet.",
+  o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Adds matching images",
+  proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue"}
+};
+function t(k){return (I[LANG]&&I[LANG][k])||I.uz[k]||k}
+
+// ---------- presets ----------
+const PRESETS=[
+ {id:"klassik",nm:{uz:"Klassik",ru:"Классик",en:"Classic"},active:"#ffea00",base:"#ffffff",size:90,words:3,margin:660,upper:true},
+ {id:"neon",nm:{uz:"Neon",ru:"Неон",en:"Neon"},active:"#00e5ff",base:"#ffffff",size:96,words:3,margin:660,upper:true},
+ {id:"olov",nm:{uz:"Olov",ru:"Огонь",en:"Fire"},active:"#ff3b30",base:"#ffffff",size:96,words:3,margin:660,upper:true},
+ {id:"yashil",nm:{uz:"Yashil",ru:"Зелёный",en:"Green"},active:"#22ff88",base:"#ffffff",size:92,words:3,margin:660,upper:true},
+ {id:"minimal",nm:{uz:"Minimal",ru:"Минимал",en:"Minimal"},active:"#ffffff",base:"#ffffff",size:76,words:4,margin:620,upper:false},
+ {id:"tepa",nm:{uz:"Tepada",ru:"Сверху",en:"Top"},active:"#ffea00",base:"#ffffff",size:88,words:3,margin:1250,upper:true},
+];
+let PRESET=PRESETS[0];
+// options state
+const OPTS={sub:true,cut:true,broll:true};
+
+function renderOpts(){
+  const defs=[
+    {k:"sub",t:t("o_sub"),d:t("o_sub_d")},
+    {k:"cut",t:t("o_cut"),d:t("o_cut_d")},
+    {k:"broll",t:t("o_broll"),d:t("o_broll_d")},
+  ];
+  $("opts").innerHTML=defs.map(o=>`<div class="opt ${OPTS[o.k]?'on':''}" onclick="toggleOpt('${o.k}')">
+    <div class="t">${o.t}<span class="chk">${OPTS[o.k]?'✓':''}</span></div><div class="d">${o.d}</div></div>`).join("");
+  $("styleCard").style.display=OPTS.sub?"":"none";
+}
+function toggleOpt(k){OPTS[k]=!OPTS[k];renderOpts()}
+function renderPresets(){
+  $("presets").innerHTML=PRESETS.map(p=>`<div class="preset ${p.id===PRESET.id?'on':''}" onclick="pickPreset('${p.id}')">
+    <div class="pv"><div class="cap"><span style="color:${p.base}">${sampleWord(1)}</span> <span style="color:${p.active}">${sampleWord(2)}</span></div></div>
+    <div class="nm">${p.nm[LANG]||p.nm.uz}</div></div>`).join("");
+}
+function sampleWord(i){const m={uz:["Salom","dunyo"],ru:["Привет","мир"],en:["Hello","world"]};return (m[LANG]||m.uz)[i-1]}
+function pickPreset(id){PRESET=PRESETS.find(p=>p.id===id)||PRESETS[0];renderPresets(); if(S){applyPresetToControls();subChanged&&subChanged&&S.sub&&null}}
+
+function applyLang(){
+  document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.getAttribute("data-i"))});
+  document.querySelectorAll(".langs button").forEach(b=>b.classList.toggle("on",b.dataset.lang===LANG));
+  document.documentElement.lang=LANG;
+  renderOpts();renderPresets();
+}
+function setLang(l){LANG=l;localStorage.setItem("mlang",l);applyLang()}
+
+function toast(x){const e=$("toast");e.textContent=x;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600)}
 function hdr(){return TOKEN?{"X-Auth":TOKEN,"Content-Type":"application/json"}:{"Content-Type":"application/json"}}
 async function api(path,body){
   const r=await fetch(path,{method:"POST",headers:hdr(),body:JSON.stringify(body||{})});
-  if(r.status===401){$("login").style.display="flex";$("edit").style.display="none";throw new Error("auth")}
+  if(r.status===401){$("login").style.display="grid";$("home").style.display="none";throw new Error("auth")}
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||("xato "+r.status));
   return r.json();
 }
-// job pollingi
 async function waitJob(jid,onProg){
-  while(true){
-    const j=await (await fetch("/api/job/"+jid)).json();
+  while(true){const j=await (await fetch("/api/job/"+jid)).json();
     if(onProg)onProg(j.progress||0,j.step||"");
     if(j.status==="done")return j.result;
     if(j.status==="error")throw new Error(j.error||"job xato");
-    await new Promise(r=>setTimeout(r,900));
-  }
+    await new Promise(r=>setTimeout(r,900));}
 }
 
 // ---------- init ----------
 (async()=>{
+  applyLang();
   const cfg=await (await fetch("/api/config")).json();
-  if(cfg.auth && !TOKEN){$("login").style.display="flex";return}
+  $("vxDot").className="dotst"+(cfg.vertex?" ok":"");
+  if(cfg.auth && !TOKEN){$("login").style.display="grid";return}
   startApp();
 })();
 async function doLogin(){
@@ -283,18 +390,16 @@ async function doLogin(){
     TOKEN=r.token||"";localStorage.setItem("mtoken",TOKEN);$("login").style.display="none";startApp();
   }catch(e){$("loginErr").textContent="Parol noto'g'ri"}
 }
-function startApp(){$("edit").style.display="block";$("uploadView").style.display="block";setupDrop();loadHistory()}
-
-function showTab(t){
-  $("tabEdit").classList.toggle("on",t==="edit");$("tabHist").classList.toggle("on",t==="hist");
-  $("edit").style.display=t==="edit"?"block":"none";$("hist").style.display=t==="hist"?"block":"none";
-  if(t==="hist")loadHistory();
+function startApp(){$("home").style.display="block";setupDrop();loadHistory()}
+function showTab(x){
+  $("navHome").classList.toggle("on",x==="home");$("navHist").classList.toggle("on",x==="hist");
+  $("home").style.display=x==="home"?"block":"none";
+  $("editor").style.display=x==="editor"?"block":"none";
+  $("hist").style.display=x==="hist"?"block":"none";
+  if(x==="hist")loadHistory();
 }
-function goStep(s){
-  document.querySelectorAll(".step").forEach(e=>e.classList.remove("on"));
-  $("step-"+s).classList.add("on");
-  document.querySelectorAll(".stepnav .pill").forEach(e=>e.classList.toggle("on",e.dataset.s===s));
-}
+function goStep(s){document.querySelectorAll(".step").forEach(e=>e.classList.remove("on"));$("step-"+s).classList.add("on");
+  document.querySelectorAll(".tabs2 .pill").forEach(e=>e.classList.toggle("on",e.dataset.s===s));}
 
 // ---------- upload ----------
 function setupDrop(){
@@ -304,293 +409,201 @@ function setupDrop(){
   ["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove("hi")}));
   d.addEventListener("drop",e=>{if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])});
 }
+function subFromPreset(){return{on:true,delay:0.0,margin:PRESET.margin,size:PRESET.size,words:PRESET.words,active:PRESET.active,base:PRESET.base,upper:PRESET.upper,font:"Anton"}}
+function currentSub(){const s=S.sub;return{delay:s.delay,margin_v:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,font:"Anton",outline:"#000000",border:4}}
 function upload(f){
-  $("upProg").style.display="block";$("upTxt").textContent="Yuklanyapti...";
+  $("upProg").style.display="block";$("homeMsg").textContent=t("proc");
   const fd=new FormData();fd.append("file",f);
   const xhr=new XMLHttpRequest();xhr.open("POST","/api/upload");
   if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
-  xhr.upload.onprogress=e=>{if(e.lengthComputable)$("upProg").firstChild.style.width=(e.loaded/e.total*100)+"%"};
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)$("upProg").firstChild.style.width=(e.loaded/e.total*60)+"%"};
   xhr.onload=()=>{
-    if(xhr.status!==200){$("upTxt").innerHTML='<span class=err>Yuklashda xato</span>';return}
+    if(xhr.status!==200){$("homeMsg").innerHTML='<span class=err>Upload xato</span>';return}
     const r=JSON.parse(xhr.responseText);
-    S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,
-       words:[],removes:[],brolls:[],analyzed:false,cut:false,manual:{s:null,e:null},
-       sub:defaultSub()};
-    $("uploadView").style.display="none";$("editorView").style.display="block";
-    vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
-    runAuto();   // yuklash bilanoq HAMMASI o'zi: kesish + subtitr + animatsiya + render
+    S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,words:[],removes:[],brolls:[],cut:false,manual:{s:null,e:null},sub:subFromPreset(),lang:LANG};
+    showTab("editor");vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
+    applyPresetToControls();
+    runAuto();
   };
-  xhr.onerror=()=>$("upTxt").innerHTML='<span class=err>Tarmoq xatosi</span>';
+  xhr.onerror=()=>$("homeMsg").innerHTML='<span class=err>Tarmoq xatosi</span>';
   xhr.send(fd);
 }
-function defaultSub(){return{on:true,delay:0.0,margin:660,size:90,words:3,active:"#ffea00",base:"#ffffff",upper:true,font:"Anton"}}
-function currentSub(){return{delay:S.sub.delay,margin_v:S.sub.margin,size:S.sub.size,words:S.sub.words,
-  active:S.sub.active,base:S.sub.base,upper:S.sub.upper,font:"Anton",outline:"#000000",border:4}}
+function applyPresetToControls(){
+  if(!S)return;S.sub=subFromPreset();
+  $("delay").value=0;$("mv").value=S.sub.margin;$("sz").value=S.sub.size;$("wp").value=S.sub.words;
+  $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;$("subOn").checked=OPTS.sub;
+  subChanged();
+}
 
-// ---------- AVTOMATIK: hammasi bir tugmada ----------
+// ---------- AUTO ----------
 async function runAuto(){
   subChanged();
   $("renderProg").style.display="block";$("renderProg").firstChild.style.width="0";
-  $("renderBtn").disabled=true;$("resultBox").style.display="none";
-  $("engBadge").textContent="⏳ avtomatik montaj...";
-  $("renderTxt").textContent="Boshlandi...";
+  $("reautoBtn").disabled=true;$("renderBtn").disabled=true;$("resultBox").style.display="none";
+  $("engBadge").textContent="⏳";$("renderTxt").textContent=t("proc");
   try{
-    const body={project:S.project,broll_n:4,broll_y:+($("brollY").value||0.72),
-      zoom:$("zoom").checked,audio_clean:$("audio").checked,broll:true,subtitle:currentSub()};
+    const body={project:S.project,lang:LANG,cut:OPTS.cut,subtitle_on:OPTS.sub,broll:OPTS.broll,broll_n:4,
+      broll_y:+($("brollY").value||0.72),zoom:$("zoom").checked,audio_clean:$("audio").checked,subtitle:currentSub()};
     const {job}=await api("/api/auto",body);
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
-    // holatni to'ldiramiz (endi tuzatsa bo'ladi)
-    S.cut=true;S.words=res.words;S.cutWords=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
+    S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
     S.removes=[];(res.removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"auto"}));
     S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
     renderWords();renderBrolls();renderRemoves();drawTimeline();
-    $("brollMsg").textContent="Animatsiya: "+(res.broll_note||"");
-    $("renderTxt").textContent="";
-    $("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
-    toast("Avtomatik tayyor! Pastda tuzatib qayta tayyorlashingiz mumkin.");loadHistory();
-  }catch(e){$("engBadge").textContent="";$("renderTxt").innerHTML='<span class=err>Avto xato: '+e.message+'</span>'}
-  finally{$("renderBtn").disabled=false}
-}
-
-// ---------- analyze (qo'lda, ixtiyoriy) ----------
-async function analyze(){
-  $("cutMsg").textContent="";$("engBadge").textContent="⏳ tahlil...";
-  try{
-    const {job}=await api("/api/analyze",{project:S.project});
-    const res=await waitJob(job,(p,s)=>{$("engBadge").textContent="⏳ "+(s||p+"%")});
-    S.words=res.words;S.fullText=res.full_text;S.duration=res.duration;
-    S.removes=[];
-    (res.silence_removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"silence"}));
-    (res.dup_removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"dup"}));
-    $("engBadge").textContent=res.engine;
-    renderRemoves();renderWords();drawTimeline();
-    toast("Tahlil tayyor. Endi kesib, tuzatib chiqing.");
-  }catch(e){$("engBadge").textContent="";$("cutMsg").innerHTML='<span class=err>Tahlil xato: '+e.message+'</span>'}
+    if(res.broll_note)$("brollMsg").textContent="Animatsiya: "+res.broll_note;
+    $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
+    toast(t("done_t"));loadHistory();
+  }catch(e){$("engBadge").textContent="";$("renderTxt").innerHTML='<span class=err>'+e.message+'</span>'}
+  finally{$("reautoBtn").disabled=false;$("renderBtn").disabled=false}
 }
 
 // ---------- CUT ----------
-function activeRemoves(){
-  return S.removes.filter(r=>{
-    if(r.type==="silence"&&!$("rmSil").checked)return false;
-    if(r.type==="dup"&&!$("rmDup").checked)return false;
-    return r.on!==false;
-  });
-}
+function activeRemoves(){return S.removes.filter(r=>r.on!==false)}
 function renderRemoves(){
-  const nAuto=S.removes.filter(r=>r.type==="auto").length;
-  const man=S.removes.filter(r=>r.type==="manual"||r.type==="auto");
-  $("cutBadge").textContent=`avto:${nAuto} qo'lda:${S.removes.filter(r=>r.type==="manual").length}`;
-  let h="";
-  man.forEach((r)=>{
-    const gi=S.removes.indexOf(r);
-    h+=`<div class="item row sb"><span>✂️ ${r.s.toFixed(1)}s – ${r.e.toFixed(1)}s ${r.type==="manual"?"(qo'lda)":"(avto)"}</span>
-      <button class="sm gh" onclick="delRemove(${gi})">o'chirish</button></div>`;
-  });
-  $("remList").innerHTML=h;
+  const nAuto=S.removes.filter(r=>r.type==="auto").length,nMan=S.removes.filter(r=>r.type==="manual").length;
+  $("cutBadge").textContent=`avto:${nAuto} · ${t("m_add").replace("+","").trim()}:${nMan}`;
+  $("remList").innerHTML=S.removes.map((r,i)=>`<div class="item row sb"><span>✂️ ${r.s.toFixed(1)}s – ${r.e.toFixed(1)}s ${r.type==="manual"?"":"(avto)"}</span>
+    <button class="sm gh" onclick="delRemove(${i})">✕</button></div>`).join("");
   drawTimeline();
 }
-function setManual(k){S.manual[k]=vid.currentTime; $(k==="s"?"mS":"mE").textContent=vid.currentTime.toFixed(1)+"s"}
-function addManual(){
-  const {s,e}=S.manual;
-  if(s==null||e==null||e<=s){toast("Avval boshi va oxirini belgilang");return}
-  S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});
-  S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves();
-}
+function setManual(k){S.manual[k]=vid.currentTime;$(k==="s"?"mS":"mE").textContent=vid.currentTime.toFixed(1)+"s"}
+function addManual(){const{s,e}=S.manual;if(s==null||e==null||e<=s){toast("?");return}S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves()}
 function delRemove(i){S.removes.splice(i,1);renderRemoves()}
 async function doCut(){
-  $("cutMsg").textContent="⏳ kesilyapti...";
-  try{
-    const rems=activeRemoves().map(r=>[r.s,r.e]);
-    const {job}=await api("/api/cut",{project:S.project,removes:rems});  // server asl so'zlardan kesadi
+  $("cutMsg").textContent="⏳";
+  try{const rems=activeRemoves().map(r=>[r.s,r.e]);
+    const {job}=await api("/api/cut",{project:S.project,removes:rems});
     const res=await waitJob(job,(p,s)=>$("cutMsg").textContent="⏳ "+(s||p+"%"));
-    S.cut=true;S.cutWords=res.words;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
-    vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";
-    $("cutMsg").innerHTML='<span style="color:var(--ok)">✔ Kesildi. Uzunlik: '+res.duration.toFixed(1)+'s</span>';
-    renderWords();drawTimeline();toast("Kesildi — endi subtitr va animatsiyani tekshiring");
+    S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
+    vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("cutMsg").innerHTML='<span style="color:var(--ok)">✔ '+res.duration.toFixed(1)+'s</span>';
+    renderWords();drawTimeline();
   }catch(e){$("cutMsg").innerHTML='<span class=err>'+e.message+'</span>'}
 }
 
 // ---------- SUB ----------
 function subChanged(){
-  const s=S.sub;
-  s.delay=+$("delay").value;s.margin=+$("mv").value;s.size=+$("sz").value;s.words=+$("wp").value;
-  s.active=$("cAcc").value;s.base=$("cBase").value;s.upper=$("upper").checked;
-  $("delayV").textContent=s.delay.toFixed(2);$("mvV").textContent=s.margin;
-  $("szV").textContent=s.size;$("wpV").textContent=s.words;
+  if(!S)return;const s=S.sub;
+  s.delay=+$("delay").value;s.margin=+$("mv").value;s.size=+$("sz").value;s.words=+$("wp").value;s.active=$("cAcc").value;s.base=$("cBase").value;s.upper=$("upper").checked;
+  $("delayV").textContent=s.delay.toFixed(2);$("mvV").textContent=s.margin;$("szV").textContent=s.size;$("wpV").textContent=s.words;
 }
 function renderWords(){
   const el=$("wordList");el.innerHTML="";
-  S.words.forEach((w,i)=>{
-    const c=document.createElement("span");c.className="wchip";c.textContent=w.w;c.dataset.i=i;
+  S.words.forEach((w,i)=>{const c=document.createElement("span");c.className="wchip";c.textContent=w.w;c.dataset.i=i;
     c.onclick=()=>{vid.currentTime=w.s+0.01;vid.play()};
-    c.ondblclick=()=>{const nv=prompt("So'zni tuzating:",w.w);if(nv!=null){w.w=nv;renderWords()}};
-    el.appendChild(c);
-  });
+    c.ondblclick=()=>{const nv=prompt("=",w.w);if(nv!=null){w.w=nv;renderWords()}};el.appendChild(c)});
 }
 
 // ---------- BROLL ----------
-function brollTpl(b,i){
-  return `<div class="item">
-    <div class="row" style="align-items:flex-start">
-      <img class="thumb" src="${b.image_url||''}" style="${b.image_url?'':'display:none'}">
-      <div style="flex:1;min-width:150px">
-        <textarea data-i="${i}" class="bprompt" style="width:100%;height:46px" placeholder="Rasm tavsifi (ingliz/o'zbek)">${b.prompt||''}</textarea>
-      </div>
-    </div>
-    <div class="row sb" style="margin-top:8px">
-      <button class="sm gh" onclick="brollTime(${i})">⏱ Vaqt: ${(+b.time).toFixed(1)}s</button>
-      <span class="hint">Davomiyligi ${b.dur||2.5}s</span>
-      <label class="sw"><input type="checkbox" ${b.on!==false?'checked':''} onchange="S.brolls[${i}].on=this.checked;drawTimeline()"> yoq</label>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <button class="sm pri" onclick="brollGen(${i})">${b.image_url?'🔄 Qayta chizish':'🖼 Rasmni chizish'}</button>
-      <button class="sm gh" onclick="brollDel(${i})">o'chirish</button>
-      <span class="hint bstat" data-i="${i}"></span>
-    </div>
-  </div>`;
-}
-function renderBrolls(){
-  $("brollList").innerHTML=S.brolls.map((b,i)=>brollTpl(b,i)).join("");
-  document.querySelectorAll(".bprompt").forEach(t=>t.onchange=e=>S.brolls[+e.target.dataset.i].prompt=e.target.value);
-  drawTimeline();
-}
+function brollTpl(b,i){return `<div class="item">
+  <div class="row" style="align-items:flex-start">
+    <img class="thumb" src="${b.image_url||''}" style="${b.image_url?'':'display:none'}">
+    <textarea data-i="${i}" class="bprompt" style="flex:1;min-width:140px;height:44px">${b.prompt||''}</textarea>
+  </div>
+  <div class="row sb" style="margin-top:8px">
+    <button class="sm gh" onclick="brollTime(${i})">⏱ ${(+b.time).toFixed(1)}s</button>
+    <label class="sw"><input type="checkbox" ${b.on!==false?'checked':''} onchange="S.brolls[${i}].on=this.checked;drawTimeline()"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button class="sm pri" onclick="brollGen(${i})">${b.image_url?'🔄':'🖼'}</button>
+    <button class="sm gh" onclick="brollDel(${i})">✕</button><span class="hint bstat" data-i="${i}"></span>
+  </div></div>`}
+function renderBrolls(){$("brollList").innerHTML=S.brolls.map((b,i)=>brollTpl(b,i)).join("");
+  document.querySelectorAll(".bprompt").forEach(t=>t.onchange=e=>S.brolls[+e.target.dataset.i].prompt=e.target.value);drawTimeline()}
 function addBroll(){S.brolls.push({prompt:"",time:+vid.currentTime.toFixed(1),dur:2.5,on:true});renderBrolls()}
 function brollTime(i){S.brolls[i].time=+vid.currentTime.toFixed(1);renderBrolls()}
 function brollDel(i){S.brolls.splice(i,1);renderBrolls()}
-async function brollSuggest(){
-  $("brollMsg").textContent="⏳ g'oyalar...";
-  try{
-    const {job}=await api("/api/broll_suggest",{project:S.project,n:4});
+async function brollSuggest(){$("brollMsg").textContent="⏳";
+  try{const {job}=await api("/api/broll_suggest",{project:S.project,n:4});
     const res=await waitJob(job,(p,s)=>$("brollMsg").textContent="⏳ "+(s||p+"%"));
     (res.items||[]).forEach(it=>S.brolls.push({prompt:it.prompt,time:+(+it.at).toFixed(1),dur:2.5,on:true}));
-    $("brollMsg").textContent=`${(res.items||[]).length} ta g'oya qo'shildi — endi "Rasmni chizish" bosing`;
-    renderBrolls();
-  }catch(e){$("brollMsg").innerHTML='<span class=err>'+e.message+'</span>'}
-}
-async function brollGen(i){
-  const b=S.brolls[i];if(!b.prompt){toast("Avval tavsif yozing");return}
-  const stat=document.querySelector('.bstat[data-i="'+i+'"]');if(stat)stat.textContent="⏳ chizilyapti...";
-  try{
-    const {job}=await api("/api/broll_image",{project:S.project,prompt:b.prompt});
-    const res=await waitJob(job,(p,s)=>{if(stat)stat.textContent="⏳ "+(s||p+"%")});
-    b.image=res.image;b.image_url=res.image_url;renderBrolls();toast("Rasm tayyor");
-  }catch(e){if(stat)stat.innerHTML='<span class=err>'+e.message+'</span>'}
-}
+    $("brollMsg").textContent=(res.items||[]).length+" +";renderBrolls();
+  }catch(e){$("brollMsg").innerHTML='<span class=err>'+e.message+'</span>'}}
+async function brollGen(i){const b=S.brolls[i];if(!b.prompt){toast("?");return}
+  const st=document.querySelector('.bstat[data-i="'+i+'"]');if(st)st.textContent="⏳";
+  try{const {job}=await api("/api/broll_image",{project:S.project,prompt:b.prompt});
+    const res=await waitJob(job,(p,s)=>{if(st)st.textContent="⏳ "+(s||p+"%")});
+    b.image=res.image;b.image_url=res.image_url;renderBrolls();
+  }catch(e){if(st)st.innerHTML='<span class=err>'+e.message+'</span>'}}
 
-// ---------- TIMELINE + live caption ----------
-$("timeline").onclick=e=>{
-  const rc=e.currentTarget.getBoundingClientRect();
-  vid.currentTime=(e.clientX-rc.left)/rc.width*(S.duration||1);
-};
-function drawTimeline(){
-  const tl=$("timeline");tl.querySelectorAll(".tl-rem,.tl-br").forEach(n=>n.remove());
-  const D=S.duration||1;
-  activeRemoves().forEach(r=>{
-    const d=document.createElement("div");d.className="tl-rem";
-    d.style.left=(r.s/D*100)+"%";d.style.width=Math.max(0.5,(r.e-r.s)/D*100)+"%";tl.appendChild(d);
-  });
-  S.brolls.filter(b=>b.on!==false).forEach(b=>{
-    const d=document.createElement("div");d.className="tl-br";d.style.left=(b.time/D*100)+"%";tl.appendChild(d);
-  });
-}
-vid.addEventListener("timeupdate",()=>{
-  const t=vid.currentTime,D=S?S.duration:1;
-  $("tlCur").style.left=(t/D*100)+"%";$("tInfo").textContent=t.toFixed(1)+"s / "+D.toFixed(1)+"s";
-  liveCaption(t);highlightWord(t);
-});
-function liveCaption(t){
-  const ov=$("capOv");if(!S||!S.sub.on||!S.words.length){ov.innerHTML="";return}
-  const off=S.sub.delay, tt=t-off, n=S.sub.words;
-  // guruh
-  let cue=[],cur=[];
-  for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}
-  if(cur.length)cue.push(cur);
-  let show=null,active=-1;
-  for(const g of cue){if(tt>=g[0].s-0.05&&tt<=g[g.length-1].e+0.35){show=g;break}}
-  if(!show){ov.innerHTML="";return}
-  for(let i=0;i<show.length;i++){if(tt>=show[i].s)active=i}
-  const box=$("capOv");
-  box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";
-  box.style.fontSize=(S.sub.size/1920*100)+"cqh";
-  box.style.textTransform=S.sub.upper?"uppercase":"none";
-  ov.innerHTML=show.map((w,i)=>`<span class="w ${i===active?'act':''}" style="color:${i===active?S.sub.active:S.sub.base}">${w.w}</span>`).join(" ");
-}
-function highlightWord(t){
-  const off=S.sub.delay;
-  document.querySelectorAll(".wchip").forEach(c=>{
-    const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&t-off>=w.s&&t-off<=w.e);
-  });
-}
-// capOv o'lchamini videoBox balandligiga bog'lash uchun container-query birligi
-$("capOv").style.cssText+=";container-type:size";
-document.querySelector(".videoBox").style.containerType="size";
+// ---------- timeline + live caption ----------
+$("timeline").onclick=e=>{const rc=e.currentTarget.getBoundingClientRect();vid.currentTime=(e.clientX-rc.left)/rc.width*(S.duration||1)};
+function drawTimeline(){const tl=$("timeline");tl.querySelectorAll(".tl-rem,.tl-br").forEach(n=>n.remove());const D=S.duration||1;
+  activeRemoves().forEach(r=>{const d=document.createElement("div");d.className="tl-rem";d.style.left=(r.s/D*100)+"%";d.style.width=Math.max(.5,(r.e-r.s)/D*100)+"%";tl.appendChild(d)});
+  S.brolls.filter(b=>b.on!==false).forEach(b=>{const d=document.createElement("div");d.className="tl-br";d.style.left=(b.time/D*100)+"%";tl.appendChild(d)})}
+vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tlCur").style.left=(tt/D*100)+"%";$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";liveCaption(tt);hlWord(tt)});
+function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.words.length){ov.innerHTML="";return}
+  const off=S.sub.delay,tt=tt0-off,n=S.sub.words;let cue=[],cur=[];
+  for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}if(cur.length)cue.push(cur);
+  let show=null,act=-1;for(const g of cue){if(tt>=g[0].s-.05&&tt<=g[g.length-1].e+.35){show=g;break}}
+  if(!show){ov.innerHTML="";return}for(let i=0;i<show.length;i++){if(tt>=show[i].s)act=i}
+  const box=$("capOv");box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";box.style.fontSize=(S.sub.size/1920*100)+"cqh";box.style.textTransform=S.sub.upper?"uppercase":"none";
+  ov.innerHTML=show.map((w,i)=>`<span class="w" style="color:${i===act?S.sub.active:S.sub.base}">${w.w}</span>`).join(" ")}
+function hlWord(tt){const off=S.sub.delay;document.querySelectorAll(".wchip").forEach(c=>{const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&tt-off>=w.s&&tt-off<=w.e)})}
 
-// ---------- REFERENCE ----------
-$("refFile")&&($("refFile").onchange=e=>{if(e.target.files[0])uploadRef(e.target.files[0])});
-function uploadRef(f){
-  $("refProg").style.display="block";$("refProg").firstChild.style.width="10%";$("refMsg").textContent="Namuna yuklanyapti...";
-  const fd=new FormData();fd.append("file",f);
-  const xhr=new XMLHttpRequest();xhr.open("POST","/api/reference");if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
+// ---------- reference ----------
+$("refFile").onchange=e=>{if(e.target.files[0])uploadRef(e.target.files[0])};
+function uploadRef(f){$("refProg").style.display="block";$("refProg").firstChild.style.width="10%";$("refMsg").textContent="⏳";
+  const fd=new FormData();fd.append("file",f);const xhr=new XMLHttpRequest();xhr.open("POST","/api/reference");if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
   xhr.upload.onprogress=e=>{if(e.lengthComputable)$("refProg").firstChild.style.width=(10+e.loaded/e.total*30)+"%"};
-  xhr.onload=async()=>{
-    if(xhr.status!==200){$("refMsg").innerHTML='<span class=err>Xato</span>';return}
+  xhr.onload=async()=>{if(xhr.status!==200){$("refMsg").innerHTML='<span class=err>xato</span>';return}
     const {job}=JSON.parse(xhr.responseText);
-    try{
-      const res=await waitJob(job,(p,s)=>{$("refProg").firstChild.style.width=(40+p*0.6)+"%";$("refMsg").textContent="⏳ "+(s||"")});
-      // sozlamalarni qo'llash
+    try{const res=await waitJob(job,(p,s)=>{$("refProg").firstChild.style.width=(40+p*.6)+"%"});
       if(res.words_per_cue){$("wp").value=res.words_per_cue;subChanged()}
-      $("refMsg").innerHTML=`✔ Namuna uslubi qo'llandi: bir guruhda ~${res.words_per_cue} so'z, temp: ${res.pace}. `+
-        (res.fast_cut?'Tez kesish tavsiya etiladi.':'Uzun sahnalar.');
-      $("refProg").firstChild.style.width="100%";toast("Namuna uslubi qo'llandi");
-    }catch(err){$("refMsg").innerHTML='<span class=err>'+err.message+'</span>'}
-  };
-  xhr.send(fd);
-}
+      $("refMsg").textContent="✔ "+(res.pace||"")+" · "+res.words_per_cue;$("refProg").firstChild.style.width="100%";
+    }catch(err){$("refMsg").innerHTML='<span class=err>'+err.message+'</span>'}};
+  xhr.send(fd)}
 
 // ---------- RENDER ----------
 async function doRender(){
-  if(!S){toast("Avval video yuklang");return}
-  subChanged();
+  if(!S)return;subChanged();
   $("renderProg").style.display="block";$("renderBtn").disabled=true;$("resultBox").style.display="none";
-  const y=+$("brollY").value;
-  const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
-  const body={project:S.project,words:S.words,subtitle_on:$("subOn").checked,
-    subtitle:{delay:S.sub.delay,margin_v:S.sub.margin,size:S.sub.size,words:S.sub.words,
-      active:S.sub.active,base:S.sub.base,upper:S.sub.upper,font:"Anton",outline:"#000000",border:4},
-    brolls,zoom:$("zoom").checked,audio_clean:$("audio").checked};
-  try{
-    const {job}=await api("/api/render",body);
+  const y=+$("brollY").value;const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
+  try{const {job}=await api("/api/render",{project:S.project,words:S.words,subtitle_on:$("subOn").checked,
+      subtitle:currentSub(),brolls,zoom:$("zoom").checked,audio_clean:$("audio").checked});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
-    $("renderTxt").textContent="";$("resultBox").style.display="block";
-    $("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
-    toast("Tayyor! Yuklab oling.");loadHistory();
-  }catch(e){$("renderTxt").innerHTML='<span class=err>Render xato: '+e.message+'</span>'}
+    $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
+    toast(t("ready"));loadHistory();
+  }catch(e){$("renderTxt").innerHTML='<span class=err>'+e.message+'</span>'}
   finally{$("renderBtn").disabled=false}
 }
 
 // ---------- HISTORY ----------
-async function loadHistory(){
+async function loadHistory(){try{const r=await fetch("/api/history",{headers:TOKEN?{"X-Auth":TOKEN}:{}});if(!r.ok)return;const {items}=await r.json();
+  $("histEmpty").style.display=items.length?"none":"block";
+  $("histWrap").innerHTML=items.map(it=>`<div class="card" style="margin:0">
+    <video src="${it.final_url}" controls playsinline style="width:100%;border-radius:9px;background:#000"></video>
+    <div class="row sb" style="margin-top:8px"><span class="hint">${new Date(it.finished*1000).toLocaleDateString()} · ${(+it.duration).toFixed(0)}s</span>
+    <a class="badge" style="background:var(--accb);color:#fff;padding:6px 12px" href="${it.final_url}" download>⬇️</a></div>
+    <button class="pri sm" style="margin-top:8px;width:100%" onclick="resumeProject('${it.project}')">${t("cont")}</button>
+    <button class="gh sm" style="margin-top:6px;width:100%" onclick="delHist('${it.project}')">✕</button></div>`).join("");
+}catch(e){}}
+async function delHist(pid){if(!confirm("?"))return;await fetch("/api/history/"+pid,{method:"DELETE",headers:TOKEN?{"X-Auth":TOKEN}:{}});loadHistory()}
+async function resumeProject(pid){
   try{
-    const r=await fetch("/api/history",{headers:TOKEN?{"X-Auth":TOKEN}:{}});
-    if(!r.ok)return;const {items}=await r.json();
-    $("histEmpty").style.display=items.length?"none":"block";
-    $("histWrap").innerHTML=items.map(it=>`<div class="card">
-      <video src="${it.final_url}" controls playsinline style="width:100%;border-radius:8px;background:#000"></video>
-      <div class="row sb" style="margin-top:8px">
-        <span class="hint">${new Date(it.finished*1000).toLocaleDateString()} · ${(+it.duration).toFixed(0)}s</span>
-        <a class="pill on" href="${it.final_url}" download>⬇️</a>
-      </div>
-      <button class="gh sm" style="margin-top:6px;width:100%" onclick="delHist('${it.project}')">o'chirish</button>
-    </div>`).join("");
-  }catch(e){}
+    const r=await fetch("/api/resume/"+pid,{headers:TOKEN?{"X-Auth":TOKEN}:{}});
+    if(!r.ok)throw new Error("resume xato");
+    const d=await r.json();
+    const rs=d.subtitle||{};
+    S={project:d.project,name:d.name,videoUrl:d.cut_url,duration:d.duration,cut:true,manual:{s:null,e:null},lang:d.lang||LANG,
+       words:d.words||[],
+       removes:(d.removes||[]).map(x=>({s:x[0],e:x[1],type:"auto"})),
+       brolls:(d.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:b.on!==false})),
+       sub:{on:true,delay:rs.delay||0,margin:rs.margin_v||660,size:rs.size||90,words:rs.words||3,active:rs.active||"#ffea00",base:rs.base||"#ffffff",upper:rs.upper!==false,font:"Anton"}};
+    if(d.lang){LANG=d.lang;localStorage.setItem("mlang",LANG);applyLang()}
+    showTab("editor");
+    vid.src=d.cut_url;$("tInfo").textContent=(d.duration||0).toFixed(1)+"s";$("engBadge").textContent=d.engine||"";
+    // controllarni to'ldiramiz
+    $("delay").value=S.sub.delay;$("mv").value=S.sub.margin;$("sz").value=S.sub.size;$("wp").value=S.sub.words;
+    $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;
+    $("subOn").checked=d.subtitle_on!==false;$("zoom").checked=d.zoom!==false;$("audio").checked=d.audio_clean!==false;
+    $("brollY").value=d.broll_y||0.72;$("byV").textContent=d.broll_y||0.72;
+    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();
+    if(d.final_url){$("resultBox").style.display="block";$("resVid").src=d.final_url+"?t="+Date.now();$("dl").href=d.final_url}
+    toast(t("cont"));
+  }catch(e){toast(e.message)}
 }
-async function delHist(pid){
-  if(!confirm("O'chirilsinmi?"))return;
-  await fetch("/api/history/"+pid,{method:"DELETE",headers:TOKEN?{"X-Auth":TOKEN}:{}});
-  loadHistory();
-}
-function resetAll(){S=null;$("editorView").style.display="none";$("uploadView").style.display="block";$("file").value="";$("upProg").firstChild.style.width="0";$("upTxt").textContent=""}
+function resetAll(){S=null;showTab("home");$("file").value="";$("upProg").firstChild.style.width="0";$("homeMsg").textContent=""}
 </script>
 </body>
 </html>

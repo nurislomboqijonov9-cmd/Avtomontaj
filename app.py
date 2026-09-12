@@ -111,10 +111,12 @@ async def analyze(req: Request, x_auth: str = Header("")):
     body = await req.json(); pid = body["project"]
     d = pdir(pid); meta = load_meta(pid)
     inp = os.path.join(d, meta["input"])
+    lang = (body.get("lang") or meta.get("lang") or "uz").lower()
+    meta["lang"] = lang; save_meta(pid, meta)
     jid = new_job()
     def fn(prog):
-        prog(10, "Transkripsiya (o'zbekcha)...")
-        res = montaj.analyze(inp, d)
+        prog(10, "Transkripsiya...")
+        res = montaj.analyze(inp, d, lang)
         prog(90, "Kesish takliflari...")
         meta.update(words=res["words"], full_text=res["full_text"],
                     engine=res["engine"], duration=res["duration"],
@@ -213,8 +215,9 @@ async def render(req: Request, x_auth: str = Header("")):
         ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
+                    cut_words=words, brolls=brolls_in,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
-                                     "subtitle_on": subtitle_on, "brolls": brolls_in})
+                                     "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72)})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
     run_job(jid, fn)
@@ -230,19 +233,28 @@ async def auto(req: Request, x_auth: str = Header("")):
     n = int(body.get("broll_n", 4))
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     broll_y = float(body.get("broll_y", 0.72)); do_broll = bool(body.get("broll", True))
+    do_cut = bool(body.get("cut", True))               # kesish ixtiyoriy
+    subtitle_on = bool(body.get("subtitle_on", True))  # subtitr ixtiyoriy
+    lang = (body.get("lang") or meta.get("lang") or "uz").lower()
+    meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
         "active": "#ffea00", "base": "#ffffff", "upper": True, "font": "Anton",
         "outline": "#000000", "border": 4}
     jid = new_job()
     def fn(prog):
-        prog(8, "Transkripsiya (o'zbekcha)...")
-        res = montaj.analyze(inp, d)
+        prog(8, "Transkripsiya...")
+        res = montaj.analyze(inp, d, lang)
         words = res["words"]; full = res["full_text"]; dur = res["duration"]
         removes = [list(r) for r in res["silence_removes"]] + [list(r) for r in res["dup_removes"]]
         meta.update(words=words, full_text=full, engine=res["engine"], duration=dur,
                     silence_removes=res["silence_removes"], dup_removes=res["dup_removes"])
-        prog(35, "Keraksiz joylar kesilyapti...")
-        cut, w2, cdur = montaj.apply_cut(inp, words, removes, d, dur)
+        if do_cut:
+            prog(35, "Keraksiz joylar kesilyapti...")
+            cut, w2, cdur = montaj.apply_cut(inp, words, removes, d, dur)
+        else:
+            prog(35, "Kesishsiz...")
+            cut, w2, cdur = inp, words, dur
+            removes = []
         meta.update(cut=os.path.basename(cut), cut_words=w2, cut_duration=cdur, removes=removes)
         save_meta(pid, meta)
         outb = []; bnote = ""
@@ -264,14 +276,15 @@ async def auto(req: Request, x_auth: str = Header("")):
             if not bnote: bnote = f"{len(outb)} ta"
         prog(70, "Video render qilinyapti (1-3 daqiqa)...")
         ass = os.path.join(d, "subs.ass")
-        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2, sub))
+        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2 if subtitle_on else [], sub))
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.78} for b in outb]
         out = os.path.join(d, "final.mp4")
         if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio):
             raise RuntimeError("render xato")
-        meta.update(final="final.mp4", stage="done", finished=int(time.time()),
-                    render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio, "broll_y": broll_y})
+        meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
+                    render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
+                                     "subtitle_on": subtitle_on, "broll_y": broll_y})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
@@ -328,6 +341,31 @@ def history(x_auth: str = Header("")):
 def project(pid: str, x_auth: str = Header("")):
     check_auth(x_auth)
     return load_meta(pid)
+
+@app.get("/api/resume/{pid}")
+def resume(pid: str, x_auth: str = Header("")):
+    """Tarixdagi loyihani tahrirda davom ettirish uchun to'liq holat."""
+    check_auth(x_auth)
+    m = load_meta(pid)
+    if not m: raise HTTPException(404, "loyiha topilmadi")
+    rs = m.get("render_settings", {})
+    cutname = m.get("cut") or m.get("input")
+    words = m.get("cut_words") or m.get("words", [])
+    dur = m.get("cut_duration") or m.get("duration", 0)
+    brolls = []
+    for b in m.get("brolls", []):
+        img = b.get("image")
+        if img and os.path.exists(os.path.join(PROJ, pid, img)):
+            brolls.append({"image": img, "image_url": f"/media/{pid}/{img}",
+                           "prompt": b.get("prompt", ""), "time": b.get("time", 0),
+                           "dur": b.get("dur", 2.5), "on": b.get("on", True)})
+    return {"project": pid, "name": m.get("name", "video"), "lang": m.get("lang", "uz"),
+            "cut_url": f"/media/{pid}/{cutname}", "final_url": (f"/media/{pid}/final.mp4" if m.get("final") else None),
+            "words": words, "duration": dur, "removes": m.get("removes", []),
+            "brolls": brolls, "engine": m.get("engine", ""),
+            "subtitle": rs.get("subtitle", {}), "subtitle_on": rs.get("subtitle_on", True),
+            "zoom": rs.get("zoom", True), "audio_clean": rs.get("audio_clean", True),
+            "broll_y": rs.get("broll_y", 0.72)}
 
 @app.delete("/api/history/{pid}")
 def delete_project(pid: str, x_auth: str = Header("")):
