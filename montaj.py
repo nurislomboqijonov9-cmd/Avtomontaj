@@ -236,16 +236,18 @@ def _align_text_timing(gem_words, stt_words):
     out.sort(key=lambda x:x["s"]); return out
 
 def _clip_words_real(clip):
-    """Bir bo'lak uchun: STT vaqti (aniq) + Gemini matni (sifatli), moslashtirilgan."""
-    stt=[]
+    """Bir bo'lak uchun: STT vaqti (aniq) + Gemini matni (sifatli), moslashtirilgan.
+    Qaytaradi: (words, src, stt_err) — src: 'stt+gem' | 'stt' | 'gem'."""
+    stt=[]; stt_err=""
     try: stt=stt_words_gcp(clip)
-    except Exception: stt=[]
+    except Exception as ex: stt_err=str(ex)[:140]
     gem=[]
     if STT_TEXT_FROM_GEMINI or not stt:
         try: gem=gemini_words_clip(clip)
         except Exception: gem=[]
-    if stt and gem: return _align_text_timing(gem,stt)
-    return stt or gem
+    if stt and gem: return _align_text_timing(gem,stt),"stt+gem",stt_err
+    if stt: return stt,"stt",stt_err
+    return gem,"gem",stt_err
 
 def merge_chunk_words(raw):
     """raw = [(offset, [{w,s,e}...])...] -> bitta tartiblangan, dublikatsiz so'z ro'yxati."""
@@ -274,7 +276,7 @@ def transcribe_words_vertex(wav, chunk=18.0, overlap=1.5, _clip_fn=None, _dur=No
     """Audioni qisqa bo'laklarga bo'lib, HAR BIR SO'Z uchun aniq vaqt oladi (drift kam)."""
     dur=_dur if _dur is not None else ffdur(wav)
     if dur<=0: raise RuntimeError("audio uzunligi 0")
-    raw=[]; used_model=""
+    raw=[]; srcs=set(); stt_err=""
     s=0.0
     while s < dur-0.05:
         e=min(dur, s+chunk)
@@ -284,8 +286,9 @@ def transcribe_words_vertex(wav, chunk=18.0, overlap=1.5, _clip_fn=None, _dur=No
             clip=wav+f".{int(s*100)}.wav"    # WAV — kodek kechikishi yo'q, sample-aniq
             run(["ffmpeg","-y","-loglevel","error","-ss",f"{s:.2f}","-to",f"{e:.2f}","-i",wav,
                  "-ar","16000","-ac","1","-c:a","pcm_s16le",clip])
-            ws=_clip_words_real(clip)         # STT vaqti + Gemini matni
-            used_model="STT+Gemini"
+            ws,src,e1=_clip_words_real(clip)  # STT vaqti + Gemini matni
+            srcs.add(src)
+            if e1 and not stt_err: stt_err=e1
             try: os.remove(clip)
             except: pass
         raw.append((s, ws))
@@ -294,7 +297,13 @@ def transcribe_words_vertex(wav, chunk=18.0, overlap=1.5, _clip_fn=None, _dur=No
     words=merge_chunk_words(raw)
     if not words: raise RuntimeError("so'z topilmadi")
     full=" ".join(w["w"] for w in words)
-    return words, full, f"VERTEX-word:{used_model or 'ok'}"
+    if _clip_fn is not None:
+        eng="VERTEX-word:test"
+    elif ("stt" in srcs) or ("stt+gem" in srcs):
+        eng="STT+Gemini ✅ (aniq akustik vaqt)"
+    else:
+        eng=f"⚠️ Gemini-word (STT ISHLAMADI: {stt_err or 'nomaʼlum'})"
+    return words, full, eng
 
 def transcribe_vertex(wav):
     """IBORA darajasidagi zaxira yo'l (bir martalik)."""
@@ -374,6 +383,47 @@ def normalize_words(segs, dur):
         en=min(en,dur)
         if out and out[-1]["e"]>st: out[-1]["e"]=round(st,3)   # oldingi so'z oxirini qisqartiramiz
         out.append({"w":s["text"].strip(),"s":round(st,3),"e":round(en,3)})
+    return out
+
+def speech_regions(video, dur):
+    """Ovoz bor bo'lgan oraliqlar (VAD) — jimlikni teskari qilib olamiz."""
+    sils=detect_silences(video, dB=-35, mind=0.15)   # sezgir
+    regions=[]; cur=0.0
+    for s,e in sils:
+        s=max(0.0,float(s))
+        if s>cur+0.02: regions.append((cur,s))
+        cur = float(e) if e is not None else dur
+    if dur>cur+0.02: regions.append((cur,dur))
+    return [(round(a,3),round(b,3)) for a,b in regions if b-a>0.05]
+
+def snap_words_to_speech(words, regions):
+    """Har bir OVOZ oralig'ining birinchi so'zini haqiqiy ovoz boshiga yopishtiradi
+    (subtitr ovozdan oldin chiqib ketmasin). Faqat sezilarli farqда."""
+    if not regions or not words: return words
+    for (rs,re) in regions:
+        # shu oraliqда boshlanadigan birinchi so'z
+        for w in words:
+            if rs-0.6 <= w["s"] <= re+0.05:
+                if abs(w["s"]-rs) <= 0.7:      # onsetga yaqin bo'lsa
+                    w["s"]=round(max(0.0, rs-0.02),3)
+                break
+    words.sort(key=lambda x:x["s"])
+    for i in range(len(words)):
+        if words[i]["e"]<=words[i]["s"]: words[i]["e"]=round(words[i]["s"]+0.2,3)
+        if i>0 and words[i-1]["e"]>words[i]["s"]: words[i-1]["e"]=words[i]["s"]
+    return words
+
+def qc_words(words, dur):
+    """Final QC: ustma-ust yo'q, juda qisqa emas, oxiri cho'zilmasin, tartibli."""
+    words=[w for w in words if str(w.get("w","")).strip()]
+    words.sort(key=lambda x:x["s"])
+    out=[]
+    for w in words:
+        s=max(0.0,min(float(w["s"]),dur)); e=min(float(w["e"]),dur)
+        if e-s<0.10: e=min(dur,s+0.10)              # juda qisqa emas
+        if e-s>1.6: e=s+1.6                          # bitta so'z 1.6s dan ortiq turmasin
+        if out and out[-1]["e"]>s: out[-1]["e"]=round(s,3)   # overlap yo'q
+        out.append({"w":w["w"].strip(),"s":round(s,3),"e":round(e,3)})
     return out
 
 def normalize_segments(segs, dur):
@@ -548,7 +598,13 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
     lines=[]; prev_end=-1.0
     for idx,(cue,wi,w) in enumerate(flat):
         start=w["s"]
-        end=flat[idx+1][2]["s"] if idx+1<len(flat) else w["e"]+0.4
+        nxt=flat[idx+1][2]["s"] if idx+1<len(flat) else None
+        if nxt is None:
+            end=w["e"]+0.30
+        elif (nxt - w["e"]) <= 0.35:
+            end=nxt                          # so'zlar zich -> uzluksiz (chirillamaydi)
+        else:
+            end=w["e"]+0.20                  # katta pauza -> jimlikда OSILIB turmaydi
         start=max(start, prev_end)          # oldingi tugagach boshlanadi -> stacking yo'q
         if end<=start: end=start+0.20
         prev_end=end
@@ -716,6 +772,13 @@ def analyze(video_path, work):
         segs=normalize_segments(segs,dur)
         words=words_from_segments(segs)
         eng=(eng+" "+eng2).strip()
+    # VAD snap + final QC (ovozdan oldin chiqmasin, cho'zilmasin, overlap yo'q)
+    try:
+        regs=speech_regions(video_path, dur)
+        words=snap_words_to_speech(words, regs)
+    except Exception:
+        pass
+    words=qc_words(words, dur)
     sents=sentences_from_words(words)              # takror-aniqlash gaplar bo'yicha
     # jimlik kesish — biroz konservativ (gapni kesmasin)
     sils=detect_silences(video_path, dB=-32, mind=0.8)
