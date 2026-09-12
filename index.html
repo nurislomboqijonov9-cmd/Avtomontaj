@@ -3,111 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Montaj Studio</title>
+<title>VIZEN — AI Video Editor</title>
+<meta name="color-scheme" content="dark">
 <style>
 :root{
-  --bg:#f4f6fb; --panel:#ffffff; --panel2:#f1f3f9; --line:#e6e9f2;
-  --tx:#141a26; --mut:#6b7386; --acc:#ff8a3d; --accb:#2f6bff; --acc2:#12c2a0;
-  --red:#ef4444; --ok:#12b886; --r:16px; --sh:0 6px 24px rgba(20,26,38,.06);
+  /* VIZEN brand: qora, siyohrang(indigo), och ko'k, pushti, oq */
+  --bg:#06060c; --panel:#101024; --panel2:#181835; --line:#2b2b52;
+  --tx:#f4f5ff; --mut:#a6a7d0;
+  --ink:#5b34e6;      /* siyohrang */
+  --sky:#37c6ff;      /* och ko'k */
+  --pink:#ff4fa3;     /* pushti */
+  --vio:#5b34e6; --blue:#37c6ff; --accb:#5b34e6;
+  --red:#ff4d6d; --ok:#22d3a5; --r:18px;
+  --grad:linear-gradient(135deg,#ff4fa3 0%,#5b34e6 50%,#37c6ff 100%);
+  --glow:0 0 30px rgba(91,52,230,.4);
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--tx);font:15px/1.55 -apple-system,"Segoe UI",Roboto,Inter,sans-serif}
-button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:11px 16px;color:#fff;background:var(--panel2);color:var(--tx)}
+body{background:
+  radial-gradient(900px 500px at 12% -10%, rgba(91,52,230,.16), transparent 60%),
+  radial-gradient(800px 500px at 100% 0%, rgba(55,198,255,.14), transparent 55%),
+  var(--bg);
+  color:var(--tx);font:15px/1.55 -apple-system,"Segoe UI",Roboto,Inter,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:11px 16px;background:var(--panel2);color:var(--tx)}
 button:active{transform:scale(.98)}
-button.pri{background:var(--accb);color:#fff}
-button.go{background:linear-gradient(135deg,#ff9a3d,#ff5d8f);color:#fff;font-weight:800;font-size:16px;padding:15px 20px;box-shadow:0 8px 24px rgba(255,93,143,.28)}
+button.pri{background:var(--grad);color:#fff;font-weight:700;box-shadow:0 6px 20px rgba(91,52,230,.3)}
+button.go{background:var(--grad);color:#fff;font-weight:800;font-size:16px;padding:15px 20px;box-shadow:0 10px 34px rgba(255,79,163,.35);letter-spacing:.2px}
 button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
-button.gh{background:#fff;border:1px solid var(--line);color:var(--mut)}
-button:disabled{opacity:.5;cursor:not-allowed}
-input,textarea,select{font:inherit;background:#fff;color:var(--tx);border:1px solid var(--line);border-radius:11px;padding:10px}
-input[type=range]{padding:0;width:100%;accent-color:var(--accb)}
-a{color:var(--accb);text-decoration:none}
+button.gh{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--mut)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,textarea,select{font:inherit;background:#0f0f18;color:var(--tx);border:1px solid var(--line);border-radius:11px;padding:10px}
+input[type=range]{padding:0;width:100%;accent-color:var(--vio)}
+input[type=color]{padding:2px;background:#0f0f18}
+a{color:#c9a7ff;text-decoration:none}
+.grad-t{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .app{display:flex;min-height:100vh}
 /* sidebar */
-.side{width:230px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;position:sticky;top:0;height:100vh}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;padding:6px 8px 14px}
-.brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#ff9a3d,#ff5d8f)}
-.brand b{color:var(--acc)}
+.side{width:236px;flex:none;background:rgba(18,18,28,.7);backdrop-filter:blur(14px);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;padding:6px 8px 16px;letter-spacing:1px}
+.brand .dot{width:34px;height:34px;border-radius:10px;background:var(--grad);box-shadow:var(--glow);display:grid;place-items:center;color:#fff;font-weight:900;font-size:19px;font-style:italic}
 .langs{display:flex;gap:6px;padding:4px 6px 12px}
-.langs button{flex:1;padding:7px 0;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--mut);border-radius:10px}
-.langs button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.langs button{flex:1;padding:8px 0;font-size:13px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--mut);border-radius:10px;font-weight:700}
+.langs button.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(91,52,230,.3)}
 .nav{display:flex;flex-direction:column;gap:3px}
-.nav button{display:flex;align-items:center;gap:10px;justify-content:flex-start;background:transparent;color:var(--mut);border-radius:11px;padding:10px 12px;font-weight:600}
-.nav button.on{background:var(--panel2);color:var(--tx)}
+.nav button{display:flex;align-items:center;gap:10px;justify-content:flex-start;background:transparent;color:var(--mut);border-radius:12px;padding:11px 12px;font-weight:600}
+.nav button.on{background:rgba(91,52,230,.14);color:#fff}
 .side .foot{margin-top:auto;font-size:12px;color:var(--mut);padding:10px 8px;border-top:1px solid var(--line)}
-.dotst{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px}
+.dotst{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px;box-shadow:0 0 8px currentColor}
 .dotst.ok{background:var(--ok)}
 /* main */
-.main{flex:1;min-width:0;padding:22px;max-width:1160px;margin:0 auto;width:100%}
-.hero{background:linear-gradient(120deg,#dbe7ff, #ffe6d6 60%, #ffe0ec);border-radius:22px;padding:30px 28px;margin-bottom:20px}
-.hero h1{margin:0 0 6px;font-size:26px}
-.hero p{margin:0;color:#41506b}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:16px;box-shadow:var(--sh)}
+.main{flex:1;min-width:0;padding:24px;max-width:1180px;margin:0 auto;width:100%}
+.hero{position:relative;overflow:hidden;background:linear-gradient(120deg,rgba(255,79,163,.16),rgba(91,52,230,.12) 45%,rgba(55,198,255,.16));border:1px solid var(--line);border-radius:24px;padding:34px 30px;margin-bottom:22px}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:var(--grad);filter:blur(70px);opacity:.5}
+.hero h1{margin:0 0 8px;font-size:30px;font-weight:900;letter-spacing:.3px;position:relative}
+.hero p{margin:0;color:#c8c8de;position:relative;max-width:560px}
+.card{background:rgba(18,18,28,.66);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:16px}
 .card h3{margin:0 0 14px;font-size:15px;display:flex;align-items:center;gap:8px}
-.sect-t{font-size:13px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:2px 0 10px}
+.sect-t{font-size:12px;color:var(--mut);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:2px 0 10px}
 .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.opt{border:1.5px solid var(--line);border-radius:14px;padding:13px;cursor:pointer;background:#fff;transition:.15s;user-select:none}
-.opt.on{border-color:var(--accb);background:#f2f6ff}
+.opt{border:1.5px solid var(--line);border-radius:14px;padding:13px;cursor:pointer;background:rgba(255,255,255,.02);transition:.15s;user-select:none}
+.opt.on{border-color:var(--vio);background:rgba(91,52,230,.1);box-shadow:0 0 0 3px rgba(91,52,230,.12)}
 .opt .t{font-weight:700;display:flex;align-items:center;justify-content:space-between}
 .opt .d{font-size:12.5px;color:var(--mut);margin-top:3px}
 .opt .chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:#fff}
-.opt.on .chk{background:var(--accb);border-color:var(--accb)}
+.opt.on .chk{background:var(--grad);border-color:transparent}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chips button{border:1.5px solid var(--line);background:rgba(255,255,255,.03);color:var(--tx);border-radius:30px;padding:10px 18px;font-weight:600}
+.chips button.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(91,52,230,.3)}
+/* montaj uslublari */
+.styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px}
+.est{border:2px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;position:relative;aspect-ratio:9/14;background:#0a0a12;transition:.15s}
+.est:hover{transform:translateY(-2px)}
+.est.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 10px 30px rgba(91,52,230,.35)}
+.est .g{position:absolute;inset:0;display:grid;place-items:end center;padding:12px}
+.est .cap{font-weight:900;text-transform:uppercase;text-align:center;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,.6);font-size:16px}
+.est .nm{position:absolute;top:0;left:0;right:0;padding:10px 12px;color:#fff;font-weight:800;font-size:15px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.est .tag{position:absolute;bottom:10px;left:10px;font-size:11px;color:#fff;background:rgba(0,0,0,.4);padding:2px 8px;border-radius:20px;backdrop-filter:blur(4px)}
 /* presets */
 .presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
-.preset{border:2px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:#0d0f14;position:relative;aspect-ratio:9/13}
-.preset.on{border-color:var(--accb);box-shadow:0 0 0 3px rgba(47,107,255,.18)}
-.preset .pv{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:16px;background:linear-gradient(180deg,#2a2f3a,#0d0f14)}
-.preset .cap{font-weight:800;text-align:center;line-height:1.1;text-transform:uppercase;text-shadow:0 2px 0 #000;font-size:15px;padding:0 6px}
-.preset .nm{position:absolute;top:8px;left:8px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);padding:2px 8px;border-radius:20px}
+.preset{border:2px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:#0a0a12;position:relative;aspect-ratio:9/13}
+.preset.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 8px 22px rgba(91,52,230,.3)}
+.preset .pv{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:16px;background:linear-gradient(180deg,#1a1a28,#0a0a12)}
+.preset .cap{font-weight:800;text-align:center;line-height:1.1;text-transform:uppercase;text-shadow:0 2px 6px #000;font-size:15px;padding:0 6px}
+.preset .nm{position:absolute;top:8px;left:8px;font-size:12px;color:#fff;background:rgba(0,0,0,.45);padding:2px 8px;border-radius:20px}
 /* dropzone */
-.drop{border:2px dashed var(--line);border-radius:18px;padding:40px 18px;text-align:center;color:var(--mut);background:#fff;transition:.15s}
-.drop.hi{border-color:var(--accb);background:#f2f6ff}
-.drop .big{font-size:40px}
+.drop{border:2px dashed var(--line);border-radius:20px;padding:44px 18px;text-align:center;color:var(--mut);background:rgba(255,255,255,.02);transition:.15s}
+.drop.hi{border-color:var(--vio);background:rgba(91,52,230,.08)}
+.drop .big{font-size:44px}
 .prog{height:9px;background:var(--panel2);border-radius:20px;overflow:hidden;margin:10px 0}
-.prog>div{height:100%;background:linear-gradient(90deg,#ff9a3d,#ff5d8f);width:0;transition:width .3s}
+.prog>div{height:100%;background:var(--grad);width:0;transition:width .3s;box-shadow:0 0 12px rgba(91,52,230,.5)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .row.sb{justify-content:space-between}
 .lbl{font-size:13px;color:var(--mut);margin-bottom:5px}
 .field{margin-bottom:13px}
 .grid2{display:grid;grid-template-columns:minmax(280px,400px) 1fr;gap:18px;align-items:start}
-@media(max-width:900px){.grid2{grid-template-columns:1fr}.side{width:64px}.side .txt,.langs,.brand b{display:none}}
-.videoBox{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:9/16;max-height:64vh;margin:0 auto;width:100%;container-type:size}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}.side{width:66px}.side .txt,.langs,.brand span:last-child{display:none}}
+.videoBox{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:9/16;max-height:64vh;margin:0 auto;width:100%;container-type:size;border:1px solid var(--line)}
 .videoBox video{width:100%;height:100%;object-fit:contain;display:block}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
 .timeline{position:relative;height:32px;background:var(--panel2);border-radius:9px;margin:10px 0;overflow:hidden;cursor:pointer}
-.tl-rem{position:absolute;top:0;bottom:0;background:rgba(239,68,68,.45)}
-.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--accb)}
-.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:var(--tx)}
-.item{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
+.tl-rem{position:absolute;top:0;bottom:0;background:rgba(255,77,109,.5)}
+.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--vio)}
+.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
 .words{max-height:220px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
-.wchip{background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer}
-.wchip.now{background:var(--acc);color:#fff;border-color:var(--acc)}
+.wchip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer}
+.wchip.now{background:var(--grad);color:#fff;border-color:transparent}
 .tabs2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.tabs2 .pill{font-size:13px;padding:8px 13px;border-radius:11px;background:#fff;border:1px solid var(--line);color:var(--mut);cursor:pointer}
-.tabs2 .pill.on{background:var(--accb);color:#fff;border-color:var(--accb)}
+.tabs2 .pill{font-size:13px;padding:9px 14px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--mut);cursor:pointer;font-weight:600}
+.tabs2 .pill.on{background:var(--grad);color:#fff;border-color:transparent}
 .sw{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .sw input{width:42px;height:24px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:20px;position:relative;transition:.2s;border:none;padding:0;flex:none}
-.sw input:checked{background:var(--accb)}
+.sw input:checked{background:var(--vio)}
 .sw input::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
 .sw input:checked::after{left:21px}
 .step{display:none}.step.on{display:block}
 .thumb{width:72px;height:44px;object-fit:cover;border-radius:7px;background:#000;flex:none}
 .hint{font-size:12.5px;color:var(--mut)}
-.err{color:#c92a2a;font-size:13px}
+.err{color:#ff9db1;font-size:13px}
 .hist{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;padding:11px 18px;border-radius:12px;z-index:99;opacity:0;transition:.3s;pointer-events:none}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a28;border:1px solid var(--line);color:#fff;padding:12px 20px;border-radius:12px;z-index:99;opacity:0;transition:.3s;pointer-events:none;box-shadow:var(--glow)}
 .toast.show{opacity:1}
-.center{display:grid;place-items:center;min-height:70vh}
-.badge{font-size:12px;color:var(--mut);background:var(--panel2);padding:3px 9px;border-radius:20px}
+.center{display:grid;place-items:center;min-height:80vh}
+.badge{font-size:12px;color:var(--mut);background:rgba(255,255,255,.05);padding:3px 9px;border-radius:20px}
 </style>
 </head>
 <body>
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="side">
-    <div class="brand"><span class="dot"></span><span>Montaj <b>Studio</b></span></div>
+    <div class="brand"><span class="dot">V</span><span class="grad-t">VIZEN</span></div>
     <div class="langs">
       <button data-lang="uz" onclick="setLang('uz')">UZ</button>
       <button data-lang="ru" onclick="setLang('ru')">RU</button>
@@ -134,21 +160,48 @@ a{color:var(--accb);text-decoration:none}
       </div>
     </div>
 
+    <!-- ONBOARDING -->
+    <div id="onb" style="display:none">
+      <div class="center">
+        <div style="width:min(720px,100%)">
+          <h1 style="text-align:center;font-size:28px;margin:0 0 6px" data-i="onb_t">Sizga moslaymiz</h1>
+          <p class="hint" style="text-align:center;margin:0 0 22px" data-i="onb_s">3 ta savol — keyin hammasi tayyor.</p>
+          <div class="card">
+            <div class="sect-t" data-i="onb_lang">Til</div>
+            <div class="chips" id="onbLang"></div>
+          </div>
+          <div class="card">
+            <div class="sect-t" data-i="onb_who">Kim uchun video?</div>
+            <div class="chips" id="onbWho"></div>
+          </div>
+          <div class="card">
+            <div class="sect-t" data-i="onb_style">Qaysi uslub yoqadi?</div>
+            <div class="presets" id="onbStyles"></div>
+          </div>
+          <button class="go" style="width:100%" onclick="finishOnb()" data-i="onb_go">Boshlash →</button>
+        </div>
+      </div>
+    </div>
+
     <!-- HOME -->
     <div id="home" style="display:none">
       <div class="hero">
         <h1 data-i="hero_t">Video yuklang</h1>
-        <p data-i="hero_s">Bot avtomatik subtitr qo'yadi, keraksiz joylarni kesadi, animatsiya qo'shadi — nimani xohlasangiz, o'shani tanlang.</p>
+        <p data-i="hero_s">Montaj uslubini tanlang va videoni tashlang — qolganini bot bajaradi.</p>
       </div>
 
       <div class="card">
-        <div class="sect-t" data-i="what">Nima qilamiz?</div>
-        <div class="opts" id="opts"></div>
-      </div>
-
-      <div class="card" id="styleCard">
-        <div class="sect-t" data-i="style">Subtitr uslubi</div>
-        <div class="presets" id="presets"></div>
+        <div class="row sb" style="margin-bottom:10px">
+          <div class="sect-t" style="margin:0" data-i="edit_style">Montaj uslubi</div>
+          <button class="gh sm" onclick="toggleAdv()" data-i="customize">⚙️ Moslash</button>
+        </div>
+        <div class="styles" id="styles"></div>
+        <div id="adv" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+          <div class="sect-t" data-i="what">Nima qilamiz?</div>
+          <div class="opts" id="opts"></div>
+          <div class="sect-t" style="margin-top:14px" data-i="style">Subtitr rangi</div>
+          <div class="presets" id="presets"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -289,7 +342,7 @@ const vid=$("vid");
 // ---------- i18n ----------
 const I={
  uz:{nav_home:"Bosh",nav_hist:"Tarix",foot:"Reels · TikTok · Shorts · VK",login:"Kirish",password:"Parol",enter:"Kirish",
-  hero_t:"Video yuklang",hero_s:"Bot avtomatik subtitr qo'yadi, keraksiz joylarni kesadi, animatsiya qo'shadi — nimani xohlasangiz tanlang.",
+  hero_t:"G'oyani ajoyib videoga aylantiring",hero_s:"Aniq subtitr · Aqlli kesish · Animatsiya — bir necha bosishда. Uslubni tanlang va videoni tashlang.",
   what:"Nima qilamiz?",style:"Subtitr uslubi",add_media:"Media qo'shish",add_hint:"MP4 / MOV — bu yerga tashlang yoki tanlang.",
   choose:"🚀 Video tanlash va montaj",reauto:"🚀 Avtomatik montaj",rerender:"✅ Qayta tayyorlash",ready:"🎉 Tayyor!",download:"⬇️ Yuklab olish",in_hist:"Tarixda",
   tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"Kesishni qo'llash",
@@ -297,9 +350,11 @@ const I={
   text:"Matn",dbl:"2 marta bosib tuzating",b_height:"Balandligi",b_auto:"✨ Avto g'oyalar",b_manual:"+ Qo'lda",ref_hint:"Yoqtirgan videongizni yuklang — bot uning subtitr tempini moslaydi.",
   ref_up:"Namuna yuklash",zoom:"Zoom",clean:"Ovoz tozalash",new_video:"🔄 Yangi video",hist_empty:"Hali tayyor video yo'q.",
   o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi",
-  proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish"},
+  proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish",
+  onb_t:"Sizga moslaymiz",onb_s:"3 ta savol — keyin hammasi tayyor.",onb_lang:"Til",onb_who:"Kim uchun video?",onb_style:"Qaysi uslub yoqadi?",onb_go:"Boshlash →",
+  edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun"},
  ru:{nav_home:"Главная",nav_hist:"История",foot:"Reels · TikTok · Shorts · VK",login:"Вход",password:"Пароль",enter:"Войти",
-  hero_t:"Загрузите видео",hero_s:"Бот добавит субтитры, вырежет лишнее, добавит анимацию — выберите, что нужно.",
+  hero_t:"Превратите идею в потрясающее видео",hero_s:"Точные субтитры · Умная нарезка · Анимация — в пару кликов. Выберите стиль и загрузите видео.",
   what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
   choose:"🚀 Выбрать видео и смонтировать",reauto:"🚀 Авто‑монтаж",rerender:"✅ Пересобрать",ready:"🎉 Готово!",download:"⬇️ Скачать",in_hist:"В истории",
   tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"Применить обрезку",
@@ -307,9 +362,11 @@ const I={
   text:"Текст",dbl:"двойной клик для правки",b_height:"Высота",b_auto:"✨ Авто‑идеи",b_manual:"+ Вручную",ref_hint:"Загрузите любимое видео — бот подстроит темп субтитров.",
   ref_up:"Загрузить образец",zoom:"Zoom",clean:"Чистка звука",new_video:"🔄 Новое видео",hist_empty:"Пока нет готовых видео.",
   o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Добавляет картинки по смыслу",
-  proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить"},
+  proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить",
+  onb_t:"Настроим под вас",onb_s:"3 вопроса — и всё готово.",onb_lang:"Язык",onb_who:"Для кого видео?",onb_style:"Какой стиль нравится?",onb_go:"Начать →",
+  edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов"},
  en:{nav_home:"Home",nav_hist:"History",foot:"Reels · TikTok · Shorts · VK",login:"Sign in",password:"Password",enter:"Sign in",
-  hero_t:"Upload a video",hero_s:"The bot adds captions, cuts dead space, adds animation — pick what you need.",
+  hero_t:"Turn ideas into stunning videos",hero_s:"Accurate captions · Smart cuts · Animation — in a few taps. Pick a style and drop your video.",
   what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
   choose:"🚀 Choose video & edit",reauto:"🚀 Auto edit",rerender:"✅ Re-render",ready:"🎉 Done!",download:"⬇️ Download",in_hist:"In history",
   tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"Apply cut",
@@ -317,7 +374,9 @@ const I={
   text:"Text",dbl:"double-click to edit",b_height:"Height",b_auto:"✨ Auto ideas",b_manual:"+ Manual",ref_hint:"Upload a video you like — the bot matches its caption pace.",
   ref_up:"Upload reference",zoom:"Zoom",clean:"Clean audio",new_video:"🔄 New video",hist_empty:"No finished videos yet.",
   o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Adds matching images",
-  proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue"}
+  proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue",
+  onb_t:"Let's set you up",onb_s:"3 questions and you're ready.",onb_lang:"Language",onb_who:"Who is the video for?",onb_style:"Which style do you like?",onb_go:"Start →",
+  edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients"}
 };
 function t(k){return (I[LANG]&&I[LANG][k])||I.uz[k]||k}
 
@@ -333,6 +392,48 @@ const PRESETS=[
 let PRESET=PRESETS[0];
 // options state
 const OPTS={sub:true,cut:true,broll:true};
+
+// ---------- MONTAJ USLUBLARI (edit styles) ----------
+const STYLES=[
+ {id:"viral", nm:{uz:"Viral",ru:"Виральный",en:"Viral"}, grad:["#7c3aed","#ec4899"], preset:"neon", cut:true, broll:true, zoom:true},
+ {id:"bold",  nm:{uz:"Bold",ru:"Смелый",en:"Bold"}, grad:["#f43f5e","#f59e0b"], preset:"olov", cut:true, broll:true, zoom:true},
+ {id:"clean", nm:{uz:"Toza",ru:"Чистый",en:"Clean"}, grad:["#0ea5e9","#22d3ee"], preset:"minimal", cut:true, broll:false, zoom:false},
+ {id:"edu",   nm:{uz:"Ta'limiy",ru:"Обучающий",en:"Educational"}, grad:["#2563eb","#14b8a6"], preset:"klassik", cut:true, broll:true, zoom:false},
+ {id:"full",  nm:{uz:"To'liq",ru:"Полный",en:"Full"}, grad:["#f59e0b","#ef4444"], preset:"klassik", cut:true, broll:true, zoom:true},
+ {id:"subonly",nm:{uz:"Faqat subtitr",ru:"Только субтитры",en:"Captions only"}, grad:["#334155","#64748b"], preset:"klassik", cut:false, broll:false, zoom:false},
+];
+let STYLE=STYLES[0];
+function applyStyle(st){
+  STYLE=st; PRESET=PRESETS.find(p=>p.id===st.preset)||PRESETS[0];
+  OPTS.sub=true; OPTS.cut=st.cut; OPTS.broll=st.broll;
+  renderStyles(); renderOpts(); renderPresets();
+}
+function estCard(st,cls,onclick){
+  const p=PRESETS.find(x=>x.id===st.preset)||PRESETS[0];
+  return `<div class="est ${cls}" onclick="${onclick}">
+    <div class="g" style="background:linear-gradient(160deg,${st.grad[0]},${st.grad[1]})">
+      <div class="cap" style="font-size:16px"><span style="color:${p.base}">${sampleWord(1)}</span> <span style="color:${p.active}">${sampleWord(2)}</span></div>
+    </div>
+    <div class="nm">${st.nm[LANG]||st.nm.uz}</div>
+    <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', '💬'].filter(Boolean).join(' ')}</div></div>`;
+}
+function renderStyles(){ $("styles").innerHTML=STYLES.map(s=>estCard(s, s.id===STYLE.id?'on':'', `pickStyle('${s.id}')`)).join(""); }
+function pickStyle(id){ applyStyle(STYLES.find(s=>s.id===id)||STYLES[0]); }
+function toggleAdv(){ const a=$("adv"); a.style.display=a.style.display==="none"?"block":"none"; }
+
+// ---------- ONBOARDING ----------
+const WHO=[{k:"personal",i:"who_personal"},{k:"biz",i:"who_biz"},{k:"smm",i:"who_smm"},{k:"client",i:"who_client"}];
+let onbWho="personal", onbStyleId="viral";
+function renderOnb(){
+  $("onbLang").innerHTML=["uz","ru","en"].map(l=>`<button class="${l===LANG?'on':''}" onclick="setLang('${l}');renderOnb()">${l.toUpperCase()}</button>`).join("");
+  $("onbWho").innerHTML=WHO.map(w=>`<button class="${w.k===onbWho?'on':''}" onclick="onbWho='${w.k}';renderOnb()">${t(w.i)}</button>`).join("");
+  $("onbStyles").innerHTML=STYLES.map(s=>estCard(s, s.id===onbStyleId?'on':'', `onbStyleId='${s.id}';renderOnb()`)).join("");
+}
+function finishOnb(){
+  localStorage.setItem("mprefs",JSON.stringify({lang:LANG,who:onbWho,style:onbStyleId}));
+  applyStyle(STYLES.find(s=>s.id===onbStyleId)||STYLES[0]);
+  $("onb").style.display="none"; showTab("home");
+}
 
 function renderOpts(){
   const defs=[
@@ -357,7 +458,8 @@ function applyLang(){
   document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.getAttribute("data-i"))});
   document.querySelectorAll(".langs button").forEach(b=>b.classList.toggle("on",b.dataset.lang===LANG));
   document.documentElement.lang=LANG;
-  renderOpts();renderPresets();
+  renderOpts();renderPresets();renderStyles();
+  if($("onb")&&$("onb").style.display!=="none")renderOnb();
 }
 function setLang(l){LANG=l;localStorage.setItem("mlang",l);applyLang()}
 
@@ -390,8 +492,20 @@ async function doLogin(){
     TOKEN=r.token||"";localStorage.setItem("mtoken",TOKEN);$("login").style.display="none";startApp();
   }catch(e){$("loginErr").textContent="Parol noto'g'ri"}
 }
-function startApp(){$("home").style.display="block";setupDrop();loadHistory()}
+function startApp(){
+  setupDrop();loadHistory();
+  const prefs=JSON.parse(localStorage.getItem("mprefs")||"null");
+  if(prefs){
+    if(prefs.lang){LANG=prefs.lang;localStorage.setItem("mlang",LANG)}
+    applyStyle(STYLES.find(s=>s.id===prefs.style)||STYLES[0]);
+    applyLang();$("onb").style.display="none";showTab("home");
+  }else{
+    onbStyleId="viral";applyLang();$("onb").style.display="block";
+    $("home").style.display="none";$("editor").style.display="none";$("hist").style.display="none";renderOnb();
+  }
+}
 function showTab(x){
+  $("onb").style.display="none";
   $("navHome").classList.toggle("on",x==="home");$("navHist").classList.toggle("on",x==="hist");
   $("home").style.display=x==="home"?"block":"none";
   $("editor").style.display=x==="editor"?"block":"none";
