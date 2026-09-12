@@ -191,6 +191,7 @@ async def render(req: Request, x_auth: str = Header("")):
     sub = body.get("subtitle", {})
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     subtitle_on = bool(body.get("subtitle_on", True))
+    grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
     brolls_in = body.get("brolls", [])
     jid = new_job()
     def fn(prog):
@@ -212,12 +213,13 @@ async def render(req: Request, x_auth: str = Header("")):
                                "w": float(b.get("w", 0.78))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio)
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
-                                     "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72)})
+                                     "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72),
+                                     "grade": grade, "zoom_level": zoom_level})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
     run_job(jid, fn)
@@ -235,6 +237,7 @@ async def auto(req: Request, x_auth: str = Header("")):
     broll_y = float(body.get("broll_y", 0.72)); do_broll = bool(body.get("broll", True))
     do_cut = bool(body.get("cut", True))               # kesish ixtiyoriy
     subtitle_on = bool(body.get("subtitle_on", True))  # subtitr ixtiyoriy
+    grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
@@ -280,11 +283,12 @@ async def auto(req: Request, x_auth: str = Header("")):
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.78} for b in outb]
         out = os.path.join(d, "final.mp4")
-        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio):
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level):
             raise RuntimeError("render xato")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
-                                     "subtitle_on": subtitle_on, "broll_y": broll_y})
+                                     "subtitle_on": subtitle_on, "broll_y": broll_y,
+                                     "grade": grade, "zoom_level": zoom_level})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
@@ -365,7 +369,7 @@ def resume(pid: str, x_auth: str = Header("")):
             "brolls": brolls, "engine": m.get("engine", ""),
             "subtitle": rs.get("subtitle", {}), "subtitle_on": rs.get("subtitle_on", True),
             "zoom": rs.get("zoom", True), "audio_clean": rs.get("audio_clean", True),
-            "broll_y": rs.get("broll_y", 0.72)}
+            "broll_y": rs.get("broll_y", 0.72), "grade": rs.get("grade","vivid"), "zoom_level": rs.get("zoom_level",1)}
 
 @app.delete("/api/history/{pid}")
 def delete_project(pid: str, x_auth: str = Header("")):

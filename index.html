@@ -71,7 +71,8 @@ a{color:#c9a7ff;text-decoration:none}
 .chips button{border:1.5px solid var(--line);background:rgba(255,255,255,.03);color:var(--tx);border-radius:30px;padding:10px 18px;font-weight:600}
 .chips button.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(91,52,230,.3)}
 /* montaj uslublari */
-.styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px}
+.stylesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px;max-height:560px;overflow:auto;padding-right:4px}
+#onbStyles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:13px}
 .est{border:2px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;position:relative;aspect-ratio:9/14;background:#0a0a12;transition:.15s}
 .est:hover{transform:translateY(-2px)}
 .est.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 10px 30px rgba(91,52,230,.35)}
@@ -393,41 +394,69 @@ let PRESET=PRESETS[0];
 // options state
 const OPTS={sub:true,cut:true,broll:true};
 
-// ---------- MONTAJ USLUBLARI (edit styles) ----------
-const STYLES=[
- {id:"viral", nm:{uz:"Viral",ru:"Виральный",en:"Viral"}, grad:["#7c3aed","#ec4899"], preset:"neon", cut:true, broll:true, zoom:true},
- {id:"bold",  nm:{uz:"Bold",ru:"Смелый",en:"Bold"}, grad:["#f43f5e","#f59e0b"], preset:"olov", cut:true, broll:true, zoom:true},
- {id:"clean", nm:{uz:"Toza",ru:"Чистый",en:"Clean"}, grad:["#0ea5e9","#22d3ee"], preset:"minimal", cut:true, broll:false, zoom:false},
- {id:"edu",   nm:{uz:"Ta'limiy",ru:"Обучающий",en:"Educational"}, grad:["#2563eb","#14b8a6"], preset:"klassik", cut:true, broll:true, zoom:false},
- {id:"full",  nm:{uz:"To'liq",ru:"Полный",en:"Full"}, grad:["#f59e0b","#ef4444"], preset:"klassik", cut:true, broll:true, zoom:true},
- {id:"subonly",nm:{uz:"Faqat subtitr",ru:"Только субтитры",en:"Captions only"}, grad:["#334155","#64748b"], preset:"klassik", cut:false, broll:false, zoom:false},
+// ---------- MONTAJ USLUBLARI (50+) — oila × variant ----------
+// oila: nom, gradient, subtitr ko'rinishi (rang/o'lcham/joy/harf), kesish, animatsiya(broll)
+const FAMILIES=[
+ {id:"viral",  nm:"Viral",     grad:["#b13bff","#ff4fa3"], active:"#ffea00", base:"#ffffff", size:96, words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
+ {id:"bold",   nm:"Bold",      grad:["#ff4d6d","#ff9a3d"], active:"#ff3b30", base:"#ffffff", size:104,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
+ {id:"neon",   nm:"Neon",      grad:["#37c6ff","#5b34e6"], active:"#00e5ff", base:"#ffffff", size:94, words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
+ {id:"clean",  nm:"Clean",     grad:["#0ea5e9","#22d3ee"], active:"#ffffff", base:"#ffffff", size:74, words:4, margin:620, upper:false,cut:true, broll:false,cat:"min"},
+ {id:"cinema", nm:"Cinematic", grad:["#1e1b4b","#5b34e6"], active:"#f5d38b", base:"#ffffff", size:80, words:4, margin:560, upper:false,cut:true, broll:true, cat:"cine"},
+ {id:"vlog",   nm:"Vlog",      grad:["#14b8a6","#22c55e"], active:"#22ff88", base:"#ffffff", size:88, words:3, margin:660, upper:true, cut:true, broll:true, cat:"vlog"},
+ {id:"biz",    nm:"Business",  grad:["#2563eb","#64748b"], active:"#37c6ff", base:"#ffffff", size:80, words:4, margin:640, upper:false,cut:true, broll:true, cat:"biz"},
+ {id:"pod",    nm:"Podcast",   grad:["#7c3aed","#a855f7"], active:"#ff4fa3", base:"#ffffff", size:84, words:3, margin:640, upper:true, cut:true, broll:false,cat:"biz"},
+ {id:"fashion",nm:"Fashion",   grad:["#ec4899","#0a0a0a"], active:"#ffffff", base:"#ffd1e8", size:82, words:3, margin:640, upper:true, cut:true, broll:true, cat:"cine"},
+ {id:"fit",    nm:"Fitness",   grad:["#f59e0b","#ef4444"], active:"#ffea00", base:"#ffffff", size:100,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
 ];
+const VARIANTS=[
+ {sfx:"Pop",  anim:"pop",    grade:"vivid",  zoom:1},
+ {sfx:"Zoom", anim:"zoomin", grade:"bright", zoom:2},
+ {sfx:"Cine", anim:"fade",   grade:"cinema", zoom:1},
+ {sfx:"Soft", anim:"rise",   grade:"warm",   zoom:0},
+ {sfx:"Max",  anim:"bounce", grade:"neon",   zoom:2},
+];
+const STYLES=[];
+FAMILIES.forEach(f=>VARIANTS.forEach(v=>STYLES.push({
+  id:f.id+"_"+v.sfx.toLowerCase(), name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, featured:v.sfx==="Pop",
+  sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:"Anton"},
+  cut:f.cut, broll:f.broll, grade:v.grade, zoom_level:v.zoom,
+})));
 let STYLE=STYLES[0];
+let styleCat="all";
+const CATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"trend",u:"Trend",r:"Тренд",e:"Trending"},{k:"bold",u:"Jasur",r:"Смелые",e:"Bold"},{k:"min",u:"Minimal",r:"Минимал",e:"Minimal"},{k:"cine",u:"Kino",r:"Кино",e:"Cinematic"},{k:"vlog",u:"Vlog",r:"Влог",e:"Vlog"},{k:"biz",u:"Biznes",r:"Бизнес",e:"Business"}];
+
 function applyStyle(st){
-  STYLE=st; PRESET=PRESETS.find(p=>p.id===st.preset)||PRESETS[0];
+  STYLE=st;
   OPTS.sub=true; OPTS.cut=st.cut; OPTS.broll=st.broll;
-  renderStyles(); renderOpts(); renderPresets();
+  if(S){ S.sub=subFromStyle(); S.grade=st.grade; S.zoomLevel=st.zoom_level; applyStyleControls&&applyStyleControls(); }
+  renderStyles(); renderOpts();
 }
 function estCard(st,cls,onclick){
-  const p=PRESETS.find(x=>x.id===st.preset)||PRESETS[0];
+  const s=st.sub;
   return `<div class="est ${cls}" onclick="${onclick}">
     <div class="g" style="background:linear-gradient(160deg,${st.grad[0]},${st.grad[1]})">
-      <div class="cap" style="font-size:16px"><span style="color:${p.base}">${sampleWord(1)}</span> <span style="color:${p.active}">${sampleWord(2)}</span></div>
+      <div class="cap" style="text-transform:${s.upper?'uppercase':'none'}"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
     </div>
-    <div class="nm">${st.nm[LANG]||st.nm.uz}</div>
-    <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', '💬'].filter(Boolean).join(' ')}</div></div>`;
+    <div class="nm">${st.name}</div>
+    <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', (st.zoom_level>0?'🔍':''), '💬'].filter(Boolean).join(' ')}</div></div>`;
 }
-function renderStyles(){ $("styles").innerHTML=STYLES.map(s=>estCard(s, s.id===STYLE.id?'on':'', `pickStyle('${s.id}')`)).join(""); }
+function renderStyles(){
+  const wrap=$("styles"); if(!wrap)return;
+  const chips=CATS.map(c=>`<button class="pill ${c.k===styleCat?'on':''}" onclick="styleCat='${c.k}';renderStyles()">${c[LANG]||c.u}</button>`).join("");
+  const list=STYLES.filter(s=>styleCat==="all"||s.cat===styleCat);
+  wrap.innerHTML=`<div class="tabs2" style="margin-bottom:12px">${chips}</div>
+    <div class="stylesGrid">${list.map(s=>estCard(s, s.id===STYLE.id?'on':'', `pickStyle('${s.id}')`)).join("")}</div>`;
+}
 function pickStyle(id){ applyStyle(STYLES.find(s=>s.id===id)||STYLES[0]); }
 function toggleAdv(){ const a=$("adv"); a.style.display=a.style.display==="none"?"block":"none"; }
 
 // ---------- ONBOARDING ----------
 const WHO=[{k:"personal",i:"who_personal"},{k:"biz",i:"who_biz"},{k:"smm",i:"who_smm"},{k:"client",i:"who_client"}];
-let onbWho="personal", onbStyleId="viral";
+let onbWho="personal", onbStyleId="viral_pop";
 function renderOnb(){
   $("onbLang").innerHTML=["uz","ru","en"].map(l=>`<button class="${l===LANG?'on':''}" onclick="setLang('${l}');renderOnb()">${l.toUpperCase()}</button>`).join("");
   $("onbWho").innerHTML=WHO.map(w=>`<button class="${w.k===onbWho?'on':''}" onclick="onbWho='${w.k}';renderOnb()">${t(w.i)}</button>`).join("");
-  $("onbStyles").innerHTML=STYLES.map(s=>estCard(s, s.id===onbStyleId?'on':'', `onbStyleId='${s.id}';renderOnb()`)).join("");
+  $("onbStyles").innerHTML=STYLES.filter(s=>s.featured).map(s=>estCard(s, s.id===onbStyleId?'on':'', `onbStyleId='${s.id}';renderOnb()`)).join("");
 }
 function finishOnb(){
   localStorage.setItem("mprefs",JSON.stringify({lang:LANG,who:onbWho,style:onbStyleId}));
@@ -452,7 +481,8 @@ function renderPresets(){
     <div class="nm">${p.nm[LANG]||p.nm.uz}</div></div>`).join("");
 }
 function sampleWord(i){const m={uz:["Salom","dunyo"],ru:["Привет","мир"],en:["Hello","world"]};return (m[LANG]||m.uz)[i-1]}
-function pickPreset(id){PRESET=PRESETS.find(p=>p.id===id)||PRESETS[0];renderPresets(); if(S){applyPresetToControls();subChanged&&subChanged&&S.sub&&null}}
+function pickPreset(id){PRESET=PRESETS.find(p=>p.id===id)||PRESETS[0];renderPresets();
+  if(S){S.sub.active=PRESET.active;S.sub.base=PRESET.base;S.sub.size=PRESET.size;S.sub.words=PRESET.words;S.sub.margin=PRESET.margin;S.sub.upper=PRESET.upper;fillSubControls()}}
 
 function applyLang(){
   document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.getAttribute("data-i"))});
@@ -500,7 +530,7 @@ function startApp(){
     applyStyle(STYLES.find(s=>s.id===prefs.style)||STYLES[0]);
     applyLang();$("onb").style.display="none";showTab("home");
   }else{
-    onbStyleId="viral";applyLang();$("onb").style.display="block";
+    onbStyleId="viral_pop";applyLang();$("onb").style.display="block";
     $("home").style.display="none";$("editor").style.display="none";$("hist").style.display="none";renderOnb();
   }
 }
@@ -523,8 +553,8 @@ function setupDrop(){
   ["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove("hi")}));
   d.addEventListener("drop",e=>{if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])});
 }
-function subFromPreset(){return{on:true,delay:0.0,margin:PRESET.margin,size:PRESET.size,words:PRESET.words,active:PRESET.active,base:PRESET.base,upper:PRESET.upper,font:"Anton"}}
-function currentSub(){const s=S.sub;return{delay:s.delay,margin_v:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,font:"Anton",outline:"#000000",border:4}}
+function subFromStyle(){const s=STYLE.sub;return{on:true,delay:0.0,margin:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,anim:s.anim,font:"Anton"}}
+function currentSub(){const s=S.sub;return{delay:s.delay,margin_v:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,anim:s.anim||"pop",font:"Anton",outline:"#000000",border:4}}
 function upload(f){
   $("upProg").style.display="block";$("homeMsg").textContent=t("proc");
   const fd=new FormData();fd.append("file",f);
@@ -534,20 +564,23 @@ function upload(f){
   xhr.onload=()=>{
     if(xhr.status!==200){$("homeMsg").innerHTML='<span class=err>Upload xato</span>';return}
     const r=JSON.parse(xhr.responseText);
-    S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,words:[],removes:[],brolls:[],cut:false,manual:{s:null,e:null},sub:subFromPreset(),lang:LANG};
+    S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,words:[],removes:[],brolls:[],cut:false,manual:{s:null,e:null},
+       sub:subFromStyle(),grade:STYLE.grade,zoomLevel:STYLE.zoom_level,lang:LANG};
     showTab("editor");vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
-    applyPresetToControls();
+    fillSubControls();
     runAuto();
   };
   xhr.onerror=()=>$("homeMsg").innerHTML='<span class=err>Tarmoq xatosi</span>';
   xhr.send(fd);
 }
-function applyPresetToControls(){
-  if(!S)return;S.sub=subFromPreset();
-  $("delay").value=0;$("mv").value=S.sub.margin;$("sz").value=S.sub.size;$("wp").value=S.sub.words;
+function fillSubControls(){
+  if(!S)return;
+  $("delay").value=S.sub.delay||0;$("mv").value=S.sub.margin;$("sz").value=S.sub.size;$("wp").value=S.sub.words;
   $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;$("subOn").checked=OPTS.sub;
+  $("zoom").checked=(S.zoomLevel||0)>0;
   subChanged();
 }
+function applyStyleControls(){fillSubControls()}
 
 // ---------- AUTO ----------
 async function runAuto(){
@@ -556,8 +589,9 @@ async function runAuto(){
   $("reautoBtn").disabled=true;$("renderBtn").disabled=true;$("resultBox").style.display="none";
   $("engBadge").textContent="⏳";$("renderTxt").textContent=t("proc");
   try{
+    const zl=$("zoom").checked?(S.zoomLevel||1):0;
     const body={project:S.project,lang:LANG,cut:OPTS.cut,subtitle_on:OPTS.sub,broll:OPTS.broll,broll_n:4,
-      broll_y:+($("brollY").value||0.72),zoom:$("zoom").checked,audio_clean:$("audio").checked,subtitle:currentSub()};
+      broll_y:+($("brollY").value||0.72),zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",audio_clean:$("audio").checked,subtitle:currentSub()};
     const {job}=await api("/api/auto",body);
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
@@ -673,8 +707,9 @@ async function doRender(){
   if(!S)return;subChanged();
   $("renderProg").style.display="block";$("renderBtn").disabled=true;$("resultBox").style.display="none";
   const y=+$("brollY").value;const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
+  const zl=$("zoom").checked?(S.zoomLevel||1):0;
   try{const {job}=await api("/api/render",{project:S.project,words:S.words,subtitle_on:$("subOn").checked,
-      subtitle:currentSub(),brolls,zoom:$("zoom").checked,audio_clean:$("audio").checked});
+      subtitle:currentSub(),brolls,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",audio_clean:$("audio").checked});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("ready"));loadHistory();
@@ -703,7 +738,8 @@ async function resumeProject(pid){
        words:d.words||[],
        removes:(d.removes||[]).map(x=>({s:x[0],e:x[1],type:"auto"})),
        brolls:(d.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:b.on!==false})),
-       sub:{on:true,delay:rs.delay||0,margin:rs.margin_v||660,size:rs.size||90,words:rs.words||3,active:rs.active||"#ffea00",base:rs.base||"#ffffff",upper:rs.upper!==false,font:"Anton"}};
+       grade:d.grade||"vivid",zoomLevel:(d.zoom_level!=null?d.zoom_level:1),
+       sub:{on:true,delay:rs.delay||0,margin:rs.margin_v||660,size:rs.size||90,words:rs.words||3,active:rs.active||"#ffea00",base:rs.base||"#ffffff",upper:rs.upper!==false,anim:rs.anim||"pop",font:"Anton"}};
     if(d.lang){LANG=d.lang;localStorage.setItem("mlang",LANG);applyLang()}
     showTab("editor");
     vid.src=d.cut_url;$("tInfo").textContent=(d.duration||0).toFixed(1)+"s";$("engBadge").textContent=d.engine||"";

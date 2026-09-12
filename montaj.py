@@ -608,6 +608,16 @@ def build_ass(words, sub):
     outl=hexass(sub.get("outline","#000000")); upper=sub.get("upper",True)
     font=sub.get("font","Anton"); size=int(sub.get("size",90)); border=sub.get("border",4)
     mv=int(sub.get("margin_v",660)); off=float(sub.get("delay",0.20)); n=int(sub.get("words",3))
+    anim=sub.get("anim","pop")
+    ANIMS={
+        "pop":"{\\fad(50,0)\\fscx90\\fscy90\\t(0,120,\\fscx100\\fscy100)}",
+        "fade":"{\\fad(170,90)}",
+        "bounce":"{\\fad(40,0)\\fscx55\\fscy55\\t(0,140,\\fscx110\\fscy110)\\t(140,230,\\fscx100\\fscy100)}",
+        "rise":"{\\fad(70,0)\\fscy55\\t(0,150,\\fscy100)}",
+        "zoomin":"{\\fad(40,0)\\fscx130\\fscy130\\t(0,160,\\fscx100\\fscy100)}",
+        "none":"",
+    }
+    aeff=ANIMS.get(anim, ANIMS["pop"])
     head=f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -642,7 +652,7 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
         prev_end=end
         disp=[(x["w"].upper() if upper else x["w"]).replace("{","(").replace("}",")") for x in cue]
         parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
-        ov="{\\fad(50,0)\\fscx94\\fscy94\\t(0,110,\\fscx100\\fscy100)}" if wi==0 else ""
+        ov=aeff if wi==0 else ""
         lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov," ".join(parts)))
     return head+"\n".join(lines)+"\n"
 
@@ -751,17 +761,36 @@ def gen_image(prompt, dest):
     if not got: raise RuntimeError("Pexels bo'sh (yoki kalit yo'q)")
     return got
 
-# ---------- final render ----------
-def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True):
-    """brolls = [{'path':..,'time':s,'dur':d,'y':0.72,'w':0.78}]"""
+# rang bahosi (color grade) — montaj stilistikasi
+GRADES={
+ "clean":"eq=contrast=1.03:saturation=1.02",
+ "vivid":"eq=contrast=1.06:saturation=1.18",
+ "warm":"colorbalance=rs=0.06:gs=0.02:bs=-0.06,eq=saturation=1.08",
+ "cool":"colorbalance=rs=-0.05:bs=0.08,eq=saturation=1.05",
+ "cinema":"colorbalance=rs=0.05:bs=-0.04:rm=-0.03:bm=0.05,eq=contrast=1.08:saturation=1.05",
+ "mono":"hue=s=0,eq=contrast=1.1",
+ "bright":"eq=brightness=0.05:contrast=1.04:saturation=1.12",
+ "moody":"eq=contrast=1.13:saturation=0.9:brightness=-0.03",
+ "film":"curves=preset=medium_contrast,eq=saturation=0.95",
+ "neon":"eq=contrast=1.1:saturation=1.25,colorbalance=bs=0.05:rm=0.03",
+ "none":"",
+}
+_ZOOM={0:0.0, 1:0.0004, 2:0.0009}  # zoom tezligi
+_ZMAX={0:1.0, 1:1.05, 2:1.12}
+
+def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1):
+    """brolls = [{'path':..,'time':s,'dur':d,'y':0.72,'w':0.78}]. grade=rang bahosi, zoom_level=0/1/2."""
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
-    if zoom:
-        basev=(f"[0:v]scale={int(W*1.12)}:{int(H*1.12)}:force_original_aspect_ratio=increase,crop={int(W*1.12)}:{int(H*1.12)},"
-               f"zoompan=z='min(1.0+0.0004*in,1.05)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps=30,"
-               f"eq=contrast=1.05:saturation=1.08,setsar=1,{sub}[base]")
+    lvl=0 if not zoom else int(zoom_level if zoom_level in (0,1,2) else 1)
+    g=GRADES.get(grade, GRADES["vivid"]); geq=("," + g) if g else ""
+    if lvl>0:
+        spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
+        basev=(f"[0:v]scale={int(W*1.14)}:{int(H*1.14)}:force_original_aspect_ratio=increase,crop={int(W*1.14)}:{int(H*1.14)},"
+               f"zoompan=z='min(1.0+{spd}*in,{zmx})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps=30"
+               f"{geq},setsar=1,{sub}[base]")
     else:
-        basev=f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,{sub}[base]"
+        basev=f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}{geq},setsar=1,{sub}[base]"
     af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else "aresample=48000"
     parts=[basev]; cur="[base]"; inputs=["-i",cut]
