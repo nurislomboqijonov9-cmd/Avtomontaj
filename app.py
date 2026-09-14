@@ -5,7 +5,7 @@ Bosqichlar (job asosida, progress bilan):
   /api/upload -> /api/analyze -> /api/cut -> /api/broll_* -> /api/render
 Tarix: tayyor videolar serverda saqlanadi.
 """
-import os, json, uuid, time, shutil, threading, traceback
+import os, json, uuid, time, shutil, threading, traceback, hashlib, secrets, hmac
 from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,9 +15,37 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("DATA_DIR", os.path.join(HERE, "data"))
 PROJ = os.path.join(DATA, "projects")
 os.makedirs(PROJ, exist_ok=True)
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "").strip()   # bo'sh bo'lsa -> ochiq
 
-app = FastAPI(title="Montaj Studio")
+app = FastAPI(title="VIZEN")
+
+# ================= AKKAUNT TIZIMI =================
+USERS_F = os.path.join(DATA, "users.json")
+SESS_F  = os.path.join(DATA, "sessions.json")
+_lock = threading.Lock()
+def _load(p, d):
+    try: return json.load(open(p, encoding="utf-8"))
+    except: return d
+def _save(p, o):
+    tmp=p+".tmp"; json.dump(o, open(tmp,"w",encoding="utf-8"), ensure_ascii=False); os.replace(tmp,p)
+def users(): return _load(USERS_F, {})
+def sessions(): return _load(SESS_F, {})
+def _hash_pw(pw, salt):
+    return hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), bytes.fromhex(salt), 120000).hex()
+def user_public(u): return {"id":u["id"],"email":u["email"],"name":u.get("name",""),"plan":u.get("plan","free")}
+
+def user_from_token(token):
+    if not token: return None
+    s=sessions().get(token)
+    if not s: return None
+    u=users().get(s.get("email",""))
+    return u
+def check_auth(token):
+    """Endi: haqiqiy foydalanuvchi tokeni. Yo'q bo'lsa 401. Foydalanuvchini qaytaradi."""
+    u=user_from_token(token)
+    if not u: raise HTTPException(401, "Kirish kerak")
+    return u
+
+app.mount_data = DATA  # eslatma
 
 # ---------- job menejeri ----------
 JOBS = {}   # job_id -> {status, progress, step, result, error}
@@ -49,10 +77,6 @@ def load_meta(pid):
 def save_meta(pid, m):
     json.dump(m, open(os.path.join(PROJ, pid, "meta.json"), "w", encoding="utf-8"), ensure_ascii=False)
 
-def check_auth(token):
-    if APP_PASSWORD and token != APP_PASSWORD:
-        raise HTTPException(401, "Parol noto'g'ri")
-
 # ---------- statik ----------
 app.mount("/media", StaticFiles(directory=PROJ), name="media")
 app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR), name="fonts")   # preview uchun
@@ -72,19 +96,59 @@ def index():
 
 @app.get("/api/config")
 def config():
-    return {"auth": bool(APP_PASSWORD), "vertex": montaj.have_vertex()}
+    return {"vertex": montaj.have_vertex()}
 
-@app.post("/api/login")
-async def login(req: Request):
-    body = await req.json()
-    if APP_PASSWORD and body.get("password", "") != APP_PASSWORD:
-        raise HTTPException(401, "Parol noto'g'ri")
-    return {"ok": True, "token": APP_PASSWORD}
+# ---------- AUTH ----------
+def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 120
+
+@app.post("/api/auth/signup")
+async def signup(req: Request):
+    b = await req.json()
+    email = (b.get("email") or "").strip().lower()
+    pw = b.get("password") or ""
+    name = (b.get("name") or "").strip()[:60]
+    if not _valid_email(email): raise HTTPException(400, "Email noto'g'ri")
+    if len(pw) < 6: raise HTTPException(400, "Parol kamida 6 belgi")
+    with _lock:
+        us = users()
+        if email in us: raise HTTPException(409, "Bu email allaqachon ro'yxatdan o'tgan")
+        salt = secrets.token_hex(16)
+        u = {"id": uuid.uuid4().hex[:12], "email": email, "name": name,
+             "salt": salt, "hash": _hash_pw(pw, salt), "created": int(time.time()), "plan": "free"}
+        us[email] = u; _save(USERS_F, us)
+        token = secrets.token_urlsafe(24)
+        ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
+    return {"token": token, "user": user_public(u)}
+
+@app.post("/api/auth/login")
+async def auth_login(req: Request):
+    b = await req.json()
+    email = (b.get("email") or "").strip().lower()
+    pw = b.get("password") or ""
+    u = users().get(email)
+    if not u or not hmac.compare_digest(u["hash"], _hash_pw(pw, u["salt"])):
+        raise HTTPException(401, "Email yoki parol noto'g'ri")
+    with _lock:
+        token = secrets.token_urlsafe(24)
+        ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
+    return {"token": token, "user": user_public(u)}
+
+@app.get("/api/auth/me")
+def auth_me(x_auth: str = Header("")):
+    u = check_auth(x_auth)
+    return {"user": user_public(u)}
+
+@app.post("/api/auth/logout")
+def auth_logout(x_auth: str = Header("")):
+    with _lock:
+        ss = sessions()
+        if x_auth in ss: del ss[x_auth]; _save(SESS_F, ss)
+    return {"ok": True}
 
 # ---------- 1) YUKLASH ----------
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
-    check_auth(x_auth)
+    usr = check_auth(x_auth)
     pid = uuid.uuid4().hex[:12]
     d = os.path.join(PROJ, pid); os.makedirs(d, exist_ok=True)
     ext = os.path.splitext(file.filename or "in.mp4")[1].lower() or ".mp4"
@@ -100,7 +164,8 @@ async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
     use = os.path.basename(work_input)
     dur = montaj.ffdur(work_input)
     meta = {"id": pid, "input": use, "orig": os.path.basename(inp), "name": file.filename or "video",
-            "created": int(time.time()), "duration": round(dur, 2), "stage": "uploaded"}
+            "created": int(time.time()), "duration": round(dur, 2), "stage": "uploaded",
+            "user_id": usr["id"]}
     save_meta(pid, meta)
     return {"project": pid, "video_url": f"/media/{pid}/{use}",
             "duration": meta["duration"], "name": meta["name"]}
@@ -331,11 +396,11 @@ def job(jid: str):
 # ---------- TARIX ----------
 @app.get("/api/history")
 def history(x_auth: str = Header("")):
-    check_auth(x_auth)
+    usr = check_auth(x_auth)
     items = []
     for pid in os.listdir(PROJ):
         m = load_meta(pid)
-        if m.get("final"):
+        if m.get("final") and m.get("user_id") == usr["id"]:
             items.append({"project": pid, "name": m.get("name", "video"),
                           "finished": m.get("finished", m.get("created", 0)),
                           "final_url": f"/media/{pid}/final.mp4",
@@ -351,9 +416,10 @@ def project(pid: str, x_auth: str = Header("")):
 @app.get("/api/resume/{pid}")
 def resume(pid: str, x_auth: str = Header("")):
     """Tarixdagi loyihani tahrirda davom ettirish uchun to'liq holat."""
-    check_auth(x_auth)
+    usr = check_auth(x_auth)
     m = load_meta(pid)
     if not m: raise HTTPException(404, "loyiha topilmadi")
+    if m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
     rs = m.get("render_settings", {})
     cutname = m.get("cut") or m.get("input")
     words = m.get("cut_words") or m.get("words", [])
@@ -375,7 +441,9 @@ def resume(pid: str, x_auth: str = Header("")):
 
 @app.delete("/api/history/{pid}")
 def delete_project(pid: str, x_auth: str = Header("")):
-    check_auth(x_auth)
+    usr = check_auth(x_auth)
+    m = load_meta(pid)
+    if m and m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
     shutil.rmtree(os.path.join(PROJ, pid), ignore_errors=True)
     return {"ok": True}
 
