@@ -81,6 +81,7 @@ def save_meta(pid, m):
 app.mount("/media", StaticFiles(directory=PROJ), name="media")
 app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR), name="fonts")   # preview uchun
 STATIC = os.path.join(HERE, "static")
+app.mount("/assets", StaticFiles(directory=STATIC), name="assets")   # preview videolar
 
 @app.get("/", response_class=HTMLResponse)
 def index():

@@ -514,19 +514,28 @@ def keep_from_silence(dur,sils,pad=0.12):
 def _norm(w): return re.sub(r"[^\w']","",w.lower())
 
 def duplicate_ranges(sent_segs):
-    """Takror/qayta boshlangan gaplarning birinchisini olib tashlash oralig'i.
-    EHTIYOTKOR: faqat aniq takror bo'lganда (yaxshi gapni kesib yubormaslik uchun)."""
-    rem=[]
-    for i in range(len(sent_segs)-1):
-        a=[_norm(x) for x in sent_segs[i]["text"].split() if _norm(x)]
-        b=[_norm(x) for x in sent_segs[i+1]["text"].split() if _norm(x)]
-        if len(a)<3 or len(b)<3: continue          # juda qisqa iboralarga tegmaymiz
-        sa,sb=set(a),set(b)
-        jac=len(sa&sb)/max(1,len(sa|sb)); cont=len(sa&sb)/len(sa)
-        # ketma-ket va vaqtда yaqin bo'lsa (qayta boshlash) hamda juda o'xshash bo'lsa
-        near=(sent_segs[i+1]["start"]-sent_segs[i]["end"])<1.2
-        if near and (jac>=0.72 or cont>=0.85):
-            rem.append((sent_segs[i]["start"]-0.05, sent_segs[i]["end"]+0.05))
+    """Takror/qayta boshlangan (dubl) gaplarning BIRINCHISINI olib tashlaydi.
+    Har gapni keyingi 2 gap bilan solishtiradi (orasida to'ldiruvchi bo'lsa ham)."""
+    import difflib
+    n=len(sent_segs); rem=[]; removed=set()
+    toks=[[_norm(x) for x in s["text"].split() if _norm(x)] for s in sent_segs]
+    for i in range(n):
+        if i in removed: continue
+        a=toks[i]
+        if len(a)<2: continue
+        for j in (i+1, i+2):
+            if j>=n or j in removed: continue
+            b=toks[j]
+            if len(b)<2: continue
+            sa,sb=set(a),set(b)
+            inter=len(sa&sb)
+            jac=inter/max(1,len(sa|sb))
+            cont=inter/len(sa)                 # a ning qancha qismi b da bor
+            ratio=difflib.SequenceMatcher(None,a,b,autojunk=False).ratio()
+            # aniq takror yoki qayta-boshlash -> birinchisini (i) olib tashlaymiz
+            if ratio>=0.7 or jac>=0.6 or cont>=0.82:
+                rem.append((sent_segs[i]["start"]-0.05, sent_segs[i]["end"]+0.06))
+                removed.add(i); break
     return rem
 
 def safe_silence_removes(sil_removes, words, margin=0.12):

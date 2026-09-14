@@ -82,6 +82,7 @@ a{color:#c9a7ff;text-decoration:none}
 .est:hover{transform:translateY(-2px)}
 .est.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 10px 30px rgba(91,52,230,.35)}
 .est .g{position:absolute;inset:0;display:grid;place-items:end center;padding:12px}
+.est .pvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .est .cap{font-weight:900;text-transform:uppercase;text-align:center;line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,.6);font-size:16px}
 .est .nm{position:absolute;top:0;left:0;right:0;padding:10px 12px;color:#fff;font-weight:800;font-size:15px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
 .est .tag{position:absolute;bottom:10px;left:10px;font-size:11px;color:#fff;background:rgba(0,0,0,.4);padding:2px 8px;border-radius:20px;backdrop-filter:blur(4px)}
@@ -108,10 +109,19 @@ a{color:#c9a7ff;text-decoration:none}
 .videoBox video{width:100%;height:100%;object-fit:contain;display:block}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
-.timeline{position:relative;height:32px;background:var(--panel2);border-radius:9px;margin:10px 0;overflow:hidden;cursor:pointer}
-.tl-rem{position:absolute;top:0;bottom:0;background:rgba(255,77,109,.5)}
-.tl-br{position:absolute;top:0;bottom:0;width:3px;background:var(--vio)}
-.tl-cur{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px}
+.tlwrap{overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:12px;background:#0b0b15}
+.tlinner{position:relative;min-width:100%}
+.tlruler{position:relative;height:20px;border-bottom:1px solid var(--line)}
+.tlruler .tk{position:absolute;top:0;height:20px;border-left:1px solid #24243a;font-size:9px;color:var(--mut);padding-left:3px;box-sizing:border-box}
+.tlrow{position:relative;height:36px;border-bottom:1px solid #14141f}
+.tlrow .lab{position:absolute;left:5px;top:3px;font-size:9px;color:var(--mut);z-index:3;pointer-events:none;text-transform:uppercase;letter-spacing:.5px;background:rgba(11,11,21,.6);padding:1px 4px;border-radius:4px}
+.tlblk{position:absolute;top:5px;height:26px;border-radius:6px;font-size:10px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:4px 6px;box-sizing:border-box;cursor:pointer}
+.tlblk.vid{background:linear-gradient(90deg,#2a2350,#181830)}
+.tlblk.rem{background:rgba(255,77,109,.5);border:1px solid #ff4d6d}
+.tlblk.sub{background:rgba(91,52,230,.45);border:1px solid var(--vio)}
+.tlblk.br{background:rgba(55,198,255,.4);border:1px solid var(--sky);text-align:center}
+.tlplay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;z-index:6}
 .item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
 .words{max-height:220px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
 .wchip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer}
@@ -229,8 +239,21 @@ a{color:#c9a7ff;text-decoration:none}
         <div>
           <div class="card">
             <div class="videoBox"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div></div>
-            <div class="timeline" id="timeline"><div class="tl-cur" id="tlCur"></div></div>
-            <div class="row sb"><span class="hint" id="tInfo">0.0s</span><span class="badge" id="engBadge"></span></div>
+            <div class="tlbar">
+              <button class="sm gh" onclick="tlZoom(-1)">−</button>
+              <button class="sm gh" onclick="tlZoom(1)">＋</button>
+              <span class="hint" id="tInfo">0.0s</span>
+              <span class="badge" id="engBadge" style="margin-left:auto"></span>
+            </div>
+            <div class="tlwrap" id="tlwrap">
+              <div class="tlinner" id="tlinner">
+                <div class="tlruler" id="tlruler"></div>
+                <div class="tlrow" id="tlVid"></div>
+                <div class="tlrow" id="tlSub"></div>
+                <div class="tlrow" id="tlBroll"></div>
+                <div class="tlplay" id="tlplay"></div>
+              </div>
+            </div>
           </div>
           <div id="renderProg" class="prog" style="display:none"><div></div></div>
           <div id="renderTxt" class="hint" style="text-align:center"></div>
@@ -447,12 +470,16 @@ const VARIANTS=[
  {sfx:"Soft", anim:"rise",   grade:"warm",   zoom:0},
  {sfx:"Max",  anim:"bounce", grade:"neon",   zoom:2},
 ];
+const PREVIEW_IDS=new Set(["viral_pop","bold_max","neon_zoom","clean_soft","cinema_cine","vlog_pop","biz_soft","pod_pop","fashion_cine","fit_max","viral_zoom","neon_max"]);
 const STYLES=[];
-FAMILIES.forEach(f=>VARIANTS.forEach(v=>STYLES.push({
-  id:f.id+"_"+v.sfx.toLowerCase(), name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, featured:v.sfx==="Pop",
-  sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:f.font},
-  cut:f.cut, broll:f.broll, grade:v.grade, zoom_level:v.zoom,
-})));
+FAMILIES.forEach(function(f){VARIANTS.forEach(function(v){
+  const id=f.id+"_"+v.sfx.toLowerCase();
+  STYLES.push({
+    id:id, name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, featured:PREVIEW_IDS.has(id),
+    sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:f.font},
+    cut:f.cut, broll:f.broll, grade:v.grade, zoom_level:v.zoom,
+  });
+});});
 let STYLE=STYLES[0];
 let styleCat="all";
 
@@ -503,10 +530,13 @@ function applyStyle(st){
 }
 function estCard(st,cls,onclick){
   const s=st.sub;
+  const media = PREVIEW_IDS.has(st.id)
+    ? `<video class="pvid" src="/assets/previews/${st.id}.mp4" muted loop autoplay playsinline preload="metadata"></video>`
+    : `<div class="g" style="background:linear-gradient(160deg,${st.grad[0]},${st.grad[1]})">
+         <div class="cap" style="font-family:'${s.font}',sans-serif;text-transform:${s.upper?'uppercase':'none'}"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
+       </div>`;
   return `<div class="est ${cls}" onclick="${onclick}">
-    <div class="g" style="background:linear-gradient(160deg,${st.grad[0]},${st.grad[1]})">
-      <div class="cap" style="font-family:'${s.font}',sans-serif;text-transform:${s.upper?'uppercase':'none'}"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
-    </div>
+    ${media}
     <div class="nm">${st.name}</div>
     <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', (st.zoom_level>0?'🔍':''), '💬'].filter(Boolean).join(' ')}</div></div>`;
 }
@@ -676,7 +706,7 @@ function upload(f){
     if(xhr.status!==200){$("homeMsg").innerHTML='<span class=err>Upload xato</span>';return}
     const r=JSON.parse(xhr.responseText);
     S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,words:[],removes:[],brolls:[],cut:false,manual:{s:null,e:null},
-       sub:subFromStyle(),grade:STYLE.grade,zoomLevel:STYLE.zoom_level,lang:LANG};
+       sub:subFromStyle(),grade:STYLE.grade,zoomLevel:STYLE.zoom_level,lang:LANG,pps:60};
     showTab("editor");vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
     fillSubControls();
     runAuto();
@@ -786,12 +816,37 @@ async function brollGen(i){const b=S.brolls[i];if(!b.prompt){toast("?");return}
     b.image=res.image;b.image_url=res.image_url;renderBrolls();
   }catch(e){if(st)st.innerHTML='<span class=err>'+e.message+'</span>'}}
 
-// ---------- timeline + live caption ----------
-$("timeline").onclick=e=>{const rc=e.currentTarget.getBoundingClientRect();vid.currentTime=(e.clientX-rc.left)/rc.width*(S.duration||1)};
-function drawTimeline(){const tl=$("timeline");tl.querySelectorAll(".tl-rem,.tl-br").forEach(n=>n.remove());const D=S.duration||1;
-  activeRemoves().forEach(r=>{const d=document.createElement("div");d.className="tl-rem";d.style.left=(r.s/D*100)+"%";d.style.width=Math.max(.5,(r.e-r.s)/D*100)+"%";tl.appendChild(d)});
-  S.brolls.filter(b=>b.on!==false).forEach(b=>{const d=document.createElement("div");d.className="tl-br";d.style.left=(b.time/D*100)+"%";tl.appendChild(d)})}
-vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tlCur").style.left=(tt/D*100)+"%";$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";liveCaption(tt);hlWord(tt)});
+// ---------- TIMELINE (haqiqiy montaj uslubida) ----------
+function esc(s){return (s||"").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+function cueGroups(){const n=(S.sub&&S.sub.words)||3;let cues=[],cur=[];
+  for(const w of (S.words||[])){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cues.push(cur);cur=[]}cur.push(w)}
+  if(cur.length)cues.push(cur);return cues}
+function drawTimeline(){
+  if(!S){return}
+  const D=S.duration||1, pps=S.pps||60, W=Math.max(320,Math.round(D*pps));
+  $("tlinner").style.width=W+"px";
+  let step=D>120?10:(pps<45?5:(pps<90?2:1));
+  let rk="";for(let s=0;s<=D+0.01;s+=step){rk+=`<div class="tk" style="left:${(s*pps)}px">${Math.round(s)}s</div>`}
+  $("tlruler").innerHTML=rk;$("tlruler").style.width=W+"px";
+  let v='<div class="lab">Video</div><div class="tlblk vid" style="left:0;width:'+Math.round(D*pps)+'px"></div>';
+  activeRemoves().forEach(r=>{v+=`<div class="tlblk rem" style="left:${Math.round(r.s*pps)}px;width:${Math.max(3,Math.round((r.e-r.s)*pps))}px" title="kesildi"></div>`});
+  $("tlVid").innerHTML=v;
+  let sub='<div class="lab">Subtitr</div>';
+  cueGroups().forEach(g=>{const a=g[0].s,b=g[g.length-1].e,tx=esc(g.map(x=>x.w).join(" "));
+    sub+=`<div class="tlblk sub" style="left:${Math.round(a*pps)}px;width:${Math.max(8,Math.round((b-a)*pps))}px" title="${tx}" onclick="seekTo(${a})">${tx}</div>`});
+  $("tlSub").innerHTML=sub;
+  let br='<div class="lab">Animatsiya</div>';
+  (S.brolls||[]).filter(b=>b.on!==false).forEach((b)=>{br+=`<div class="tlblk br" style="left:${Math.round(b.time*pps)}px;width:${Math.max(10,Math.round((b.dur||2.5)*pps))}px" title="${esc(b.prompt)}" onclick="seekTo(${b.time})">🖼</div>`});
+  $("tlBroll").innerHTML=br;
+  tlPlay();
+}
+function tlPlay(){if(!S)return;const pps=S.pps||60;const x=(vid.currentTime||0)*pps;const p=$("tlplay");p.style.left=x+"px";
+  const wrap=$("tlwrap");if(x<wrap.scrollLeft+40||x>wrap.scrollLeft+wrap.clientWidth-40)wrap.scrollLeft=x-wrap.clientWidth/2}
+function seekTo(t){vid.currentTime=(+t)+0.01;vid.play()}
+function tlZoom(d){if(!S)return;S.pps=Math.max(24,Math.min(240,Math.round((S.pps||60)*(d>0?1.5:0.66))));drawTimeline()}
+$("tlwrap").addEventListener("click",e=>{if(!S)return;if(e.target.closest(".tlblk"))return;
+  const inner=$("tlinner");const rect=inner.getBoundingClientRect();const x=e.clientX-rect.left;vid.currentTime=Math.max(0,Math.min(S.duration,x/(S.pps||60)))});
+vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt)});
 function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.words.length){ov.innerHTML="";return}
   const off=S.sub.delay,tt=tt0-off,n=S.sub.words;let cue=[],cur=[];
   for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}if(cur.length)cue.push(cur);
@@ -846,7 +901,7 @@ async function resumeProject(pid){
     if(!r.ok)throw new Error("resume xato");
     const d=await r.json();
     const rs=d.subtitle||{};
-    S={project:d.project,name:d.name,videoUrl:d.cut_url,duration:d.duration,cut:true,manual:{s:null,e:null},lang:d.lang||LANG,
+    S={project:d.project,name:d.name,videoUrl:d.cut_url,duration:d.duration,cut:true,manual:{s:null,e:null},lang:d.lang||LANG,pps:60,
        words:d.words||[],
        removes:(d.removes||[]).map(x=>({s:x[0],e:x[1],type:"auto"})),
        brolls:(d.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:b.on!==false})),
