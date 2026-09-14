@@ -78,10 +78,11 @@ def save_meta(pid, m):
     json.dump(m, open(os.path.join(PROJ, pid, "meta.json"), "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---------- statik ----------
-app.mount("/media", StaticFiles(directory=PROJ), name="media")
-app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR), name="fonts")   # preview uchun
-STATIC = os.path.join(HERE, "static")
-app.mount("/assets", StaticFiles(directory=STATIC), name="assets")   # preview videolar
+STATIC = os.path.join(HERE, "static") if os.path.isdir(os.path.join(HERE, "static")) else HERE
+# check_dir=False -> papka bo'lmasa ham server YIQILMAYDI (faqat 404 beradi)
+app.mount("/media", StaticFiles(directory=PROJ, check_dir=False), name="media")
+app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR, check_dir=False), name="fonts")
+app.mount("/assets", StaticFiles(directory=STATIC, check_dir=False), name="assets")
 
 @app.get("/", response_class=HTMLResponse)
 def index():
