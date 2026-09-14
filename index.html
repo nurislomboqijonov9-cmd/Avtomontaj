@@ -115,13 +115,18 @@ a{color:#c9a7ff;text-decoration:none}
 .tlruler{position:relative;height:20px;border-bottom:1px solid var(--line)}
 .tlruler .tk{position:absolute;top:0;height:20px;border-left:1px solid #24243a;font-size:9px;color:var(--mut);padding-left:3px;box-sizing:border-box}
 .tlrow{position:relative;height:36px;border-bottom:1px solid #14141f}
+.tlrow#tlVid{height:52px}
 .tlrow .lab{position:absolute;left:5px;top:3px;font-size:9px;color:var(--mut);z-index:3;pointer-events:none;text-transform:uppercase;letter-spacing:.5px;background:rgba(11,11,21,.6);padding:1px 4px;border-radius:4px}
 .tlblk{position:absolute;top:5px;height:26px;border-radius:6px;font-size:10px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:4px 6px;box-sizing:border-box;cursor:pointer}
-.tlblk.vid{background:linear-gradient(90deg,#2a2350,#181830)}
-.tlblk.rem{background:rgba(255,77,109,.5);border:1px solid #ff4d6d}
-.tlblk.sub{background:rgba(91,52,230,.45);border:1px solid var(--vio)}
-.tlblk.br{background:rgba(55,198,255,.4);border:1px solid var(--sky);text-align:center}
+.tlblk.vid{top:4px;height:44px;background:#181830 center/cover no-repeat;border:1px solid #2a2a44;padding:0}
+.tlblk.rem{background:rgba(255,77,109,.55);border:1px solid #ff4d6d;top:4px;height:44px;display:grid;place-items:center;font-size:14px}
+.tlblk.sub{background:rgba(91,52,230,.55);border:1px solid var(--vio)}
+.tlblk.br{background:rgba(55,198,255,.45);border:1px solid var(--sky);text-align:center}
 .tlplay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;z-index:6}
+.tlmark{position:absolute;top:0;bottom:0;width:2px;background:#22ff88;box-shadow:0 0 6px #22ff88;pointer-events:none;z-index:5}
+#cutMarkBtn.armed{background:rgba(34,255,136,.2);border-color:#22ff88;color:#bfffd8}
+.fchip{border:1.5px solid var(--line);border-radius:10px;padding:12px 6px;text-align:center;cursor:pointer;background:rgba(255,255,255,.03);font-size:18px;line-height:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fchip.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio);background:rgba(91,52,230,.12)}
 .item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
 .words{max-height:220px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px;padding:4px}
 .wchip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;cursor:pointer}
@@ -240,8 +245,10 @@ a{color:#c9a7ff;text-decoration:none}
           <div class="card">
             <div class="videoBox"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div></div>
             <div class="tlbar">
-              <button class="sm gh" onclick="tlZoom(-1)">−</button>
-              <button class="sm gh" onclick="tlZoom(1)">＋</button>
+              <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">−</button>
+              <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">＋</button>
+              <button class="sm gh" id="cutMarkBtn" onclick="tlCutMark()">✂️ <span data-i="tl_cut">Kesish</span></button>
+              <button class="sm pri" onclick="doCut()" title="qo'llash">✅</button>
               <span class="hint" id="tInfo">0.0s</span>
               <span class="badge" id="engBadge" style="margin-left:auto"></span>
             </div>
@@ -408,7 +415,7 @@ const I={
   o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi",
   proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish",
   onb_t:"Sizga moslaymiz",onb_s:"3 ta savol — keyin hammasi tayyor.",onb_lang:"Til",onb_who:"Kim uchun video?",onb_style:"Qaysi uslub yoqadi?",onb_go:"Boshlash →",
-  edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun",font:"Shrift"},
+  edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun",font:"Shrift",tl_cut:"Kesish",cut_from:"Boshi belgilandi — oxirini tanlab yana bosing",cut_added:"Kesildi"},
  ru:{nav_home:"Главная",nav_hist:"История",nav_set:"Настройки",onb_reset:"🔄 Пройти настройку заново",email:"Email",name:"Имя",account:"Аккаунт",logout:"Выйти",a_login:"Вход",a_signup:"Регистрация",a_no:"Нет аккаунта? Зарегистрируйтесь",a_have:"Есть аккаунт? Войти",a_sub_login:"Войдите, чтобы продолжить",a_sub_signup:"Создайте бесплатный аккаунт",foot:"Reels · TikTok · Shorts · VK",login:"Вход",password:"Пароль",enter:"Войти",
   hero_t:"Превратите идею в потрясающее видео",hero_s:"Точные субтитры · Умная нарезка · Анимация — в пару кликов. Выберите стиль и загрузите видео.",
   what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
@@ -420,7 +427,7 @@ const I={
   o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Добавляет картинки по смыслу",
   proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить",
   onb_t:"Настроим под вас",onb_s:"3 вопроса — и всё готово.",onb_lang:"Язык",onb_who:"Для кого видео?",onb_style:"Какой стиль нравится?",onb_go:"Начать →",
-  edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов",font:"Шрифт"},
+  edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов",font:"Шрифт",tl_cut:"Обрезка",cut_from:"Начало отмечено — выберите конец и нажмите ещё",cut_added:"Вырезано"},
  en:{nav_home:"Home",nav_hist:"History",nav_set:"Settings",onb_reset:"🔄 Redo setup",email:"Email",name:"Name",account:"Account",logout:"Log out",a_login:"Sign in",a_signup:"Sign up",a_no:"No account? Sign up",a_have:"Have an account? Sign in",a_sub_login:"Sign in to continue",a_sub_signup:"Create a free account",foot:"Reels · TikTok · Shorts · VK",login:"Sign in",password:"Password",enter:"Sign in",
   hero_t:"Turn ideas into stunning videos",hero_s:"Accurate captions · Smart cuts · Animation — in a few taps. Pick a style and drop your video.",
   what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
@@ -432,7 +439,7 @@ const I={
   o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Adds matching images",
   proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue",
   onb_t:"Let's set you up",onb_s:"3 questions and you're ready.",onb_lang:"Language",onb_who:"Who is the video for?",onb_style:"Which style do you like?",onb_go:"Start →",
-  edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients",font:"Font"}
+  edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients",font:"Font",tl_cut:"Cut",cut_from:"Start marked — pick end and tap again",cut_added:"Cut added"}
 };
 function t(k){return (I[LANG]&&I[LANG][k])||I.uz[k]||k}
 
@@ -517,7 +524,7 @@ function injectFontFaces(){
 function availFonts(){return LANG==="ru"?FONTS.filter(x=>x.cyr):FONTS}
 function renderFontPicker(){
   const el=$("fontGrid");if(!el||!S)return;
-  el.innerHTML=availFonts().map(x=>`<div class="fchip ${S.sub.font===x.f?'on':''}" style="font-family:'${x.f}',sans-serif" onclick="pickFont('${x.f}')">Aa<small>${x.f}</small></div>`).join("");
+  el.innerHTML=availFonts().map(x=>`<div class="fchip ${S.sub.font===x.f?'on':''}" style="font-family:'${x.f}',sans-serif" title="${x.f}" onclick="pickFont('${x.f}')">${x.f}</div>`).join("");
 }
 function pickFont(f){S.sub.font=f;renderFontPicker();subChanged()}
 const CATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"trend",u:"Trend",r:"Тренд",e:"Trending"},{k:"bold",u:"Jasur",r:"Смелые",e:"Bold"},{k:"min",u:"Minimal",r:"Минимал",e:"Minimal"},{k:"cine",u:"Kino",r:"Кино",e:"Cinematic"},{k:"vlog",u:"Vlog",r:"Влог",e:"Vlog"},{k:"biz",u:"Biznes",r:"Бизнес",e:"Business"}];
@@ -740,7 +747,7 @@ async function runAuto(){
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
     S.removes=[];(res.removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"auto"}));
     S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
-    renderWords();renderBrolls();renderRemoves();drawTimeline();
+    renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
     if(res.broll_note)$("brollMsg").textContent="Animatsiya: "+res.broll_note;
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("done_t"));loadHistory();
@@ -767,7 +774,7 @@ async function doCut(){
     const res=await waitJob(job,(p,s)=>$("cutMsg").textContent="⏳ "+(s||p+"%"));
     S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("cutMsg").innerHTML='<span style="color:var(--ok)">✔ '+res.duration.toFixed(1)+'s</span>';
-    renderWords();drawTimeline();
+    renderWords();drawTimeline();buildFilmstrip();
   }catch(e){$("cutMsg").innerHTML='<span class=err>'+e.message+'</span>'}
 }
 
@@ -828,8 +835,9 @@ function drawTimeline(){
   let step=D>120?10:(pps<45?5:(pps<90?2:1));
   let rk="";for(let s=0;s<=D+0.01;s+=step){rk+=`<div class="tk" style="left:${(s*pps)}px">${Math.round(s)}s</div>`}
   $("tlruler").innerHTML=rk;$("tlruler").style.width=W+"px";
-  let v='<div class="lab">Video</div><div class="tlblk vid" style="left:0;width:'+Math.round(D*pps)+'px"></div>';
-  activeRemoves().forEach(r=>{v+=`<div class="tlblk rem" style="left:${Math.round(r.s*pps)}px;width:${Math.max(3,Math.round((r.e-r.s)*pps))}px" title="kesildi"></div>`});
+  const fs = S.filmstrip ? `background-image:url(${S.filmstrip});background-size:100% 100%;` : "";
+  let v='<div class="lab">Video</div><div class="tlblk vid" style="left:0;width:'+Math.round(D*pps)+'px;'+fs+'"></div>';
+  activeRemoves().forEach((r,gi)=>{v+=`<div class="tlblk rem" style="left:${Math.round(r.s*pps)}px;width:${Math.max(3,Math.round((r.e-r.s)*pps))}px" title="bosib olib tashlash" onclick="tlDelRem(${r.s},${r.e})">✕</div>`});
   $("tlVid").innerHTML=v;
   let sub='<div class="lab">Subtitr</div>';
   cueGroups().forEach(g=>{const a=g[0].s,b=g[g.length-1].e,tx=esc(g.map(x=>x.w).join(" "));
@@ -838,12 +846,54 @@ function drawTimeline(){
   let br='<div class="lab">Animatsiya</div>';
   (S.brolls||[]).filter(b=>b.on!==false).forEach((b)=>{br+=`<div class="tlblk br" style="left:${Math.round(b.time*pps)}px;width:${Math.max(10,Math.round((b.dur||2.5)*pps))}px" title="${esc(b.prompt)}" onclick="seekTo(${b.time})">🖼</div>`});
   $("tlBroll").innerHTML=br;
+  const om=$("tlinner").querySelector(".tlmark");if(om)om.remove();
+  if(cutMark!=null){const m=document.createElement("div");m.className="tlmark";m.style.left=(cutMark*pps)+"px";$("tlinner").appendChild(m)}
   tlPlay();
 }
 function tlPlay(){if(!S)return;const pps=S.pps||60;const x=(vid.currentTime||0)*pps;const p=$("tlplay");p.style.left=x+"px";
   const wrap=$("tlwrap");if(x<wrap.scrollLeft+40||x>wrap.scrollLeft+wrap.clientWidth-40)wrap.scrollLeft=x-wrap.clientWidth/2}
 function seekTo(t){vid.currentTime=(+t)+0.01;vid.play()}
 function tlZoom(d){if(!S)return;S.pps=Math.max(24,Math.min(240,Math.round((S.pps||60)*(d>0?1.5:0.66))));drawTimeline()}
+// ---- timeline kesish (playhead bilan) ----
+let cutMark=null;
+function tlCutMark(){
+  if(!S)return;
+  if(cutMark===null){ cutMark=+vid.currentTime.toFixed(2); $("cutMarkBtn").classList.add("armed"); drawTimeline(); toast(t("cut_from")); }
+  else{
+    let a=Math.min(cutMark,vid.currentTime), b=Math.max(cutMark,vid.currentTime);
+    cutMark=null; $("cutMarkBtn").classList.remove("armed");
+    if(b-a<0.15){drawTimeline();return}
+    S.removes.push({s:+a.toFixed(2),e:+b.toFixed(2),type:"manual"});
+    renderRemoves();drawTimeline();toast(t("cut_added"));
+  }
+}
+function tlDelRem(a,b){S.removes=S.removes.filter(r=>!(Math.abs(r.s-a)<0.01&&Math.abs(r.e-b)<0.01));renderRemoves();drawTimeline()}
+// ---- filmstrip (video kadrlari) ----
+async function buildFilmstrip(){
+  if(!S||!S.videoUrl)return;
+  const url=S.videoUrl; if(S._fsUrl===url&&S.filmstrip)return; S._fsUrl=url;
+  try{
+    const v=document.createElement("video");v.src=url;v.muted=true;v.preload="auto";
+    await new Promise((res)=>{v.onloadeddata=res;v.onerror=res;setTimeout(res,4000)});
+    const D=S.duration||v.duration||1, rowH=44;
+    const stripW=Math.min(2000, Math.max(400, Math.round(D*70)));
+    const N=Math.min(24, Math.max(4, Math.round(stripW/ (rowH*9/16))));
+    const fw=stripW/N;
+    const cv=document.createElement("canvas");cv.width=stripW;cv.height=rowH;const cx=cv.getContext("2d");
+    cx.fillStyle="#181830";cx.fillRect(0,0,stripW,rowH);
+    for(let i=0;i<N;i++){
+      const tt=(i+0.5)/N*D;
+      await new Promise((res)=>{let done=false;v.onseeked=()=>{if(!done){done=true;res()}};try{v.currentTime=Math.min(tt,(v.duration||tt))}catch(_){res()}setTimeout(()=>{if(!done){done=true;res()}},400)});
+      try{
+        const vw=v.videoWidth||9, vh=v.videoHeight||16, dw=fw, dh=rowH;
+        const sc=Math.max(dw/vw, dh/vh), sw=dw/sc, sh=dh/sc, sx=(vw-sw)/2, sy=(vh-sh)/2;
+        cx.drawImage(v, sx,sy,sw,sh, i*fw,0, dw,dh);
+      }catch(_){}
+    }
+    S.filmstrip=cv.toDataURL("image/jpeg",0.6);
+    drawTimeline();
+  }catch(_){}
+}
 $("tlwrap").addEventListener("click",e=>{if(!S)return;if(e.target.closest(".tlblk"))return;
   const inner=$("tlinner");const rect=inner.getBoundingClientRect();const x=e.clientX-rect.left;vid.currentTime=Math.max(0,Math.min(S.duration,x/(S.pps||60)))});
 vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt)});
@@ -915,7 +965,7 @@ async function resumeProject(pid){
     $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;
     $("subOn").checked=d.subtitle_on!==false;$("zoom").checked=d.zoom!==false;$("audio").checked=d.audio_clean!==false;
     $("brollY").value=d.broll_y||0.72;$("byV").textContent=d.broll_y||0.72;
-    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();
+    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
     if(d.final_url){$("resultBox").style.display="block";$("resVid").src=d.final_url+"?t="+Date.now();$("dl").href=d.final_url}
     toast(t("cont"));
   }catch(e){toast(e.message)}
