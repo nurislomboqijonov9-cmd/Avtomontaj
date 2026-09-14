@@ -339,6 +339,12 @@ a{color:#c9a7ff;text-decoration:none}
 <div class="toast" id="toast"></div>
 
 <script>
+// xatoni ekranda ko'rsatish (qora ekran o'rniga sabab)
+window.addEventListener("error",function(e){
+  try{var b=document.getElementById("jserr");if(!b){b=document.createElement("div");b.id="jserr";
+    b.style.cssText="position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;background:#5b0f2a;color:#ffd;padding:10px 14px;border-radius:10px;font:12px monospace;white-space:pre-wrap;max-height:40vh;overflow:auto";
+    document.body.appendChild(b);}b.textContent="JS xato: "+(e.message||e.error)+" @ "+(e.filename||"").split("/").pop()+":"+e.lineno;}catch(_){}
+});
 const $=(id)=>document.getElementById(id);
 let TOKEN=localStorage.getItem("mtoken")||"";
 let LANG=localStorage.getItem("mlang")||"uz";
@@ -554,11 +560,18 @@ async function waitJob(jid,onProg){
 
 // ---------- init ----------
 (async()=>{
-  injectFontFaces();applyLang();
-  const cfg=await (await fetch("/api/config")).json();
-  $("vxDot").className="dotst"+(cfg.vertex?" ok":"");
-  if(cfg.auth && !TOKEN){$("login").style.display="grid";return}
-  startApp();
+  try{
+    injectFontFaces();applyLang();
+    let cfg={auth:false,vertex:false};
+    try{cfg=await (await fetch("/api/config")).json();}catch(_){}
+    $("vxDot").className="dotst"+(cfg.vertex?" ok":"");
+    if(cfg.auth && !TOKEN){$("login").style.display="grid";return}
+    startApp();
+  }catch(e){
+    // xato bo'lsa ham bosh sahifani ko'rsatamiz
+    try{$("home").style.display="block"}catch(_){}
+    throw e;
+  }
 })();
 async function doLogin(){
   try{const r=await (await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("pw").value})})).json();
