@@ -602,11 +602,20 @@ def group_cues(words,n):
     if cur:cues.append(cur)
     return cues
 
-def build_ass(words, sub):
+# Cyrillic'ni qo'llaydigan shriftlar (rus tili uchun)
+FONT_CYR={"Caveat","DejaVu Sans","Inter","Lobster","Manrope","Montserrat","Nunito",
+          "Oswald","Pacifico","Roboto Slab","Rubik","Russo One"}
+def pick_font(fam, lang="uz"):
+    fam=fam or "Anton"
+    if (lang or "uz").lower()=="ru" and fam not in FONT_CYR:
+        return "Montserrat"   # rus uchun Cyrillic bo'lgan shriftga o'tamiz
+    return fam
+
+def build_ass(words, sub, lang="uz"):
     """sub = dict: font, size, base, active, outline, border, upper, words, delay, margin_v"""
     base=hexass(sub.get("base","#FFFFFF")); acc=hexass(sub.get("active","#FFEA00"))
     outl=hexass(sub.get("outline","#000000")); upper=sub.get("upper",True)
-    font=sub.get("font","Anton"); size=int(sub.get("size",90)); border=sub.get("border",4)
+    font=pick_font(sub.get("font","Anton"), lang); size=int(sub.get("size",90)); border=sub.get("border",4)
     mv=int(sub.get("margin_v",660)); off=float(sub.get("delay",0.20)); n=int(sub.get("words",3))
     anim=sub.get("anim","pop")
     ANIMS={

@@ -55,6 +55,7 @@ def check_auth(token):
 
 # ---------- statik ----------
 app.mount("/media", StaticFiles(directory=PROJ), name="media")
+app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR), name="fonts")   # preview uchun
 STATIC = os.path.join(HERE, "static")
 
 @app.get("/", response_class=HTMLResponse)
@@ -192,15 +193,16 @@ async def render(req: Request, x_auth: str = Header("")):
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     subtitle_on = bool(body.get("subtitle_on", True))
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
+    lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
     jid = new_job()
     def fn(prog):
         prog(15, "Subtitr tayyorlanyapti...")
         ass = os.path.join(d, "subs.ass")
         if subtitle_on and words:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang))
         else:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang))
         brolls = []
         for b in brolls_in:
             if not b.get("on", True): continue
@@ -279,7 +281,7 @@ async def auto(req: Request, x_auth: str = Header("")):
             if not bnote: bnote = f"{len(outb)} ta"
         prog(70, "Video render qilinyapti (1-3 daqiqa)...")
         ass = os.path.join(d, "subs.ass")
-        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2 if subtitle_on else [], sub))
+        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2 if subtitle_on else [], sub, lang))
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.78} for b in outb]
         out = os.path.join(d, "final.mp4")

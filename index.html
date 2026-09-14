@@ -73,6 +73,10 @@ a{color:#c9a7ff;text-decoration:none}
 /* montaj uslublari */
 .stylesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px;max-height:560px;overflow:auto;padding-right:4px}
 #onbStyles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:13px}
+.fontGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;max-height:230px;overflow:auto;padding-right:4px}
+.fchip{border:1.5px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;background:rgba(255,255,255,.03);font-size:17px;line-height:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fchip.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio);background:rgba(91,52,230,.12)}
+.fchip small{display:block;font-size:9px;color:var(--mut);margin-top:5px;font-family:inherit}
 .est{border:2px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;position:relative;aspect-ratio:9/14;background:#0a0a12;transition:.15s}
 .est:hover{transform:translateY(-2px)}
 .est.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 10px 30px rgba(91,52,230,.35)}
@@ -267,6 +271,7 @@ a{color:#c9a7ff;text-decoration:none}
             <div class="card">
               <h3 data-i="tab_sub">Subtitr</h3>
               <label class="sw" style="margin-bottom:10px"><input type="checkbox" id="subOn" checked> <span data-i="sub_on">Subtitr yoqilgan</span></label>
+              <div class="field"><div class="lbl" data-i="font">Shrift</div><div class="fontGrid" id="fontGrid"></div></div>
               <div class="field"><div class="lbl"><span data-i="sync">Vaqt siljishi</span>: <b id="delayV">0.00</b>s</div>
                 <input type="range" id="delay" min="-1.2" max="1.2" step="0.02" value="0" oninput="subChanged()"></div>
               <div class="field"><div class="lbl"><span data-i="height">Balandligi</span>: <b id="mvV">660</b></div>
@@ -353,7 +358,7 @@ const I={
   o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi",
   proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish",
   onb_t:"Sizga moslaymiz",onb_s:"3 ta savol — keyin hammasi tayyor.",onb_lang:"Til",onb_who:"Kim uchun video?",onb_style:"Qaysi uslub yoqadi?",onb_go:"Boshlash →",
-  edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun"},
+  edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun",font:"Shrift"},
  ru:{nav_home:"Главная",nav_hist:"История",foot:"Reels · TikTok · Shorts · VK",login:"Вход",password:"Пароль",enter:"Войти",
   hero_t:"Превратите идею в потрясающее видео",hero_s:"Точные субтитры · Умная нарезка · Анимация — в пару кликов. Выберите стиль и загрузите видео.",
   what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
@@ -365,7 +370,7 @@ const I={
   o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Добавляет картинки по смыслу",
   proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить",
   onb_t:"Настроим под вас",onb_s:"3 вопроса — и всё готово.",onb_lang:"Язык",onb_who:"Для кого видео?",onb_style:"Какой стиль нравится?",onb_go:"Начать →",
-  edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов"},
+  edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов",font:"Шрифт"},
  en:{nav_home:"Home",nav_hist:"History",foot:"Reels · TikTok · Shorts · VK",login:"Sign in",password:"Password",enter:"Sign in",
   hero_t:"Turn ideas into stunning videos",hero_s:"Accurate captions · Smart cuts · Animation — in a few taps. Pick a style and drop your video.",
   what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
@@ -377,7 +382,7 @@ const I={
   o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Adds matching images",
   proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue",
   onb_t:"Let's set you up",onb_s:"3 questions and you're ready.",onb_lang:"Language",onb_who:"Who is the video for?",onb_style:"Which style do you like?",onb_go:"Start →",
-  edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients"}
+  edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients",font:"Font"}
 };
 function t(k){return (I[LANG]&&I[LANG][k])||I.uz[k]||k}
 
@@ -397,16 +402,16 @@ const OPTS={sub:true,cut:true,broll:true};
 // ---------- MONTAJ USLUBLARI (50+) — oila × variant ----------
 // oila: nom, gradient, subtitr ko'rinishi (rang/o'lcham/joy/harf), kesish, animatsiya(broll)
 const FAMILIES=[
- {id:"viral",  nm:"Viral",     grad:["#b13bff","#ff4fa3"], active:"#ffea00", base:"#ffffff", size:96, words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
- {id:"bold",   nm:"Bold",      grad:["#ff4d6d","#ff9a3d"], active:"#ff3b30", base:"#ffffff", size:104,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
- {id:"neon",   nm:"Neon",      grad:["#37c6ff","#5b34e6"], active:"#00e5ff", base:"#ffffff", size:94, words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
- {id:"clean",  nm:"Clean",     grad:["#0ea5e9","#22d3ee"], active:"#ffffff", base:"#ffffff", size:74, words:4, margin:620, upper:false,cut:true, broll:false,cat:"min"},
- {id:"cinema", nm:"Cinematic", grad:["#1e1b4b","#5b34e6"], active:"#f5d38b", base:"#ffffff", size:80, words:4, margin:560, upper:false,cut:true, broll:true, cat:"cine"},
- {id:"vlog",   nm:"Vlog",      grad:["#14b8a6","#22c55e"], active:"#22ff88", base:"#ffffff", size:88, words:3, margin:660, upper:true, cut:true, broll:true, cat:"vlog"},
- {id:"biz",    nm:"Business",  grad:["#2563eb","#64748b"], active:"#37c6ff", base:"#ffffff", size:80, words:4, margin:640, upper:false,cut:true, broll:true, cat:"biz"},
- {id:"pod",    nm:"Podcast",   grad:["#7c3aed","#a855f7"], active:"#ff4fa3", base:"#ffffff", size:84, words:3, margin:640, upper:true, cut:true, broll:false,cat:"biz"},
- {id:"fashion",nm:"Fashion",   grad:["#ec4899","#0a0a0a"], active:"#ffffff", base:"#ffd1e8", size:82, words:3, margin:640, upper:true, cut:true, broll:true, cat:"cine"},
- {id:"fit",    nm:"Fitness",   grad:["#f59e0b","#ef4444"], active:"#ffea00", base:"#ffffff", size:100,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
+ {id:"viral",  nm:"Viral",     grad:["#b13bff","#ff4fa3"], font:"Montserrat",  active:"#ffea00", base:"#ffffff", size:96, words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
+ {id:"bold",   nm:"Bold",      grad:["#ff4d6d","#ff9a3d"], font:"Anton",       active:"#ff3b30", base:"#ffffff", size:104,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
+ {id:"neon",   nm:"Neon",      grad:["#37c6ff","#5b34e6"], font:"Bebas Neue",  active:"#00e5ff", base:"#ffffff", size:104,words:3, margin:660, upper:true, cut:true, broll:true, cat:"trend"},
+ {id:"clean",  nm:"Clean",     grad:["#0ea5e9","#22d3ee"], font:"Inter",       active:"#ffffff", base:"#ffffff", size:74, words:4, margin:620, upper:false,cut:true, broll:false,cat:"min"},
+ {id:"cinema", nm:"Cinematic", grad:["#1e1b4b","#5b34e6"], font:"Roboto Slab", active:"#f5d38b", base:"#ffffff", size:78, words:4, margin:560, upper:false,cut:true, broll:true, cat:"cine"},
+ {id:"vlog",   nm:"Vlog",      grad:["#14b8a6","#22c55e"], font:"Poppins",     active:"#22ff88", base:"#ffffff", size:86, words:3, margin:660, upper:true, cut:true, broll:true, cat:"vlog"},
+ {id:"biz",    nm:"Business",  grad:["#2563eb","#64748b"], font:"Manrope",     active:"#37c6ff", base:"#ffffff", size:80, words:4, margin:640, upper:false,cut:true, broll:true, cat:"biz"},
+ {id:"pod",    nm:"Podcast",   grad:["#7c3aed","#a855f7"], font:"Oswald",      active:"#ff4fa3", base:"#ffffff", size:88, words:3, margin:640, upper:true, cut:true, broll:false,cat:"biz"},
+ {id:"fashion",nm:"Fashion",   grad:["#ec4899","#0a0a0a"], font:"Pacifico",    active:"#ffffff", base:"#ffd1e8", size:84, words:3, margin:640, upper:false,cut:true, broll:true, cat:"cine"},
+ {id:"fit",    nm:"Fitness",   grad:["#f59e0b","#ef4444"], font:"Bangers",     active:"#ffea00", base:"#ffffff", size:104,words:2, margin:660, upper:true, cut:true, broll:true, cat:"bold"},
 ];
 const VARIANTS=[
  {sfx:"Pop",  anim:"pop",    grade:"vivid",  zoom:1},
@@ -418,11 +423,49 @@ const VARIANTS=[
 const STYLES=[];
 FAMILIES.forEach(f=>VARIANTS.forEach(v=>STYLES.push({
   id:f.id+"_"+v.sfx.toLowerCase(), name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, featured:v.sfx==="Pop",
-  sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:"Anton"},
+  sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:f.font},
   cut:f.cut, broll:f.broll, grade:v.grade, zoom_level:v.zoom,
 })));
 let STYLE=STYLES[0];
 let styleCat="all";
+
+// ---------- SHRIFTLAR (professional, CapCut uslubida) ----------
+const FONTS=[
+ {f:"Anton",file:"Anton-Regular.ttf",cyr:false},
+ {f:"Bebas Neue",file:"BebasNeue-Regular.ttf",cyr:false},
+ {f:"Archivo Black",file:"ArchivoBlack-Regular.ttf",cyr:false},
+ {f:"Oswald",file:"Oswald-Bold.ttf",cyr:true},
+ {f:"Teko",file:"Teko-Bold.ttf",cyr:false},
+ {f:"Alfa Slab One",file:"AlfaSlabOne-Regular.ttf",cyr:false},
+ {f:"Titan One",file:"TitanOne-Regular.ttf",cyr:false},
+ {f:"Russo One",file:"RussoOne-Regular.ttf",cyr:true},
+ {f:"Righteous",file:"Righteous-Regular.ttf",cyr:false},
+ {f:"Montserrat",file:"Montserrat-Bold.ttf",cyr:true},
+ {f:"Poppins",file:"Poppins-Bold.ttf",cyr:false},
+ {f:"Inter",file:"Inter-Bold.ttf",cyr:true},
+ {f:"Manrope",file:"Manrope-Bold.ttf",cyr:true},
+ {f:"Rubik",file:"Rubik-Bold.ttf",cyr:true},
+ {f:"Nunito",file:"Nunito-Bold.ttf",cyr:true},
+ {f:"Roboto Slab",file:"RobotoSlab-Bold.ttf",cyr:true},
+ {f:"Baloo 2",file:"Baloo2-Bold.ttf",cyr:false},
+ {f:"Bangers",file:"Bangers-Regular.ttf",cyr:false},
+ {f:"Luckiest Guy",file:"LuckiestGuy-Regular.ttf",cyr:false},
+ {f:"Pacifico",file:"Pacifico-Regular.ttf",cyr:true},
+ {f:"Lobster",file:"Lobster-Regular.ttf",cyr:true},
+ {f:"Caveat",file:"Caveat-Bold.ttf",cyr:true},
+ {f:"Permanent Marker",file:"PermanentMarker-Regular.ttf",cyr:false},
+];
+function injectFontFaces(){
+  if($("ffaces"))return;
+  const css=FONTS.map(x=>`@font-face{font-family:'${x.f}';src:url('/fonts/${x.file}');font-display:swap}`).join("\n");
+  const st=document.createElement("style");st.id="ffaces";st.textContent=css;document.head.appendChild(st);
+}
+function availFonts(){return LANG==="ru"?FONTS.filter(x=>x.cyr):FONTS}
+function renderFontPicker(){
+  const el=$("fontGrid");if(!el||!S)return;
+  el.innerHTML=availFonts().map(x=>`<div class="fchip ${S.sub.font===x.f?'on':''}" style="font-family:'${x.f}',sans-serif" onclick="pickFont('${x.f}')">Aa<small>${x.f}</small></div>`).join("");
+}
+function pickFont(f){S.sub.font=f;renderFontPicker();subChanged()}
 const CATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"trend",u:"Trend",r:"Тренд",e:"Trending"},{k:"bold",u:"Jasur",r:"Смелые",e:"Bold"},{k:"min",u:"Minimal",r:"Минимал",e:"Minimal"},{k:"cine",u:"Kino",r:"Кино",e:"Cinematic"},{k:"vlog",u:"Vlog",r:"Влог",e:"Vlog"},{k:"biz",u:"Biznes",r:"Бизнес",e:"Business"}];
 
 function applyStyle(st){
@@ -435,7 +478,7 @@ function estCard(st,cls,onclick){
   const s=st.sub;
   return `<div class="est ${cls}" onclick="${onclick}">
     <div class="g" style="background:linear-gradient(160deg,${st.grad[0]},${st.grad[1]})">
-      <div class="cap" style="text-transform:${s.upper?'uppercase':'none'}"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
+      <div class="cap" style="font-family:'${s.font}',sans-serif;text-transform:${s.upper?'uppercase':'none'}"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
     </div>
     <div class="nm">${st.name}</div>
     <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', (st.zoom_level>0?'🔍':''), '💬'].filter(Boolean).join(' ')}</div></div>`;
@@ -511,7 +554,7 @@ async function waitJob(jid,onProg){
 
 // ---------- init ----------
 (async()=>{
-  applyLang();
+  injectFontFaces();applyLang();
   const cfg=await (await fetch("/api/config")).json();
   $("vxDot").className="dotst"+(cfg.vertex?" ok":"");
   if(cfg.auth && !TOKEN){$("login").style.display="grid";return}
@@ -554,7 +597,7 @@ function setupDrop(){
   d.addEventListener("drop",e=>{if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])});
 }
 function subFromStyle(){const s=STYLE.sub;return{on:true,delay:0.0,margin:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,anim:s.anim,font:"Anton"}}
-function currentSub(){const s=S.sub;return{delay:s.delay,margin_v:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,anim:s.anim||"pop",font:"Anton",outline:"#000000",border:4}}
+function currentSub(){const s=S.sub;return{delay:s.delay,margin_v:s.margin,size:s.size,words:s.words,active:s.active,base:s.base,upper:s.upper,anim:s.anim||"pop",font:s.font||"Anton",outline:"#000000",border:4}}
 function upload(f){
   $("upProg").style.display="block";$("homeMsg").textContent=t("proc");
   const fd=new FormData();fd.append("file",f);
@@ -578,6 +621,7 @@ function fillSubControls(){
   $("delay").value=S.sub.delay||0;$("mv").value=S.sub.margin;$("sz").value=S.sub.size;$("wp").value=S.sub.words;
   $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;$("subOn").checked=OPTS.sub;
   $("zoom").checked=(S.zoomLevel||0)>0;
+  renderFontPicker();
   subChanged();
 }
 function applyStyleControls(){fillSubControls()}
@@ -685,7 +729,7 @@ function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.wor
   for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}if(cur.length)cue.push(cur);
   let show=null,act=-1;for(const g of cue){if(tt>=g[0].s-.05&&tt<=g[g.length-1].e+.35){show=g;break}}
   if(!show){ov.innerHTML="";return}for(let i=0;i<show.length;i++){if(tt>=show[i].s)act=i}
-  const box=$("capOv");box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";box.style.fontSize=(S.sub.size/1920*100)+"cqh";box.style.textTransform=S.sub.upper?"uppercase":"none";
+  const box=$("capOv");box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";box.style.fontSize=(S.sub.size/1920*100)+"cqh";box.style.textTransform=S.sub.upper?"uppercase":"none";box.style.fontFamily="'"+(S.sub.font||"Anton")+"',sans-serif";
   ov.innerHTML=show.map((w,i)=>`<span class="w" style="color:${i===act?S.sub.active:S.sub.base}">${w.w}</span>`).join(" ")}
 function hlWord(tt){const off=S.sub.delay;document.querySelectorAll(".wchip").forEach(c=>{const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&tt-off>=w.s&&tt-off<=w.e)})}
 
