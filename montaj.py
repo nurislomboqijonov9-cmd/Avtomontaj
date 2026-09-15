@@ -796,41 +796,88 @@ GRADES={
 _ZOOM={0:0.0, 1:0.0004, 2:0.0009}  # zoom tezligi
 _ZMAX={0:1.0, 1:1.05, 2:1.12}
 
-def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1):
-    """brolls = [{'path':..,'time':s,'dur':d,'y':0.72,'w':0.78}]. grade=rang bahosi, zoom_level=0/1/2."""
+QMAP={"480":(480,854,23),"540":(540,960,24),"720":(720,1280,21),"1080":(1080,1920,20),"1k":(1080,1920,20)}
+def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
+                 quality="1080", fast=False):
+    """brolls = [{'path':..,'time':s,'dur':d,'y':0.72,'w':0.78}]. grade=rang, zoom_level=0/1/2, quality=480/720/1080."""
+    tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
     lvl=0 if not zoom else int(zoom_level if zoom_level in (0,1,2) else 1)
     g=GRADES.get(grade, GRADES["vivid"]); geq=("," + g) if g else ""
     if lvl>0:
         spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
-        basev=(f"[0:v]scale={int(W*1.14)}:{int(H*1.14)}:force_original_aspect_ratio=increase,crop={int(W*1.14)}:{int(H*1.14)},"
-               f"zoompan=z='min(1.0+{spd}*in,{zmx})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps=30"
+        basev=(f"[0:v]scale={int(tw*1.14)}:{int(th*1.14)}:force_original_aspect_ratio=increase,crop={int(tw*1.14)}:{int(th*1.14)},"
+               f"zoompan=z='min(1.0+{spd}*in,{zmx})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={tw}x{th}:fps=30"
                f"{geq},setsar=1,{sub}[base]")
     else:
-        basev=f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}{geq},setsar=1,{sub}[base]"
+        basev=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq},setsar=1,{sub}[base]"
     af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else "aresample=48000"
     parts=[basev]; cur="[base]"; inputs=["-i",cut]
     for k,b in enumerate(brolls):
         p=b["path"]; s=float(b["time"]); d=float(b.get("dur",2.5))
-        y=float(b.get("y",0.72)); bw=int(W*float(b.get("w",0.78)))
+        y=float(b.get("y",0.72)); bw=int(tw*float(b.get("w",0.78)))
         inputs+=["-loop","1","-t",f"{d}","-i",p]
         idx=k+1
         parts.append(f"[{idx}:v]scale={bw}:-1,format=yuva420p,"
                      f"fade=t=in:st=0:d=0.25:alpha=1,fade=t=out:st={max(0.01,d-0.25):.2f}:d=0.25:alpha=1,"
                      f"setpts=PTS+{s:.2f}/TB[ov{k}]")
         nxt=f"[vb{k}]"
-        parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(H*y)}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
+        parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(th*y)}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
     parts.append(f"[0:a]{af}[aout]")
     fc=";".join(parts)
+    preset="veryfast" if fast else "medium"
     cmd=["ffmpeg","-y","-hide_banner","-loglevel","error"]+inputs+[
         "-filter_complex",fc,"-map",cur,"-map","[aout]",
-        "-r","30","-c:v","libx264","-preset","medium","-crf","20","-pix_fmt","yuv420p",
-        "-c:a","aac","-b:a","160k",outp]
+        "-r","30","-c:v","libx264","-preset",preset,"-crf",str(crf),"-pix_fmt","yuv420p",
+        "-movflags","+faststart","-c:a","aac","-b:a","160k",outp]
     c,_=run(cmd)
     return c==0 and os.path.exists(outp)
+
+def _probe_dur(path):
+    try:
+        c,o=run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=nw=1:nk=1",path])
+        return float((o or "0").strip())
+    except Exception:
+        return 0.0
+
+def render_preview(src, words, sub, outp, grade="vivid", zoom_level=1, lang="uz", start=None, dur=4.5, workdir=None):
+    """Uslub namunasi: foydalanuvchi videosidan qisqa (~4.5s) klip, tanlangan uslubda. Tez (540p)."""
+    wd = workdir or os.path.dirname(outp) or "."
+    d = _probe_dur(src)
+    if start is None:
+        start = 0.0
+        for w in (words or []):
+            try:
+                if float(w.get("s",0)) >= 0.8:
+                    start = max(0.0, float(w["s"]) - 0.25); break
+            except Exception:
+                continue
+    if d and start + dur > d:
+        start = max(0.0, d - dur)
+    if d and dur > d:
+        dur = max(1.0, d)
+    end = start + dur
+    trim = os.path.join(wd, "prev_trim.mp4")
+    c,_ = run(["ffmpeg","-y","-hide_banner","-loglevel","error","-ss",f"{start:.2f}","-i",src,
+               "-t",f"{dur:.2f}","-c:v","libx264","-preset","veryfast","-crf","24",
+               "-c:a","aac","-b:a","128k","-r","30",trim])
+    if c != 0 or not os.path.exists(trim):
+        return False
+    rw=[]
+    for w in (words or []):
+        try:
+            s=float(w.get("s",0)); e=float(w.get("e",s+0.3))
+        except Exception:
+            continue
+        if e < start or s > end: continue
+        rw.append({"w":w.get("w",""), "s":round(max(0.0,s-start),2), "e":round(max(0.08,e-start),2)})
+    ass = os.path.join(wd, "prev.ass")
+    open(ass,"w",encoding="utf-8").write(build_ass(rw, sub, lang))
+    return render_final(trim, ass, outp, [], zoom=zoom_level>0, audio_clean=False,
+                        grade=grade, zoom_level=zoom_level, quality="540", fast=True)
 
 # ================= YUQORI DARAJADAGI BOSQICHLAR =================
 def analyze(video_path, work, lang="uz"):

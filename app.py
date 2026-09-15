@@ -84,6 +84,31 @@ app.mount("/media", StaticFiles(directory=PROJ, check_dir=False), name="media")
 app.mount("/fonts", StaticFiles(directory=montaj.FONTS_DIR, check_dir=False), name="fonts")
 app.mount("/assets", StaticFiles(directory=STATIC, check_dir=False), name="assets")
 
+# ---------- USLUB VIDEO-MISOLLARI (serverda generatsiya, keshlab) ----------
+import re as _re
+PREV_DIR = os.path.join(DATA, "previews"); os.makedirs(PREV_DIR, exist_ok=True)
+_prev_locks = {}
+def _prev_lock(name):
+    with _lock:
+        lk = _prev_locks.get(name)
+        if lk is None:
+            lk = threading.Lock(); _prev_locks[name] = lk
+        return lk
+
+@app.get("/preview/{fname}")
+def preview_clip(fname: str):
+    if not _re.match(r"^[ms]_[a-z0-9_]+\.mp4$", fname):
+        raise HTTPException(404, "topilmadi")
+    path = os.path.join(PREV_DIR, fname)
+    if not (os.path.exists(path) and os.path.getsize(path) > 1000):
+        import previews
+        with _prev_lock(fname):
+            if not (os.path.exists(path) and os.path.getsize(path) > 1000):
+                out = previews.build_preview(fname, PREV_DIR)
+                if not out or not os.path.exists(out):
+                    raise HTTPException(404, "misol yo'q")
+    return FileResponse(path, media_type="video/mp4")
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     # index.html qayerda bo'lsa ham topamiz (static/ ichida yoki asosiy papkada)
@@ -260,6 +285,7 @@ async def render(req: Request, x_auth: str = Header("")):
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     subtitle_on = bool(body.get("subtitle_on", True))
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
+    quality = str(body.get("quality", "1080"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
     jid = new_job()
@@ -282,15 +308,44 @@ async def render(req: Request, x_auth: str = Header("")):
                                "w": float(b.get("w", 0.78))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level)
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72),
-                                     "grade": grade, "zoom_level": zoom_level})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
+    run_job(jid, fn)
+    return {"job": jid}
+
+# ---------- USLUB NAMUNASI (foydalanuvchi videosida qisqa klip) ----------
+@app.post("/api/preview")
+async def preview(req: Request, x_auth: str = Header("")):
+    check_auth(x_auth)
+    import hashlib, json as _json
+    body = await req.json(); pid = body["project"]; d = pdir(pid); meta = load_meta(pid)
+    srcname = meta.get("cut") or meta.get("input")
+    if not srcname:
+        raise HTTPException(400, "video yo'q")
+    src = os.path.join(d, srcname)
+    words = meta.get("cut_words") or meta.get("words", [])
+    sub = body.get("subtitle", {}) or {}
+    grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
+    lang = (body.get("lang") or meta.get("lang") or "uz").lower()
+    key = hashlib.md5(_json.dumps({"s": sub, "g": grade, "z": zoom_level, "src": srcname},
+                                  sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:10]
+    outname = f"prev_{key}.mp4"; out = os.path.join(d, outname)
+    jid = new_job()
+    def fn(prog):
+        prog(25, "Namuna tayyorlanyapti...")
+        if not os.path.exists(out):
+            ok = montaj.render_preview(src, words, sub, out, grade=grade,
+                                       zoom_level=zoom_level, lang=lang, workdir=d)
+            if not ok:
+                raise RuntimeError("preview xato")
+        return {"url": f"/media/{pid}/{outname}"}
     run_job(jid, fn)
     return {"job": jid}
 
@@ -307,6 +362,7 @@ async def auto(req: Request, x_auth: str = Header("")):
     do_cut = bool(body.get("cut", True))               # kesish ixtiyoriy
     subtitle_on = bool(body.get("subtitle_on", True))  # subtitr ixtiyoriy
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
+    quality = str(body.get("quality", "1080"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
@@ -352,12 +408,12 @@ async def auto(req: Request, x_auth: str = Header("")):
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.78} for b in outb]
         out = os.path.join(d, "final.mp4")
-        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level):
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality):
             raise RuntimeError("render xato")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": broll_y,
-                                     "grade": grade, "zoom_level": zoom_level})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
