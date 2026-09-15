@@ -91,6 +91,7 @@ a{color:#c9a7ff;text-decoration:none}
 .preset{border:2px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:#0a0a12;position:relative;aspect-ratio:9/13}
 .preset.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio),0 8px 22px rgba(91,52,230,.3)}
 .preset .pv{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:16px;background:linear-gradient(180deg,#1a1a28,#0a0a12)}
+.preset .pvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .preset .cap{font-weight:800;text-align:center;line-height:1.1;text-transform:uppercase;text-shadow:0 2px 6px #000;font-size:15px;padding:0 6px}
 .preset .nm{position:absolute;top:8px;left:8px;font-size:12px;color:#fff;background:rgba(0,0,0,.45);padding:2px 8px;border-radius:20px}
 /* dropzone */
@@ -583,7 +584,7 @@ function renderOpts(){
 function toggleOpt(k){OPTS[k]=!OPTS[k];renderOpts()}
 function renderPresets(){
   $("presets").innerHTML=PRESETS.map(p=>`<div class="preset ${p.id===PRESET.id?'on':''}" onclick="pickPreset('${p.id}')">
-    <div class="pv"><div class="cap"><span style="color:${p.base}">${sampleWord(1)}</span> <span style="color:${p.active}">${sampleWord(2)}</span></div></div>
+    <video class="pvid" src="/assets/previews/preset_${p.id}.mp4" muted loop autoplay playsinline preload="metadata"></video>
     <div class="nm">${p.nm[LANG]||p.nm.uz}</div></div>`).join("");
 }
 function sampleWord(i){const m={uz:["Salom","dunyo"],ru:["Привет","мир"],en:["Hello","world"]};return (m[LANG]||m.uz)[i-1]}
