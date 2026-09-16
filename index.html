@@ -579,11 +579,14 @@ const VARIANTS=[
  {sfx:"Soft",anim:"rise",grade:"warm",zoom:0},
  {sfx:"Max",anim:"bounce",grade:"neon",zoom:2},
 ];
+// oila -> montaj effekti (server bilan bir xil)
+const FXMAP={viral:"glow",bold:"flash",neon:"glow",clean:"none",cinema:"letterbox",vlog:"progress",biz:"progress",pod:"progress",fashion:"leak",fit:"shake",hype:"glitch",luxe:"grain",retro:"vhs",game:"glitch",story:"dream",news:"progress",beauty:"dream",street:"duotone",tech:"glitch",calm:"none"};
+const FXNAME={none:"—",glow:"✨ Glow",flash:"⚡ Flash",letterbox:"🎬 Kino",progress:"▬ Progress",leak:"🌅 Light-leak",shake:"📳 Silkinish",glitch:"📺 Glitch",grain:"🎞️ Grain",vhs:"📼 Retro VHS",duotone:"🎨 Duotone",dream:"💗 Dream"};
 const STYLES=[];
 FAMILIES.forEach(function(f){VARIANTS.forEach(function(v){
   const id=f.id+"_"+v.sfx.toLowerCase();
   STYLES.push({
-    id:id, name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, font:f.font,
+    id:id, name:f.nm+" "+v.sfx, grad:f.grad, cat:f.cat, font:f.font, fx:(FXMAP[f.id]||"none"),
     sub:{active:f.active,base:f.base,size:f.size,words:f.words,margin:f.margin,upper:f.upper,anim:v.anim,font:f.font},
     cut:f.cut, broll:f.broll, grade:v.grade, zoom_level:v.zoom,
   });
@@ -689,7 +692,7 @@ const FCATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"impact",u:"Impact",r:"
 function applyStyle(st){
   STYLE=st;
   OPTS.sub=true; OPTS.cut=st.cut; OPTS.broll=st.broll;
-  if(S){ S.sub=subFromStyle(); S.grade=st.grade; S.zoomLevel=st.zoom_level; applyStyleControls&&applyStyleControls(); }
+  if(S){ S.sub=subFromStyle(); S.grade=st.grade; S.zoomLevel=st.zoom_level; S.fx=st.fx||"none"; applyStyleControls&&applyStyleControls(); }
   renderStyles(); renderOpts(); if($("stylesGrid2"))renderStylesPage();
 }
 function applySubStyle(id){
@@ -711,7 +714,7 @@ function estCard(st,cls,onclick){
       <div class="cap" style="font-family:'${s.font}',sans-serif;text-transform:${s.upper?'uppercase':'none'};font-size:${fs}px"><span style="color:${s.base}">${sampleWord(1)}</span> <span style="color:${s.active}">${sampleWord(2)}</span></div>
     </div>
     <div class="nm" style="font-family:'${st.font}',sans-serif">${st.name}</div>
-    <div class="tag">${[st.cut?'✂️':'', st.broll?'🖼️':'', (st.zoom_level>0?'🔍':''), '💬'].filter(Boolean).join(' ')}</div></div>`;
+    <div class="tag">${[(st.fx&&st.fx!=='none')?(FXNAME[st.fx]||st.fx):'', (st.zoom_level>0?'🔍':''), st.broll?'🖼️':'', '💬'].filter(Boolean).join(' ')}</div></div>`;
 }
 function pvHover(card,on){
   const v=card.querySelector(".pvthumb"); if(!v)return;
@@ -792,7 +795,7 @@ function openPreview(kind,id){
     </div>`;
   const bits=[];
   bits.push("🔤 "+su.font);
-  if(kind==="montage"){ bits.push("🎨 "+item.grade); bits.push(item.zoom_level>0?"🔍 zoom":"◻︎ zoomsiz"); if(item.cut)bits.push("✂️ kesish"); if(item.broll)bits.push("🖼️ animatsiya"); }
+  if(kind==="montage"){ if(item.fx&&item.fx!=="none")bits.push((FXNAME[item.fx]||item.fx)); bits.push("🎨 "+item.grade); bits.push(item.zoom_level>0?"🔍 zoom":"◻︎ zoomsiz"); if(item.cut)bits.push("✂️ kesish"); if(item.broll)bits.push("🖼️ animatsiya"); }
   bits.push("💬 "+su.words+" so'z"); bits.push("↕ "+(su.margin>1000?"tepada":(su.margin>820?"markazda":"pastda")));
   $("pvMeta").innerHTML=bits.map(b=>`<span class="chipm">${b}</span>`).join("");
   // 1) darrov ushbu uslubning tayyor video-misolini o'ynatamiz
@@ -809,7 +812,8 @@ async function makeRealPreview(kind,item,su){
     const body={project:S.project,lang:LANG,
       subtitle:{delay:0,margin_v:su.margin,size:su.size,words:su.words,active:su.active,base:su.base,upper:su.upper,anim:su.anim||"pop",font:su.font,outline:"#000000",border:4},
       grade: kind==="montage"?item.grade:(S.grade||"vivid"),
-      zoom_level: kind==="montage"?item.zoom_level:0};
+      zoom_level: kind==="montage"?item.zoom_level:0,
+      fx: kind==="montage"?(item.fx||"none"):"none"};
     const {job}=await api("/api/preview",body);
     const res=await waitJob(job);
     if(res&&res.url&&pvId){ vv.src=res.url+"?t="+Date.now(); vv.style.display="block"; cap.style.display="none"; load.style.display="none"; vv.play().catch(()=>{}); }
@@ -995,7 +999,7 @@ function upload(f){
     if(xhr.status!==200){$("homeMsg").innerHTML='<span class=err>Upload xato</span>';return}
     const r=JSON.parse(xhr.responseText);
     S={project:r.project,name:r.name,videoUrl:r.video_url,duration:r.duration,words:[],removes:[],brolls:[],cut:false,manual:{s:null,e:null},
-       sub:subFromStyle(),grade:STYLE.grade,zoomLevel:STYLE.zoom_level,lang:LANG,pps:60};
+       sub:subFromStyle(),grade:STYLE.grade,zoomLevel:STYLE.zoom_level,fx:STYLE.fx||"none",lang:LANG,pps:60};
     showTab("editor");vid.src=r.video_url;$("tInfo").textContent=r.duration.toFixed(1)+"s";
     fillSubControls();
     runAuto();
@@ -1022,7 +1026,7 @@ async function runAuto(){
   try{
     const zl=$("zoom").checked?(S.zoomLevel||1):0;
     const body={project:S.project,lang:LANG,cut:OPTS.cut,subtitle_on:OPTS.sub,broll:OPTS.broll,broll_n:4,
-      broll_y:+($("brollY").value||0.72),zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",audio_clean:$("audio").checked,subtitle:currentSub(),quality:QUALITY};
+      broll_y:+($("brollY").value||0.72),zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",audio_clean:$("audio").checked,subtitle:currentSub(),quality:QUALITY};
     const {job}=await api("/api/auto",body);
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
@@ -1208,7 +1212,7 @@ async function doRender(){
   const y=+$("brollY").value;const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
   const zl=$("zoom").checked?(S.zoomLevel||1):0;
   try{const {job}=await api("/api/render",{project:S.project,words:S.words,subtitle_on:$("subOn").checked,
-      subtitle:currentSub(),brolls,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",audio_clean:$("audio").checked,quality:QUALITY});
+      subtitle:currentSub(),brolls,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",audio_clean:$("audio").checked,quality:QUALITY});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("ready"));loadHistory();
@@ -1237,7 +1241,7 @@ async function resumeProject(pid){
        words:d.words||[],
        removes:(d.removes||[]).map(x=>({s:x[0],e:x[1],type:"auto"})),
        brolls:(d.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:b.on!==false})),
-       grade:d.grade||"vivid",zoomLevel:(d.zoom_level!=null?d.zoom_level:1),
+       grade:d.grade||"vivid",zoomLevel:(d.zoom_level!=null?d.zoom_level:1),fx:d.fx||(rs.fx)||"none",
        sub:{on:true,delay:rs.delay||0,margin:rs.margin_v||660,size:rs.size||90,words:rs.words||3,active:rs.active||"#ffea00",base:rs.base||"#ffffff",upper:rs.upper!==false,anim:rs.anim||"pop",font:rs.font||"Anton"}};
     if(d.lang){LANG=d.lang;localStorage.setItem("mlang",LANG);applyLang()}
     showTab("editor");

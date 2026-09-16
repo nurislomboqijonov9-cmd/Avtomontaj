@@ -86,7 +86,8 @@ app.mount("/assets", StaticFiles(directory=STATIC, check_dir=False), name="asset
 
 # ---------- USLUB VIDEO-MISOLLARI (serverda generatsiya, keshlab) ----------
 import re as _re
-PREV_DIR = os.path.join(DATA, "previews"); os.makedirs(PREV_DIR, exist_ok=True)
+PREVIEW_VER = "v2"   # effektlar o'zgarsa bump qiling -> keshdan qayta chiziladi
+PREV_DIR = os.path.join(DATA, "previews", PREVIEW_VER); os.makedirs(PREV_DIR, exist_ok=True)
 _prev_locks = {}
 def _prev_lock(name):
     with _lock:
@@ -285,7 +286,7 @@ async def render(req: Request, x_auth: str = Header("")):
     zoom = bool(body.get("zoom", True)); audio = bool(body.get("audio_clean", True))
     subtitle_on = bool(body.get("subtitle_on", True))
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
-    quality = str(body.get("quality", "1080"))
+    quality = str(body.get("quality", "1080")); fx = str(body.get("fx", "none"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
     jid = new_job()
@@ -308,13 +309,13 @@ async def render(req: Request, x_auth: str = Header("")):
                                "w": float(b.get("w", 0.78))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality)
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72),
-                                     "grade": grade, "zoom_level": zoom_level, "quality": quality})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
     run_job(jid, fn)
@@ -333,8 +334,9 @@ async def preview(req: Request, x_auth: str = Header("")):
     words = meta.get("cut_words") or meta.get("words", [])
     sub = body.get("subtitle", {}) or {}
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
+    fx = str(body.get("fx", "none"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
-    key = hashlib.md5(_json.dumps({"s": sub, "g": grade, "z": zoom_level, "src": srcname},
+    key = hashlib.md5(_json.dumps({"s": sub, "g": grade, "z": zoom_level, "fx": fx, "src": srcname},
                                   sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:10]
     outname = f"prev_{key}.mp4"; out = os.path.join(d, outname)
     jid = new_job()
@@ -342,7 +344,7 @@ async def preview(req: Request, x_auth: str = Header("")):
         prog(25, "Namuna tayyorlanyapti...")
         if not os.path.exists(out):
             ok = montaj.render_preview(src, words, sub, out, grade=grade,
-                                       zoom_level=zoom_level, lang=lang, workdir=d)
+                                       zoom_level=zoom_level, lang=lang, workdir=d, fx=fx)
             if not ok:
                 raise RuntimeError("preview xato")
         return {"url": f"/media/{pid}/{outname}"}
@@ -362,7 +364,7 @@ async def auto(req: Request, x_auth: str = Header("")):
     do_cut = bool(body.get("cut", True))               # kesish ixtiyoriy
     subtitle_on = bool(body.get("subtitle_on", True))  # subtitr ixtiyoriy
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
-    quality = str(body.get("quality", "1080"))
+    quality = str(body.get("quality", "1080")); fx = str(body.get("fx", "none"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
@@ -408,12 +410,12 @@ async def auto(req: Request, x_auth: str = Header("")):
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.78} for b in outb]
         out = os.path.join(d, "final.mp4")
-        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality):
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx):
             raise RuntimeError("render xato")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": broll_y,
-                                     "grade": grade, "zoom_level": zoom_level, "quality": quality})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
@@ -495,7 +497,8 @@ def resume(pid: str, x_auth: str = Header("")):
             "brolls": brolls, "engine": m.get("engine", ""),
             "subtitle": rs.get("subtitle", {}), "subtitle_on": rs.get("subtitle_on", True),
             "zoom": rs.get("zoom", True), "audio_clean": rs.get("audio_clean", True),
-            "broll_y": rs.get("broll_y", 0.72), "grade": rs.get("grade","vivid"), "zoom_level": rs.get("zoom_level",1)}
+            "broll_y": rs.get("broll_y", 0.72), "grade": rs.get("grade","vivid"), "zoom_level": rs.get("zoom_level",1),
+            "fx": rs.get("fx","none"), "quality": rs.get("quality","1080")}
 
 @app.delete("/api/history/{pid}")
 def delete_project(pid: str, x_auth: str = Header("")):

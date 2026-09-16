@@ -797,24 +797,76 @@ _ZOOM={0:0.0, 1:0.0004, 2:0.0009}  # zoom tezligi
 _ZMAX={0:1.0, 1:1.05, 2:1.12}
 
 QMAP={"480":(480,854,23),"540":(540,960,24),"720":(720,1280,21),"1080":(1080,1920,20),"1k":(1080,1920,20)}
+
+# ================= MONTAJ EFFEKTLARI (har uslub o'z ko'rinishi) =================
+def _fx_parts(fx, il, ol, tw, th, dur, strong=1):
+    """il->ol oralig'ida effekt filtri. strong=0 (yumshoq)/1/2 (kuchli). Bitta oqim (split ishlatilsa ichida)."""
+    fx=(fx or "none").lower(); d=max(0.5,float(dur or 3.0))
+    s=1.0+0.35*strong  # kuchaytirish
+    if fx in ("none",""):
+        return [f"{il}null{ol}"]
+    if fx=="glow":                       # neon/yorug' porlash
+        sg=2.5*s
+        return [f"{il}split[gA][gB];[gB]gblur=sigma={sg:.1f},eq=brightness=0.05:saturation=1.25[gbb];[gA][gbb]blend=all_mode=screen:all_opacity={0.5+0.15*strong:.2f}{ol}"]
+    if fx=="grain":                      # kino donadorligi + vinetka
+        return [f"{il}noise=alls={int(7*s)}:allf=t,curves=preset=medium_contrast,vignette=PI/{5- strong}{ol}"]
+    if fx=="leak":                       # harakatlanuvchi yorug' oqim (light-leak)
+        w=int(tw*0.34); a=0.10+0.06*strong
+        return [f"{il}drawbox=x='iw*0.5-{w//2}+iw*0.33*sin(t*0.9)':y=0:w={w}:h=ih:color=0xffcaa0@{a:.2f}:t=fill,eq=saturation=1.15{ol}"]
+    if fx=="glitch":                     # RGB siljish + shovqin (texno/game)
+        rh=int(3+2*strong)
+        return [f"{il}rgbashift=rh={rh}:bh=-{rh}:gv={rh//2},noise=alls={int(5*s)}:allf=t,curves=preset=strong_contrast{ol}"]
+    if fx=="shake":                      # kamera silkinishi
+        z=1.04+0.02*strong; amp=5+3*strong
+        return [f"{il}scale=iw*{z:.2f}:ih*{z:.2f},crop={tw}:{th}:x='(iw-{tw})/2+{amp}*sin(t*25)':y='(ih-{th})/2+{amp}*cos(t*23)'{ol}"]
+    if fx=="letterbox":                  # kino qora chiziqlari + rang
+        bh=int(th*0.10)
+        return [f"{il}curves=preset=medium_contrast,eq=saturation=1.08,drawbox=x=0:y=0:w=iw:h={bh}:color=black:t=fill,drawbox=x=0:y=ih-{bh}:w=iw:h={bh}:color=black:t=fill{ol}"]
+    if fx=="flash":                      # yorug'lik puls (fitnes/hype)
+        return [f"{il}eq=brightness='0.14*max(0\\,sin(t*9))':saturation=1.2{ol}"]
+    if fx=="progress":                   # pastda progress-bar
+        h=int(th*0.012)+4
+        return [f"{il}drawbox=x=0:y=ih-{h}:w='iw*mod(t\\,{d:.2f})/{d:.2f}':h={h}:color=white@0.9:t=fill{ol}"]
+    if fx=="vhs":                        # retro VHS
+        return [f"{il}rgbashift=rh=3:bh=-3,noise=alls={int(9*s)}:allf=t,curves=g='0/0 0.5/0.58 1/1',eq=saturation=0.85:contrast=1.1{ol}"]
+    if fx=="duotone":                    # ikki tonli (fashion/street)
+        return [f"{il}hue=s=0,curves=r='0/0.05 1/1':b='0/0.15 1/0.9',eq=contrast=1.15:saturation=1.4{ol}"]
+    if fx=="dream":                      # yumshoq bloom (beauty/story)
+        return [f"{il}split[dA][dB];[dB]gblur=sigma={3*s:.1f}[dbb];[dA][dbb]blend=all_mode=lighten:all_opacity=0.4,eq=saturation=1.1:brightness=0.03{ol}"]
+    return [f"{il}null{ol}"]
+
+FX_MAP={  # oila -> effekt
+ "viral":"glow","bold":"flash","neon":"glow","clean":"none","cinema":"letterbox",
+ "vlog":"progress","biz":"progress","pod":"progress","fashion":"leak","fit":"shake",
+ "hype":"glitch","luxe":"grain","retro":"vhs","game":"glitch","story":"dream",
+ "news":"progress","beauty":"dream","street":"duotone","tech":"glitch","calm":"none",
+}
+
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
-                 quality="1080", fast=False):
-    """brolls = [{'path':..,'time':s,'dur':d,'y':0.72,'w':0.78}]. grade=rang, zoom_level=0/1/2, quality=480/720/1080."""
+                 quality="1080", fast=False, fx="none"):
+    """brolls=[...]. grade=rang, zoom_level=0/1/2, quality=480/720/1080, fx=montaj effekti."""
     tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
     lvl=0 if not zoom else int(zoom_level if zoom_level in (0,1,2) else 1)
     g=GRADES.get(grade, GRADES["vivid"]); geq=("," + g) if g else ""
+    dur=_probe_dur(cut) or 3.0
+    strong = 2 if lvl>=2 else 1
+    # 1) asosiy oqim (scale/crop/zoom/grade) -> [v0]
     if lvl>0:
         spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
-        basev=(f"[0:v]scale={int(tw*1.14)}:{int(th*1.14)}:force_original_aspect_ratio=increase,crop={int(tw*1.14)}:{int(th*1.14)},"
+        base0=(f"[0:v]scale={int(tw*1.14)}:{int(th*1.14)}:force_original_aspect_ratio=increase,crop={int(tw*1.14)}:{int(th*1.14)},"
                f"zoompan=z='min(1.0+{spd}*in,{zmx})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={tw}x{th}:fps=30"
-               f"{geq},setsar=1,{sub}[base]")
+               f"{geq},setsar=1[v0]")
     else:
-        basev=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq},setsar=1,{sub}[base]"
+        base0=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq},setsar=1[v0]"
+    # 2) effekt [v0]->[vfx]
+    fxparts=_fx_parts(fx, "[v0]", "[vfx]", tw, th, dur, strong)
+    # 3) subtitr [vfx]->[base]
+    subpart=f"[vfx]{sub}[base]"
     af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else "aresample=48000"
-    parts=[basev]; cur="[base]"; inputs=["-i",cut]
+    parts=[base0]+fxparts+[subpart]; cur="[base]"; inputs=["-i",cut]
     for k,b in enumerate(brolls):
         p=b["path"]; s=float(b["time"]); d=float(b.get("dur",2.5))
         y=float(b.get("y",0.72)); bw=int(tw*float(b.get("w",0.78)))
@@ -838,12 +890,12 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
 
 def _probe_dur(path):
     try:
-        c,o=run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=nw=1:nk=1",path])
-        return float((o or "0").strip())
+        c,o=run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=nw=1:nk=1",path], capture=True)
+        return float((o or "0").strip().splitlines()[0])
     except Exception:
         return 0.0
 
-def render_preview(src, words, sub, outp, grade="vivid", zoom_level=1, lang="uz", start=None, dur=4.5, workdir=None):
+def render_preview(src, words, sub, outp, grade="vivid", zoom_level=1, lang="uz", start=None, dur=4.5, workdir=None, fx="none"):
     """Uslub namunasi: foydalanuvchi videosidan qisqa (~4.5s) klip, tanlangan uslubda. Tez (540p)."""
     wd = workdir or os.path.dirname(outp) or "."
     d = _probe_dur(src)
@@ -877,7 +929,7 @@ def render_preview(src, words, sub, outp, grade="vivid", zoom_level=1, lang="uz"
     ass = os.path.join(wd, "prev.ass")
     open(ass,"w",encoding="utf-8").write(build_ass(rw, sub, lang))
     return render_final(trim, ass, outp, [], zoom=zoom_level>0, audio_clean=False,
-                        grade=grade, zoom_level=zoom_level, quality="540", fast=True)
+                        grade=grade, zoom_level=zoom_level, quality="540", fast=True, fx=fx)
 
 # ================= YUQORI DARAJADAGI BOSQICHLAR =================
 def analyze(video_path, work, lang="uz"):

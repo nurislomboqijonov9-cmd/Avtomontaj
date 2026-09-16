@@ -80,7 +80,8 @@ def params_for(fname):
         anim, grade, zoom = VAR[sfx]
         sub = {"delay":0,"margin_v":mg,"size":sz,"words":wd,"active":ac,"base":ba,
                "upper":bool(up),"anim":anim,"font":font,"outline":"#000000","border":4}
-        return sub, grade, zoom
+        fx = montaj.FX_MAP.get(fid, "none")
+        return sub, grade, zoom, fx
     if name.startswith("s_"):
         rest = name[2:]
         parts = rest.rsplit("_", 1)
@@ -92,13 +93,13 @@ def params_for(fname):
         font = FPOOL[(ci*len(SLAY_ORDER)+li) % len(FPOOL)]
         sub = {"delay":0,"margin_v":mg,"size":sz,"words":wd,"active":SCOL[cid],"base":"#ffffff",
                "upper":bool(up),"anim":anim,"font":font,"outline":"#000000","border":4}
-        return sub, "vivid", 0
+        return sub, "vivid", 0, "none"
     return None
 
 def build_preview(fname, cache_dir):
     p = params_for(fname)
     if not p: return None
-    sub, grade, zoom = p
+    sub, grade, zoom, fx = p
     os.makedirs(cache_dir, exist_ok=True)
     bg = _sample_bg(cache_dir)
     if not bg: return None
@@ -107,7 +108,7 @@ def build_preview(fname, cache_dir):
     open(ass, "w", encoding="utf-8").write(montaj.build_ass(WORDS, sub, "uz"))
     out = os.path.join(cache_dir, fname)
     ok = montaj.render_final(bg, ass, out, [], zoom=zoom > 0, audio_clean=False,
-                             grade=grade, zoom_level=zoom, quality="thumb", fast=True)
+                             grade=grade, zoom_level=zoom, quality="thumb", fast=True, fx=fx)
     try: os.remove(ass)
     except Exception: pass
     return out if ok else None
