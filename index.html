@@ -108,6 +108,8 @@ a{color:#c9a7ff;text-decoration:none}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}.side{width:66px}.side .txt,.langs,.brand span:last-child{display:none}}
 .videoBox{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:9/16;max-height:64vh;margin:0 auto;width:100%;container-type:size;border:1px solid var(--line)}
 .videoBox video{width:100%;height:100%;object-fit:contain;display:block}
+.playov{position:absolute;inset:0;display:grid;place-items:center;font-size:44px;color:#fff;background:rgba(0,0,0,.25);cursor:pointer;text-shadow:0 2px 12px rgba(0,0,0,.6);z-index:4}
+.playov.hide{display:none}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
 .tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;flex-wrap:wrap}
@@ -288,14 +290,14 @@ a{color:#c9a7ff;text-decoration:none}
       <div class="grid2">
         <div>
           <div class="card">
-            <div class="videoBox"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div></div>
+            <div class="videoBox" onclick="tlToggle()"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div><div class="playov" id="playov">▶</div></div>
             <div class="tlbar">
               <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">🔍−</button>
               <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">🔍＋</button>
               <button class="sm gh" onclick="tlNudgePlay(-0.1)" title="0.1s orqaga">⏴</button>
               <button class="sm gh" onclick="tlNudgePlay(0.1)" title="0.1s oldinga">⏵</button>
+              <button class="sm pri" id="tlPlayBtn" onclick="tlToggle()" title="o'ynatish/to'xtatish">▶</button>
               <button class="sm gh" id="cutMarkBtn" onclick="tlCutMark()">✂️ <span data-i="tl_cut">Kesish</span></button>
-              <button class="sm pri" onclick="doCut()" title="qo'llash">✅</button>
               <span class="hint" id="tInfo">0.0s</span>
               <span class="badge" id="engBadge" style="margin-left:auto"></span>
             </div>
@@ -494,8 +496,8 @@ const I={
  uz:{nav_home:"Bosh",nav_hist:"Tarix",nav_set:"Sozlama",onb_reset:"🔄 Sozlashni qaytadan",email:"Email",name:"Ism",account:"Akkaunt",logout:"Chiqish",a_login:"Kirish",a_signup:"Ro'yxatdan o'tish",a_no:"Akkaunt yo'qmi? Ro'yxatdan o'ting",a_have:"Akkaunt bormi? Kirish",a_sub_login:"Davom etish uchun kiring",a_sub_signup:"Bepul akkaunt yarating",foot:"Reels · TikTok · Shorts · VK",login:"Kirish",password:"Parol",enter:"Kirish",
   hero_t:"G'oyani ajoyib videoga aylantiring",hero_s:"Aniq subtitr · Aqlli kesish · Animatsiya — bir necha bosishда. Uslubni tanlang va videoni tashlang.",
   what:"Nima qilamiz?",style:"Subtitr uslubi",add_media:"Media qo'shish",add_hint:"MP4 / MOV — bu yerga tashlang yoki tanlang.",
-  choose:"🚀 Video tanlash va montaj",reauto:"🚀 Avtomatik montaj",rerender:"✅ Qayta tayyorlash",ready:"🎉 Tayyor!",download:"⬇️ Yuklab olish",in_hist:"Tarixda",
-  tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"Kesishni qo'llash",
+  choose:"🚀 Video tanlash va montaj",reauto:"🚀 Avtomatik montaj",rerender:"🎬 Tayyor qilish",ready:"🎉 Tayyor!",download:"⬇️ Yuklab olish",in_hist:"Tarixda",
+  tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"▶ Kesilgan holda ko'rish",
   sub_on:"Subtitr yoqilgan",sync:"Vaqt siljishi",height:"Balandligi",size:"O'lcham",wpg:"Guruhda so'z",c_active:"Faol rang",c_base:"Asosiy",caps:"KATTA HARF",
   text:"Matn",dbl:"2 marta bosib tuzating",b_height:"Balandligi",b_auto:"✨ Avto g'oyalar",b_manual:"+ Qo'lda",ref_hint:"Yoqtirgan videongizni yuklang — bot uning subtitr tempini moslaydi.",
   ref_up:"Namuna yuklash",zoom:"Zoom",clean:"Ovoz tozalash",new_video:"🔄 Yangi video",hist_empty:"Hali tayyor video yo'q.",
@@ -511,8 +513,8 @@ const I={
  ru:{nav_home:"Главная",nav_hist:"История",nav_set:"Настройки",onb_reset:"🔄 Пройти настройку заново",email:"Email",name:"Имя",account:"Аккаунт",logout:"Выйти",a_login:"Вход",a_signup:"Регистрация",a_no:"Нет аккаунта? Зарегистрируйтесь",a_have:"Есть аккаунт? Войти",a_sub_login:"Войдите, чтобы продолжить",a_sub_signup:"Создайте бесплатный аккаунт",foot:"Reels · TikTok · Shorts · VK",login:"Вход",password:"Пароль",enter:"Войти",
   hero_t:"Превратите идею в потрясающее видео",hero_s:"Точные субтитры · Умная нарезка · Анимация — в пару кликов. Выберите стиль и загрузите видео.",
   what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
-  choose:"🚀 Выбрать видео и смонтировать",reauto:"🚀 Авто‑монтаж",rerender:"✅ Пересобрать",ready:"🎉 Готово!",download:"⬇️ Скачать",in_hist:"В истории",
-  tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"Применить обрезку",
+  choose:"🚀 Выбрать видео и смонтировать",reauto:"🚀 Авто‑монтаж",rerender:"🎬 Готовое видео",ready:"🎉 Готово!",download:"⬇️ Скачать",in_hist:"В истории",
+  tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"▶ Смотреть с обрезкой",
   sub_on:"Субтитры включены",sync:"Сдвиг времени",height:"Высота",size:"Размер",wpg:"Слов в группе",c_active:"Активный цвет",c_base:"Основной",caps:"ЗАГЛАВНЫЕ",
   text:"Текст",dbl:"двойной клик для правки",b_height:"Высота",b_auto:"✨ Авто‑идеи",b_manual:"+ Вручную",ref_hint:"Загрузите любимое видео — бот подстроит темп субтитров.",
   ref_up:"Загрузить образец",zoom:"Zoom",clean:"Чистка звука",new_video:"🔄 Новое видео",hist_empty:"Пока нет готовых видео.",
@@ -528,8 +530,8 @@ const I={
  en:{nav_home:"Home",nav_hist:"History",nav_set:"Settings",onb_reset:"🔄 Redo setup",email:"Email",name:"Name",account:"Account",logout:"Log out",a_login:"Sign in",a_signup:"Sign up",a_no:"No account? Sign up",a_have:"Have an account? Sign in",a_sub_login:"Sign in to continue",a_sub_signup:"Create a free account",foot:"Reels · TikTok · Shorts · VK",login:"Sign in",password:"Password",enter:"Sign in",
   hero_t:"Turn ideas into stunning videos",hero_s:"Accurate captions · Smart cuts · Animation — in a few taps. Pick a style and drop your video.",
   what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
-  choose:"🚀 Choose video & edit",reauto:"🚀 Auto edit",rerender:"✅ Re-render",ready:"🎉 Done!",download:"⬇️ Download",in_hist:"In history",
-  tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"Apply cut",
+  choose:"🚀 Choose video & edit",reauto:"🚀 Auto edit",rerender:"🎬 Render final",ready:"🎉 Done!",download:"⬇️ Download",in_hist:"In history",
+  tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"▶ Preview with cuts",
   sub_on:"Captions on",sync:"Time offset",height:"Height",size:"Size",wpg:"Words per group",c_active:"Active color",c_base:"Base",caps:"UPPERCASE",
   text:"Text",dbl:"double-click to edit",b_height:"Height",b_auto:"✨ Auto ideas",b_manual:"+ Manual",ref_hint:"Upload a video you like — the bot matches its caption pace.",
   ref_up:"Upload reference",zoom:"Zoom",clean:"Clean audio",new_video:"🔄 New video",hist_empty:"No finished videos yet.",
@@ -1039,7 +1041,7 @@ async function runAuto(){
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
-    S.removes=[];(res.removes||[]).forEach(r=>S.removes.push({s:r[0],e:r[1],type:"auto"}));
+    S.removes=[];  // avto-kesish videoga allaqachon qo'llangan; endi faqat qo'lda kesishlar
     S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
     renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
     if(res.broll_note)$("brollMsg").textContent="Animatsiya: "+res.broll_note;
@@ -1061,15 +1063,13 @@ function renderRemoves(){
 function setManual(k){S.manual[k]=vid.currentTime;$(k==="s"?"mS":"mE").textContent=vid.currentTime.toFixed(1)+"s"}
 function addManual(){const{s,e}=S.manual;if(s==null||e==null||e<=s){toast("?");return}S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves()}
 function delRemove(i){S.removes.splice(i,1);renderRemoves()}
-async function doCut(){
-  $("cutMsg").textContent="⏳";
-  try{const rems=activeRemoves().map(r=>[r.s,r.e]);
-    const {job}=await api("/api/cut",{project:S.project,removes:rems});
-    const res=await waitJob(job,(p,s)=>$("cutMsg").textContent="⏳ "+(s||p+"%"));
-    S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
-    vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("cutMsg").innerHTML='<span style="color:var(--ok)">✔ '+res.duration.toFixed(1)+'s</span>';
-    renderWords();drawTimeline();buildFilmstrip();
-  }catch(e){$("cutMsg").innerHTML='<span class=err>'+e.message+'</span>'}
+// Kesishni DARHOL ko'rish (server kutilmaydi) — video kesilgan joylarni tashlab o'ynaydi.
+// Haqiqiy kesish "🎬 Tayyor qilish" bosilganda bitta bosqichda qo'llanadi.
+function doCut(){
+  if(!S)return;
+  const n=activeRemoves().length;
+  const el=$("cutMsg"); if(el){ el.innerHTML=n? ('<span style="color:var(--ok)">✔ '+n+' ta kesish belgilandi — o‘ynatib ko‘ring; "Tayyor qilish" saqlaydi</span>') : 'Kesish yo‘q — video ustida ✂️ bilan belgilang'; }
+  vid.currentTime=0; vid.play().catch(()=>{});
 }
 
 // ---------- SUB ----------
@@ -1228,7 +1228,16 @@ let tlDragging=false;
   inner.addEventListener("pointerup",end);
   inner.addEventListener("pointercancel",end);
 })();
-vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt)});
+function tlToggle(){ if(!vid.src)return; if(vid.paused){vid.play().catch(()=>{});} else {vid.pause();} }
+vid.addEventListener("play",()=>{const o=$("playov");if(o)o.classList.add("hide");const b=$("tlPlayBtn");if(b)b.textContent="⏸";});
+vid.addEventListener("pause",()=>{const o=$("playov");if(o)o.classList.remove("hide");const b=$("tlPlayBtn");if(b)b.textContent="▶";});
+vid.addEventListener("ended",()=>{const o=$("playov");if(o)o.classList.remove("hide");const b=$("tlPlayBtn");if(b)b.textContent="▶";});
+vid.addEventListener("timeupdate",()=>{
+  if(S && !vid.paused){ // kesilgan joylarni tashlab o'ynaydi (darhol ko'rinadi, render kutilmaydi)
+    for(const r of activeRemoves()){ if(vid.currentTime>=r.s-0.02 && vid.currentTime<r.e-0.05){ vid.currentTime=r.e+0.03; break; } }
+  }
+  const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt);
+});
 function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.words.length){ov.innerHTML="";return}
   const off=S.sub.delay,tt=tt0-off,n=S.sub.words;let cue=[],cur=[];
   for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}if(cur.length)cue.push(cur);
@@ -1257,8 +1266,9 @@ async function doRender(){
   $("renderProg").style.display="block";$("renderBtn").disabled=true;$("resultBox").style.display="none";
   const y=+$("brollY").value;const brolls=S.brolls.filter(b=>b.image).map(b=>({image:b.image,time:b.time,dur:b.dur||2.5,y,w:0.78,on:b.on!==false}));
   const zl=$("zoom").checked?(S.zoomLevel||1):0;
+  const rems=activeRemoves().map(r=>[r.s,r.e]);
   try{const {job}=await api("/api/render",{project:S.project,words:S.words,subtitle_on:$("subOn").checked,
-      subtitle:currentSub(),brolls,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",audio_clean:$("audio").checked,quality:QUALITY});
+      subtitle:currentSub(),brolls,removes:rems,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",audio_clean:$("audio").checked,quality:QUALITY});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("ready"));loadHistory();

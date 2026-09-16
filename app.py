@@ -289,8 +289,21 @@ async def render(req: Request, x_auth: str = Header("")):
     quality = str(body.get("quality", "1080")); fx = str(body.get("fx", "none"))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
+    removes = [list(r) for r in (body.get("removes") or []) if r and len(r) == 2]
     jid = new_job()
     def fn(prog):
+        nonlocal cut, words
+        # qo'lda belgilangan kesishlarni SHU render ichida qo'llaymiz (alohida kutish yo'q)
+        if removes:
+            prog(10, "Kesilgan joylar olib tashlanyapti...")
+            cdur = meta.get("cut_duration") or montaj.ffdur(cut)
+            keep = montaj.subtract_ranges([(0.0, float(cdur))], [tuple(r) for r in removes])
+            keep = [(a, b) for a, b in keep if b - a > 0.1] or [(0.0, float(cdur))]
+            tmp = os.path.join(d, "render_src.mp4")
+            montaj.cut_video(cut, tmp, keep)
+            if os.path.exists(tmp):
+                words = montaj.remap_words(words, keep) if len(keep) > 1 else words
+                cut = tmp
         prog(15, "Subtitr tayyorlanyapti...")
         ass = os.path.join(d, "subs.ass")
         if subtitle_on and words:
