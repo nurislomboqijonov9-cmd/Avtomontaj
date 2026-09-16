@@ -110,22 +110,27 @@ a{color:#c9a7ff;text-decoration:none}
 .videoBox video{width:100%;height:100%;object-fit:contain;display:block}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
-.tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px}
-.tlwrap{overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:12px;background:#0b0b15}
-.tlinner{position:relative;min-width:100%}
-.tlruler{position:relative;height:20px;border-bottom:1px solid var(--line)}
-.tlruler .tk{position:absolute;top:0;height:20px;border-left:1px solid #24243a;font-size:9px;color:var(--mut);padding-left:3px;box-sizing:border-box}
-.tlrow{position:relative;height:36px;border-bottom:1px solid #14141f}
-.tlrow#tlVid{height:52px}
-.tlrow .lab{position:absolute;left:5px;top:3px;font-size:9px;color:var(--mut);z-index:3;pointer-events:none;text-transform:uppercase;letter-spacing:.5px;background:rgba(11,11,21,.6);padding:1px 4px;border-radius:4px}
-.tlblk{position:absolute;top:5px;height:26px;border-radius:6px;font-size:10px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:4px 6px;box-sizing:border-box;cursor:pointer}
-.tlblk.vid{top:4px;height:44px;background:#181830 center/cover no-repeat;border:1px solid #2a2a44;padding:0}
-.tlblk.rem{background:rgba(255,77,109,.55);border:1px solid #ff4d6d;top:4px;height:44px;display:grid;place-items:center;font-size:14px}
-.tlblk.sub{background:rgba(91,52,230,.55);border:1px solid var(--vio)}
-.tlblk.br{background:rgba(55,198,255,.45);border:1px solid var(--sky);text-align:center}
-.tlplay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;z-index:6}
-.tlmark{position:absolute;top:0;bottom:0;width:2px;background:#22ff88;box-shadow:0 0 6px #22ff88;pointer-events:none;z-index:5}
-#cutMarkBtn.armed{background:rgba(34,255,136,.2);border-color:#22ff88;color:#bfffd8}
+.tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;flex-wrap:wrap}
+.tlwrap{position:relative;overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:14px;background:#0b0b15;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+.tlinner{position:relative;min-width:100%;user-select:none;-webkit-user-select:none;cursor:text}
+.tlinner.cutting{touch-action:none;cursor:crosshair}
+.tlruler{position:relative;height:22px;border-bottom:1px solid var(--line);background:#0d0d18}
+.tlruler .tk{position:absolute;top:0;height:22px;border-left:1px solid #2a2a42;font-size:9px;color:var(--mut);padding-left:4px;box-sizing:border-box;line-height:22px}
+.tlrow{position:relative;border-bottom:1px solid #14141f}
+#tlVid{height:58px}#tlSub{height:36px}#tlBroll{height:32px}
+.tlrow .lab{position:absolute;left:6px;top:4px;font-size:9px;color:#cfcfe6;z-index:4;pointer-events:none;text-transform:uppercase;letter-spacing:.5px;background:rgba(11,11,21,.72);padding:2px 6px;border-radius:5px}
+.tlfilm{position:absolute;top:5px;height:48px;border-radius:7px;overflow:hidden;border:1px solid #2a2a44;display:flex;background:#12121f}
+.tltile{height:100%;background:#181830 center/cover no-repeat;flex:1 1 0;min-width:0;border-right:1px solid rgba(0,0,0,.3)}
+.tlblk{position:absolute;border-radius:6px;font-size:10px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:4px 7px;box-sizing:border-box;cursor:pointer}
+.tlblk.rem{background:rgba(255,77,109,.5);border:2px solid #ff4d6d;top:5px;height:48px;display:grid;place-items:center;font-size:15px;z-index:3}
+.tlblk.sub{background:linear-gradient(180deg,rgba(123,80,255,.75),rgba(91,52,230,.6));border:1px solid var(--vio);top:5px;height:26px;font-weight:600}
+.tlblk.br{background:linear-gradient(180deg,rgba(55,198,255,.7),rgba(55,198,255,.4));border:1px solid var(--sky);text-align:center;top:5px;height:22px}
+.tlsel{position:absolute;top:5px;height:48px;background:rgba(255,77,109,.28);border:2px solid #ff4d6d;border-radius:7px;z-index:5;pointer-events:none}
+.tlplay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.8);z-index:8;pointer-events:none}
+.tlplay .knob{position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
+.tltime{position:absolute;top:2px;transform:translateX(-50%);background:var(--vio);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;z-index:9;pointer-events:none;white-space:nowrap}
+.tlmark{position:absolute;top:0;bottom:0;width:2px;background:#22ff88;box-shadow:0 0 6px #22ff88;pointer-events:none;z-index:6}
+#cutMarkBtn.armed{background:rgba(255,77,109,.22);border-color:#ff4d6d;color:#ffd0da}
 .fchip{border:1.5px solid var(--line);border-radius:10px;padding:12px 6px;text-align:center;cursor:pointer;background:rgba(255,255,255,.03);font-size:18px;line-height:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .fchip.on{border-color:transparent;box-shadow:0 0 0 2px var(--vio);background:rgba(91,52,230,.12)}
 .item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}
@@ -285,8 +290,10 @@ a{color:#c9a7ff;text-decoration:none}
           <div class="card">
             <div class="videoBox"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div></div>
             <div class="tlbar">
-              <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">−</button>
-              <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">＋</button>
+              <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">🔍−</button>
+              <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">🔍＋</button>
+              <button class="sm gh" onclick="tlNudgePlay(-0.1)" title="0.1s orqaga">⏴</button>
+              <button class="sm gh" onclick="tlNudgePlay(0.1)" title="0.1s oldinga">⏵</button>
               <button class="sm gh" id="cutMarkBtn" onclick="tlCutMark()">✂️ <span data-i="tl_cut">Kesish</span></button>
               <button class="sm pri" onclick="doCut()" title="qo'llash">✅</button>
               <span class="hint" id="tInfo">0.0s</span>
@@ -298,7 +305,8 @@ a{color:#c9a7ff;text-decoration:none}
                 <div class="tlrow" id="tlVid"></div>
                 <div class="tlrow" id="tlSub"></div>
                 <div class="tlrow" id="tlBroll"></div>
-                <div class="tlplay" id="tlplay"></div>
+                <div class="tltime" id="tltime" style="display:none">0.0s</div>
+                <div class="tlplay" id="tlplay"><div class="knob"></div></div>
               </div>
             </div>
           </div>
@@ -1118,70 +1126,108 @@ function drawTimeline(){
   if(!S){return}
   const D=S.duration||1, pps=S.pps||60, W=Math.max(320,Math.round(D*pps));
   $("tlinner").style.width=W+"px";
-  let step=D>120?10:(pps<45?5:(pps<90?2:1));
-  let rk="";for(let s=0;s<=D+0.01;s+=step){rk+=`<div class="tk" style="left:${(s*pps)}px">${Math.round(s)}s</div>`}
+  let step=D>120?10:(pps<45?5:(pps<90?2:(pps<170?1:0.5)));
+  let rk="";for(let s=0;s<=D+0.01;s+=step){rk+=`<div class="tk" style="left:${(s*pps)}px">${step<1?s.toFixed(1):Math.round(s)}s</div>`}
   $("tlruler").innerHTML=rk;$("tlruler").style.width=W+"px";
-  const fs = S.filmstrip ? `background-image:url(${S.filmstrip});background-size:100% 100%;` : "";
-  let v='<div class="lab">Video</div><div class="tlblk vid" style="left:0;width:'+Math.round(D*pps)+'px;'+fs+'"></div>';
-  activeRemoves().forEach((r,gi)=>{v+=`<div class="tlblk rem" style="left:${Math.round(r.s*pps)}px;width:${Math.max(3,Math.round((r.e-r.s)*pps))}px" title="bosib olib tashlash" onclick="tlDelRem(${r.s},${r.e})">✕</div>`});
+  // VIDEO trek — filmstrip kadrlari (alohida plitkalar, cho'zilmaydi)
+  const filmW=Math.round(D*pps);
+  let tiles="";
+  const N=S.filmstripN||0, sprite=S.filmstripSprite;
+  if(sprite&&N>0){
+    tiles=Array.from({length:N},(_,i)=>`<div class="tltile" style="background-image:url(${sprite});background-size:${N*100}% 100%;background-position:${N>1?(i/(N-1)*100):0}% 0;background-repeat:no-repeat"></div>`).join("");
+  } else {
+    tiles='<div class="tltile" style="display:grid;place-items:center;flex:1;color:#556;font-size:10px">⏳ kadrlar yuklanmoqda...</div>';
+  }
+  let v='<div class="lab">🎬 Video</div><div class="tlfilm" style="left:0;width:'+filmW+'px">'+tiles+'</div>';
+  activeRemoves().forEach((r)=>{v+=`<div class="tlblk rem" style="left:${Math.round(r.s*pps)}px;width:${Math.max(6,Math.round((r.e-r.s)*pps))}px" title="olib tashlash" onclick="event.stopPropagation();tlDelRem(${r.s},${r.e})">✕</div>`});
   $("tlVid").innerHTML=v;
-  let sub='<div class="lab">Subtitr</div>';
+  let sub='<div class="lab">💬 Subtitr</div>';
   cueGroups().forEach(g=>{const a=g[0].s,b=g[g.length-1].e,tx=esc(g.map(x=>x.w).join(" "));
-    sub+=`<div class="tlblk sub" style="left:${Math.round(a*pps)}px;width:${Math.max(8,Math.round((b-a)*pps))}px" title="${tx}" onclick="seekTo(${a})">${tx}</div>`});
+    sub+=`<div class="tlblk sub" style="left:${Math.round(a*pps)}px;width:${Math.max(8,Math.round((b-a)*pps))}px" title="${tx}" onclick="event.stopPropagation();seekTo(${a})">${tx}</div>`});
   $("tlSub").innerHTML=sub;
-  let br='<div class="lab">Animatsiya</div>';
-  (S.brolls||[]).filter(b=>b.on!==false).forEach((b)=>{br+=`<div class="tlblk br" style="left:${Math.round(b.time*pps)}px;width:${Math.max(10,Math.round((b.dur||2.5)*pps))}px" title="${esc(b.prompt)}" onclick="seekTo(${b.time})">🖼</div>`});
+  let br='<div class="lab">🖼 Animatsiya</div>';
+  (S.brolls||[]).filter(b=>b.on!==false).forEach((b)=>{br+=`<div class="tlblk br" style="left:${Math.round(b.time*pps)}px;width:${Math.max(10,Math.round((b.dur||2.5)*pps))}px" title="${esc(b.prompt)}" onclick="event.stopPropagation();seekTo(${b.time})">🖼</div>`});
   $("tlBroll").innerHTML=br;
   const om=$("tlinner").querySelector(".tlmark");if(om)om.remove();
   if(cutMark!=null){const m=document.createElement("div");m.className="tlmark";m.style.left=(cutMark*pps)+"px";$("tlinner").appendChild(m)}
   tlPlay();
 }
-function tlPlay(){if(!S)return;const pps=S.pps||60;const x=(vid.currentTime||0)*pps;const p=$("tlplay");p.style.left=x+"px";
-  const wrap=$("tlwrap");if(x<wrap.scrollLeft+40||x>wrap.scrollLeft+wrap.clientWidth-40)wrap.scrollLeft=x-wrap.clientWidth/2}
+function tlPlay(){if(!S)return;const pps=S.pps||60;const x=(vid.currentTime||0)*pps;
+  const p=$("tlplay");p.style.left=x+"px";
+  const tb=$("tltime");if(tb){tb.style.display="block";tb.style.left=x+"px";tb.textContent=(vid.currentTime||0).toFixed(1)+"s";}
+  if(!tlDragging){const wrap=$("tlwrap");if(x<wrap.scrollLeft+40||x>wrap.scrollLeft+wrap.clientWidth-40)wrap.scrollLeft=x-wrap.clientWidth/2}}
 function seekTo(t){vid.currentTime=(+t)+0.01;vid.play()}
-function tlZoom(d){if(!S)return;S.pps=Math.max(24,Math.min(240,Math.round((S.pps||60)*(d>0?1.5:0.66))));drawTimeline()}
-// ---- timeline kesish (playhead bilan) ----
-let cutMark=null;
+function tlZoom(d){if(!S)return;S.pps=Math.max(24,Math.min(600,Math.round((S.pps||60)*(d>0?1.6:0.62))));drawTimeline()}
+function tlNudgePlay(d){if(!S)return;vid.pause();vid.currentTime=Math.max(0,Math.min(S.duration,(vid.currentTime||0)+d));tlPlay();}
+// ---- timeline kesish: 2-marta bosish YOKI sudrab tanlash ----
+let cutMark=null, cutArmed=false;
+function _cutHint(){return LANG==='ru'?'Обрезка ВКЛ: нажмите начало, затем конец (или проведите)':(LANG==='en'?'Cut ON: tap start, then end (or drag)':'Kesish YONIQ: boshini bosing, keyin oxirini (yoki sudrang)')}
 function tlCutMark(){
   if(!S)return;
-  if(cutMark===null){ cutMark=+vid.currentTime.toFixed(2); $("cutMarkBtn").classList.add("armed"); drawTimeline(); toast(t("cut_from")); }
-  else{
-    let a=Math.min(cutMark,vid.currentTime), b=Math.max(cutMark,vid.currentTime);
-    cutMark=null; $("cutMarkBtn").classList.remove("armed");
-    if(b-a<0.15){drawTimeline();return}
-    S.removes.push({s:+a.toFixed(2),e:+b.toFixed(2),type:"manual"});
-    renderRemoves();drawTimeline();toast(t("cut_added"));
-  }
+  cutArmed=!cutArmed;
+  $("cutMarkBtn").classList.toggle("armed",cutArmed);
+  $("tlinner").classList.toggle("cutting",cutArmed);
+  cutMark=null;
+  toast(cutArmed? _cutHint() : (LANG==='ru'?'Обрезка выкл':(LANG==='en'?'Cut off':'Kesish o‘chdi')));
+  drawTimeline();
+}
+function _setCutMark(tt){
+  if(cutMark===null){ cutMark=tt; drawTimeline();
+    toast(LANG==='ru'?'Начало ✓ — теперь конец':(LANG==='en'?'Start ✓ — now the end':'Boshi ✓ — endi oxirini bosing')); }
+  else { _commitCut(cutMark,tt); cutMark=null; }
+}
+function _commitCut(a,b){
+  a=Math.max(0,Math.min(S.duration,a)); b=Math.max(0,Math.min(S.duration,b));
+  const lo=Math.min(a,b), hi=Math.max(a,b);
+  if(hi-lo<0.08){toast(LANG==='ru'?'Слишком коротко':(LANG==='en'?'Too short':'Juda qisqa'));return false;}
+  S.removes.push({s:+lo.toFixed(2),e:+hi.toFixed(2),type:"manual"});
+  renderRemoves();drawTimeline();toast(t("cut_added")+" · "+(hi-lo).toFixed(1)+"s");return true;
 }
 function tlDelRem(a,b){S.removes=S.removes.filter(r=>!(Math.abs(r.s-a)<0.01&&Math.abs(r.e-b)<0.01));renderRemoves();drawTimeline()}
-// ---- filmstrip (video kadrlari) ----
+// ---- filmstrip: kadrlarni SERVER chizadi (telefonda ham ishonchli) ----
 async function buildFilmstrip(){
-  if(!S||!S.videoUrl)return;
-  const url=S.videoUrl; if(S._fsUrl===url&&S.filmstrip)return; S._fsUrl=url;
+  if(!S||!S.project)return;
+  const key=S.videoUrl||S.project; if(S._fsKey===key&&S.filmstripSprite)return; S._fsKey=key;
   try{
-    const v=document.createElement("video");v.src=url;v.muted=true;v.preload="auto";
-    await new Promise((res)=>{v.onloadeddata=res;v.onerror=res;setTimeout(res,4000)});
-    const D=S.duration||v.duration||1, rowH=44;
-    const stripW=Math.min(2000, Math.max(400, Math.round(D*70)));
-    const N=Math.min(24, Math.max(4, Math.round(stripW/ (rowH*9/16))));
-    const fw=stripW/N;
-    const cv=document.createElement("canvas");cv.width=stripW;cv.height=rowH;const cx=cv.getContext("2d");
-    cx.fillStyle="#181830";cx.fillRect(0,0,stripW,rowH);
-    for(let i=0;i<N;i++){
-      const tt=(i+0.5)/N*D;
-      await new Promise((res)=>{let done=false;v.onseeked=()=>{if(!done){done=true;res()}};try{v.currentTime=Math.min(tt,(v.duration||tt))}catch(_){res()}setTimeout(()=>{if(!done){done=true;res()}},400)});
-      try{
-        const vw=v.videoWidth||9, vh=v.videoHeight||16, dw=fw, dh=rowH;
-        const sc=Math.max(dw/vw, dh/vh), sw=dw/sc, sh=dh/sc, sx=(vw-sw)/2, sy=(vh-sh)/2;
-        cx.drawImage(v, sx,sy,sw,sh, i*fw,0, dw,dh);
-      }catch(_){}
-    }
-    S.filmstrip=cv.toDataURL("image/jpeg",0.6);
-    drawTimeline();
-  }catch(_){}
+    const r=await api("/api/filmstrip",{project:S.project});
+    if(r&&r.url){ S.filmstripSprite=r.url+"?t="+Date.now(); S.filmstripN=r.n||12; drawTimeline(); }
+  }catch(e){ /* xato bo'lsa placeholder qoladi */ }
 }
-$("tlwrap").addEventListener("click",e=>{if(!S)return;if(e.target.closest(".tlblk"))return;
-  const inner=$("tlinner");const rect=inner.getBoundingClientRect();const x=e.clientX-rect.left;vid.currentTime=Math.max(0,Math.min(S.duration,x/(S.pps||60)))});
+// ---- pointer: sudrab scrub / kesish (2-tap yoki sudrab) ----
+let tlDragging=false;
+(function(){
+  const inner=$("tlinner");
+  function xToT(clientX){const r=inner.getBoundingClientRect();return Math.max(0,Math.min(S?S.duration:0,(clientX-r.left)/(S?(S.pps||60):60)))}
+  let sel=null, selEl=null, mode=null, downX=0, downT=0, moved=false;
+  inner.addEventListener("pointerdown",e=>{
+    if(!S)return; if(e.target.closest(".tlblk.rem"))return;
+    downX=e.clientX; downT=xToT(e.clientX); moved=false;
+    if(cutArmed){ mode="arm"; }         // sudralsa tanlov, bosilsa 2-tap
+    else { mode="scrub"; vid.pause(); vid.currentTime=downT; tlPlay(); }
+    tlDragging=true; try{inner.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  inner.addEventListener("pointermove",e=>{
+    if(!tlDragging||!S)return; const tt=xToT(e.clientX);
+    if(Math.abs(e.clientX-downX)>6) moved=true;
+    if(mode==="scrub"){ vid.currentTime=tt; tlPlay(); }
+    else if(mode==="arm"&&moved){
+      if(!selEl){selEl=document.createElement("div");selEl.className="tlsel";inner.appendChild(selEl);}
+      sel={a:downT,b:tt}; updateSel();
+      e.preventDefault();
+    }
+  });
+  function updateSel(){ if(!selEl||!sel)return; const pps=S.pps||60; const lo=Math.min(sel.a,sel.b),hi=Math.max(sel.a,sel.b);
+    selEl.style.left=(lo*pps)+"px"; selEl.style.width=Math.max(2,(hi-lo)*pps)+"px"; }
+  function end(e){ if(!tlDragging)return; tlDragging=false;
+    if(mode==="arm"){
+      if(moved&&sel){ if(selEl){selEl.remove();selEl=null;} _commitCut(sel.a,sel.b); sel=null; }
+      else { _setCutMark(downT); }       // bosildi (sudralmadi) -> 2-tap
+    }
+    mode=null;
+  }
+  inner.addEventListener("pointerup",end);
+  inner.addEventListener("pointercancel",end);
+})();
 vid.addEventListener("timeupdate",()=>{const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt)});
 function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.words.length){ov.innerHTML="";return}
   const off=S.sub.delay,tt=tt0-off,n=S.sub.words;let cue=[],cur=[];
@@ -1251,6 +1297,7 @@ async function resumeProject(pid){
     $("cAcc").value=S.sub.active;$("cBase").value=S.sub.base;$("upper").checked=S.sub.upper;
     $("subOn").checked=d.subtitle_on!==false;$("zoom").checked=d.zoom!==false;$("audio").checked=d.audio_clean!==false;
     $("brollY").value=d.broll_y||0.72;$("byV").textContent=d.broll_y||0.72;
+    if(d.quality)QUALITY=d.quality; renderQuality();
     subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
     if(d.final_url){$("resultBox").style.display="block";$("resVid").src=d.final_url+"?t="+Date.now();$("dl").href=d.final_url}
     toast(t("cont"));

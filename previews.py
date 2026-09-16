@@ -66,6 +66,84 @@ def _sample_bg(cache_dir):
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return bg if os.path.exists(bg) else None
 
+# ---- HAQIQIY STOK-VIDEO FON (Pexels, bepul, tijoratga ruxsat) ----
+# oila -> qidiruv mavzusi (vertikal stok-video)
+THEME_FAM = {
+ "viral":"influencer talking phone selfie","bold":"city street fast walk","neon":"night city neon lights",
+ "clean":"minimal desk workspace","cinema":"cinematic drone landscape","vlog":"travel vlog walking pov",
+ "biz":"business office meeting","pod":"podcast microphone studio","fashion":"fashion model portrait",
+ "fit":"gym workout fitness training","hype":"party crowd concert","luxe":"luxury lifestyle gold",
+ "retro":"retro vintage film grain","game":"gaming setup rgb neon","story":"nature calm forest",
+ "news":"city skyline aerial","beauty":"beauty makeup portrait woman","street":"skateboard street style",
+ "tech":"technology data abstract","calm":"ocean sunset calm waves",
+}
+SUB_THEME = "person talking closeup portrait"
+
+def _theme_for(fname):
+    name = fname[:-4] if fname.endswith(".mp4") else fname
+    if name.startswith("m_"):
+        fid = name[2:].rsplit("_",1)[0]
+        return THEME_FAM.get(fid, "cinematic lifestyle"), "m_"+fid
+    return SUB_THEME, "s_generic"
+
+def _norm_bg(src, dst):
+    """Stok klipni 3s, 720 bo'y, jimjit ovoz bilan normallaymiz (render_final [0:a] talab qiladi)."""
+    cmd = ["ffmpeg","-y","-hide_banner","-loglevel","error","-i",src,
+           "-f","lavfi","-i","anullsrc=r=48000:cl=stereo",
+           "-t","3","-map","0:v:0","-map","1:a:0","-vf","scale=-2:720,fps=30",
+           "-c:v","libx264","-preset","veryfast","-crf","23","-c:a","aac","-shortest",dst]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return os.path.exists(dst) and os.path.getsize(dst) > 2000
+
+def _pexels_video_url(query):
+    import json as _json, urllib.request
+    key = os.environ.get("PEXELS_API_KEY","").strip()
+    if not key: return None
+    try:
+        u = "https://api.pexels.com/videos/search?orientation=portrait&size=small&per_page=8&query=" + urllib.parse.quote(query)
+        req = urllib.request.Request(u, headers={"Authorization": key, "User-Agent":"VIZEN"})
+        data = _json.loads(urllib.request.urlopen(req, timeout=25).read().decode("utf-8"))
+        best = None
+        for v in data.get("videos", []):
+            for f in v.get("video_files", []):
+                w = f.get("width") or 0; h = f.get("height") or 0
+                if f.get("file_type") != "video/mp4": continue
+                if h and w and h >= w and 400 <= w <= 900:   # vertikal, kichik
+                    if best is None or w < best[0]:
+                        best = (w, f.get("link"))
+        if best: return best[1]
+        # bo'lmasa har qanday mp4
+        for v in data.get("videos", []):
+            for f in v.get("video_files", []):
+                if f.get("file_type")=="video/mp4" and f.get("link"):
+                    return f["link"]
+    except Exception:
+        return None
+    return None
+
+import urllib.parse
+def _real_bg(theme, tag, cache_dir):
+    """theme mavzusiga mos haqiqiy stok-video foni; topilmasa gradient."""
+    bgdir = os.path.join(cache_dir, "bg"); os.makedirs(bgdir, exist_ok=True)
+    dst = os.path.join(bgdir, tag + ".mp4")
+    if os.path.exists(dst) and os.path.getsize(dst) > 2000:
+        return dst
+    link = _pexels_video_url(theme)
+    if link:
+        try:
+            import urllib.request
+            raw = os.path.join(bgdir, tag + "_raw.mp4")
+            req = urllib.request.Request(link, headers={"User-Agent":"Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=40) as r, open(raw,"wb") as f:
+                f.write(r.read(12*1024*1024))   # <=12MB
+            if _norm_bg(raw, dst):
+                try: os.remove(raw)
+                except Exception: pass
+                return dst
+        except Exception:
+            pass
+    return _sample_bg(cache_dir)   # zaxira: gradient
+
 def params_for(fname):
     """fname -> (sub_dict, grade, zoom) yoki None."""
     name = fname[:-4] if fname.endswith(".mp4") else fname
@@ -101,7 +179,9 @@ def build_preview(fname, cache_dir):
     if not p: return None
     sub, grade, zoom, fx = p
     os.makedirs(cache_dir, exist_ok=True)
-    bg = _sample_bg(cache_dir)
+    theme, tag = _theme_for(fname)
+    bg = _real_bg(theme, tag, cache_dir)   # haqiqiy stok-video, bo'lmasa gradient
+    if not bg: bg = _sample_bg(cache_dir)
     if not bg: return None
     montaj.QMAP["thumb"] = (264, 468, 31)
     ass = os.path.join(cache_dir, "_" + fname.replace(".mp4","") + ".ass")

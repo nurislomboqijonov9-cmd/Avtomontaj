@@ -888,6 +888,17 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     c,_=run(cmd)
     return c==0 and os.path.exists(outp)
 
+def filmstrip(src, outp, n=None, h=48):
+    """Videodan sekundma-sekund kadrlar — 1 qatorli sprite rasm. Kadrlar sonini qaytaradi."""
+    dur = _probe_dur(src) or 1.0
+    N = n or min(60, max(4, int(round(dur))))
+    fps = max(0.05, N/dur)
+    vf = f"fps={fps:.5f},scale=-2:{int(h)},tile={N}x1"
+    c,_ = run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",src,"-frames:v","1","-vf",vf,"-q:v","4",outp])
+    if c==0 and os.path.exists(outp) and os.path.getsize(outp)>500:
+        return N
+    return 0
+
 def _probe_dur(path):
     try:
         c,o=run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=nw=1:nk=1",path], capture=True)

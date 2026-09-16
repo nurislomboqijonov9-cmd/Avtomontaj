@@ -86,7 +86,7 @@ app.mount("/assets", StaticFiles(directory=STATIC, check_dir=False), name="asset
 
 # ---------- USLUB VIDEO-MISOLLARI (serverda generatsiya, keshlab) ----------
 import re as _re
-PREVIEW_VER = "v2"   # effektlar o'zgarsa bump qiling -> keshdan qayta chiziladi
+PREVIEW_VER = "v3"   # effekt/fon o'zgarsa bump qiling -> keshdan qayta chiziladi
 PREV_DIR = os.path.join(DATA, "previews", PREVIEW_VER); os.makedirs(PREV_DIR, exist_ok=True)
 _prev_locks = {}
 def _prev_lock(name):
@@ -350,6 +350,26 @@ async def preview(req: Request, x_auth: str = Header("")):
         return {"url": f"/media/{pid}/{outname}"}
     run_job(jid, fn)
     return {"job": jid}
+
+# ---------- FILMSTRIP (timeline uchun haqiqiy kadrlar) ----------
+@app.post("/api/filmstrip")
+async def filmstrip_ep(req: Request, x_auth: str = Header("")):
+    check_auth(x_auth)
+    import hashlib
+    body = await req.json(); pid = body["project"]; d = pdir(pid); meta = load_meta(pid)
+    srcname = meta.get("cut") or meta.get("input")
+    if not srcname:
+        raise HTTPException(400, "video yo'q")
+    src = os.path.join(d, srcname)
+    key = hashlib.md5(srcname.encode("utf-8")).hexdigest()[:8]
+    outname = f"strip_{key}.jpg"; out = os.path.join(d, outname)
+    n = meta.get("strip_n_" + key, 0)
+    if not (os.path.exists(out) and os.path.getsize(out) > 500 and n):
+        n = montaj.filmstrip(src, out)
+        if not n:
+            raise HTTPException(500, "strip xato")
+        meta["strip_n_" + key] = n; save_meta(pid, meta)
+    return {"url": f"/media/{pid}/{outname}", "n": n}
 
 # ---------- AVTOMATIK (hammasi bir tugmada) ----------
 @app.post("/api/auto")
