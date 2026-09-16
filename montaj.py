@@ -620,8 +620,8 @@ def pick_font(fam, lang="uz"):
         return "Montserrat"   # rus uchun Cyrillic bo'lgan shriftga o'tamiz
     return fam
 
-def build_ass(words, sub, lang="uz"):
-    """sub = dict: font, size, base, active, outline, border, upper, words, delay, margin_v"""
+def build_ass(words, sub, lang="uz", hook=None):
+    """sub = dict: font, size, base, active, outline, border, upper, words, delay, margin_v. hook = boshidagi sarlavha matni."""
     base=hexass(sub.get("base","#FFFFFF")); acc=hexass(sub.get("active","#FFEA00"))
     outl=hexass(sub.get("outline","#000000")); upper=sub.get("upper",True)
     font=pick_font(sub.get("font","Anton"), lang); size=int(sub.get("size",90)); border=sub.get("border",4)
@@ -646,10 +646,16 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Main,{font},{size},{base},{base},{outl},&H64000000,-1,0,0,0,100,100,0,0,1,{border},2,2,100,100,{mv},1
+Style: Hook,{font},{int(size*1.25)},{acc},{acc},{outl},&H64000000,-1,0,0,0,100,100,0,0,1,{max(5,border+2)},3,8,60,60,{int(H*0.30)},1
 
 [Events]
 Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
 """
+    lines0=[]
+    if hook:
+        htxt=(hook.upper() if upper else hook).replace("{","(").replace("}",")")
+        heff="{\\fad(120,180)\\fscx40\\fscy40\\t(0,220,\\fscx108\\fscy108)\\t(220,340,\\fscx100\\fscy100)}"
+        lines0.append("Dialogue: 1,%s,%s,Hook,0,0,0,,%s%s"%(ts(0.05),ts(2.4),heff,htxt))
     cues=group_cues(words,n)
     flat=[]
     for cue in cues:
@@ -672,7 +678,7 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
         parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
         ov=aeff if wi==0 else ""
         lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov," ".join(parts)))
-    return head+"\n".join(lines)+"\n"
+    return head+"\n".join(lines0+lines)+"\n"
 
 # ---------- B-ROLL rasm ----------
 def _ai_json(prompt):
@@ -688,6 +694,87 @@ def _ai_json(prompt):
     body={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":0.4,"response_mime_type":"application/json"}}
     r=requests.post(url,json=body,timeout=60); r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+# ================= EMOJI STIKERLAR (kalit so'zga) =================
+_EMOJI_FONT = None
+for _p in ("/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+           "/usr/share/fonts/truetype/noto-color-emoji/NotoColorEmoji.ttf"):
+    if os.path.exists(_p): _EMOJI_FONT = _p; break
+
+# kalit so'z (uz/ru/en) -> emoji
+EMOJI_MAP = {
+ "🔥":["olov","zo'r","zор","fire","огонь","круто","гуруч","hot","top","зажиг"],
+ "💰":["pul","daromad","biznes","money","деньги","бизнес","доход","profit","sotuv","boylik"],
+ "❤️":["sevgi","yaxshi","love","любовь","сердце","like","yoqdi"],
+ "😂":["kulgi","kulish","haha","смех","funny","прикол"],
+ "🚀":["tez","o'sish","boshla","rost","launch","рост","старт","быстро","success","muvaffaqiyat"],
+ "✅":["to'g'ri","bo'ldi","tayyor","done","готово","правильно","ok","ha"],
+ "💡":["g'oya","fikr","idea","идея","совет","maslahat","bil"],
+ "🎯":["maqsad","aniq","target","цель","focus","natija","result"],
+ "⭐":["eng","zo'r","best","лучший","top","reyting","yulduz","star"],
+ "👀":["qara","ko'r","look","смотри","внимание","diqqat"],
+ "💪":["kuch","sport","mashq","gym","сила","тренировка","fitnes","strong"],
+ "🤯":["hayron","wow","вау","шок","ajoyib","aql"],
+ "🎉":["bayram","tabrik","party","праздник","yutuq","win"],
+ "📈":["o'sish","grafik","statistika","growth","график","рост","ko'paydi"],
+ "🕐":["vaqt","tez","daqiqa","time","время","soat"],
+ "🎬":["video","montaj","kino","film","съёмка","montaj"],
+ "📱":["telefon","ilova","app","телефон","instagram","tiktok","reels"],
+ "🍔":["ovqat","taom","food","еда","restoran","yeb"],
+ "✈️":["sayohat","travel","путешествие","dam","sayohat"],
+ "🧠":["aql","miya","o'yla","brain","мозг","думай","bilim"],
+}
+def _norm_kw(s): return re.sub(r"[^\w']","",(s or "").lower())
+
+def _emoji_png(ch, dest, px=240):
+    if not _EMOJI_FONT: return False
+    try:
+        from PIL import Image, ImageFont, ImageDraw
+        font=ImageFont.truetype(_EMOJI_FONT, 109)
+        img=Image.new("RGBA",(150,150),(0,0,0,0))
+        ImageDraw.Draw(img).text((8,8), ch, font=font, embedded_color=True)
+        bb=img.getbbox()
+        if bb: img=img.crop(bb)
+        img=img.resize((px,px), Image.LANCZOS)
+        img.save(dest); return True
+    except Exception:
+        return False
+
+def emoji_plan(words, workdir, n=8, min_gap=1.6):
+    """Transkript so'zlariga mos emoji stikerlar rejasi. -> [{path,time,dur,x,y,size}]"""
+    if not _EMOJI_FONT or not words: return []
+    # kalit so'z -> emoji
+    hits=[]
+    for w in words:
+        kw=_norm_kw(w.get("w",""))
+        if len(kw)<3: continue
+        for emo, keys in EMOJI_MAP.items():
+            if any(kw==k or (len(k)>=4 and k in kw) for k in keys):
+                hits.append((float(w.get("s",0)), emo)); break
+    # tarqatish (min gap)
+    plan=[]; last=-99; import random
+    for s,emo in sorted(hits):
+        if s-last<min_gap: continue
+        last=s; plan.append((s,emo))
+        if len(plan)>=n: break
+    out=[]; made={}
+    poss=[(0.20,0.30),(0.78,0.32),(0.24,0.66),(0.80,0.64),(0.5,0.24)]
+    for i,(s,emo) in enumerate(plan):
+        code="_".join(f"{ord(c):x}" for c in emo)
+        p=made.get(emo)
+        if not p:
+            p=os.path.join(workdir, f"emo_{code}.png")
+            if not os.path.exists(p):
+                if not _emoji_png(emo, p): continue
+            made[emo]=p
+        px_,py_=poss[i%len(poss)]
+        out.append({"path":p,"time":round(s,2),"dur":1.4,"x":px_,"y":py_,"size":0.15})
+    return out
+
+def hook_text(full_text, lang="uz"):
+    t=(full_text or "").strip().split()
+    if len(t)>=3: return " ".join(t[:4])
+    return {"uz":"KO'RIB CHIQING","ru":"СМОТРИ ДО КОНЦА","en":"WATCH THIS"}.get(lang,"WATCH THIS")
 
 def broll_suggest(full_text, dur, n=4):
     prompt=(f"Video transkripti (o'zbekcha): \"{full_text[:1500]}\"\n"
@@ -843,8 +930,9 @@ FX_MAP={  # oila -> effekt
 }
 
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
-                 quality="1080", fast=False, fx="none"):
-    """brolls=[...]. grade=rang, zoom_level=0/1/2, quality=480/720/1080, fx=montaj effekti."""
+                 quality="1080", fast=False, fx="none", stickers=None):
+    """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}] (emoji pop). fx=montaj effekti."""
+    stickers = stickers or []
     tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
@@ -867,16 +955,31 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else "aresample=48000"
     parts=[base0]+fxparts+[subpart]; cur="[base]"; inputs=["-i",cut]
+    idx=0
+    # --- B-ROLL: Ken Burns (sekin zoom/pan) ---
     for k,b in enumerate(brolls):
         p=b["path"]; s=float(b["time"]); d=float(b.get("dur",2.5))
-        y=float(b.get("y",0.72)); bw=int(tw*float(b.get("w",0.78)))
-        inputs+=["-loop","1","-t",f"{d}","-i",p]
-        idx=k+1
-        parts.append(f"[{idx}:v]scale={bw}:-1,format=yuva420p,"
-                     f"fade=t=in:st=0:d=0.25:alpha=1,fade=t=out:st={max(0.01,d-0.25):.2f}:d=0.25:alpha=1,"
+        y=float(b.get("y",0.72)); bw=int(tw*float(b.get("w",0.78))); bh=int(bw*0.62); fr=max(1,int(d*30))
+        inputs+=["-loop","1","-t",f"{d}","-i",p]; idx+=1
+        parts.append(f"[{idx}:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
+                     f"zoompan=z='min(zoom+0.0016,1.14)':d={fr}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={bw}x{bh}:fps=30,"
+                     f"format=yuva420p,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(0.01,d-0.3):.2f}:d=0.3:alpha=1,"
                      f"setpts=PTS+{s:.2f}/TB[ov{k}]")
         nxt=f"[vb{k}]"
         parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(th*y)}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
+        cur=nxt
+    # --- EMOJI STIKERLAR: pop (kalit so'zga) ---
+    for k,st in enumerate(stickers):
+        p=st["path"]; s=float(st["time"]); d=float(st.get("dur",1.4))
+        sz=int(tw*float(st.get("size",0.15))); fr=max(1,int(d*30))
+        x=int(tw*float(st.get("x",0.5))-sz/2); y=int(th*float(st.get("y",0.4))-sz/2)
+        inputs+=["-loop","1","-t",f"{d}","-i",p]; idx+=1
+        parts.append(f"[{idx}:v]scale={sz}:{sz},"
+                     f"zoompan=z='if(lte(on,6),1.35-0.058*on,1.0)':d={fr}:s={sz}x{sz}:fps=30,"
+                     f"format=yuva420p,fade=t=in:st=0:d=0.12:alpha=1,fade=t=out:st={max(0.01,d-0.22):.2f}:d=0.22:alpha=1,"
+                     f"setpts=PTS+{s:.2f}/TB[stk{k}]")
+        nxt=f"[sv{k}]"
+        parts.append(f"{cur}[stk{k}]overlay={x}:{y}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
     parts.append(f"[0:a]{af}[aout]")
     fc=";".join(parts)

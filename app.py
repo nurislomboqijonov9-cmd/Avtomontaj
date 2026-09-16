@@ -290,6 +290,7 @@ async def render(req: Request, x_auth: str = Header("")):
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
     removes = [list(r) for r in (body.get("removes") or []) if r and len(r) == 2]
+    do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
     jid = new_job()
     def fn(prog):
         nonlocal cut, words
@@ -306,10 +307,12 @@ async def render(req: Request, x_auth: str = Header("")):
                 cut = tmp
         prog(15, "Subtitr tayyorlanyapti...")
         ass = os.path.join(d, "subs.ass")
+        hooktext = montaj.hook_text(meta.get("full_text", ""), lang) if do_hook else None
         if subtitle_on and words:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang, hook=hooktext))
         else:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang, hook=hooktext))
+        stickers = montaj.emoji_plan(words, d, n=8) if do_stickers else []
         brolls = []
         for b in brolls_in:
             if not b.get("on", True): continue
@@ -322,13 +325,14 @@ async def render(req: Request, x_auth: str = Header("")):
                                "w": float(b.get("w", 0.78))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx)
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": (brolls_in[0]["y"] if brolls_in else 0.72),
-                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx,
+                                     "stickers": do_stickers, "hook": do_hook})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
     run_job(jid, fn)
@@ -398,6 +402,7 @@ async def auto(req: Request, x_auth: str = Header("")):
     subtitle_on = bool(body.get("subtitle_on", True))  # subtitr ixtiyoriy
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
     quality = str(body.get("quality", "1080")); fx = str(body.get("fx", "none"))
+    do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
@@ -439,16 +444,19 @@ async def auto(req: Request, x_auth: str = Header("")):
             if not bnote: bnote = f"{len(outb)} ta"
         prog(70, "Video render qilinyapti (1-3 daqiqa)...")
         ass = os.path.join(d, "subs.ass")
-        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2 if subtitle_on else [], sub, lang))
+        hooktext = montaj.hook_text(full, lang) if do_hook else None
+        open(ass, "w", encoding="utf-8").write(montaj.build_ass(w2 if subtitle_on else [], sub, lang, hook=hooktext))
+        stickers = montaj.emoji_plan(w2, d, n=8) if do_stickers else []
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
-                    "y": broll_y, "w": 0.78} for b in outb]
+                    "y": broll_y, "w": 0.92} for b in outb]
         out = os.path.join(d, "final.mp4")
-        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx):
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers):
             raise RuntimeError("render xato")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
                                      "subtitle_on": subtitle_on, "broll_y": broll_y,
-                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx})
+                                     "grade": grade, "zoom_level": zoom_level, "quality": quality, "fx": fx,
+                                     "stickers": do_stickers, "hook": do_hook})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
