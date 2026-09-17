@@ -968,18 +968,29 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
         nxt=f"[vb{k}]"
         parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(th*y)}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
-    # --- EMOJI STIKERLAR: pop (kalit so'zga) ---
+    # --- EMOJI/ELEMENT STIKERLAR: turli animatsiya (perexod) ---
     for k,st in enumerate(stickers):
         p=st["path"]; s=float(st["time"]); d=float(st.get("dur",1.4))
         sz=int(tw*float(st.get("size",0.15))); fr=max(1,int(d*30))
         x=int(tw*float(st.get("x",0.5))-sz/2); y=int(th*float(st.get("y",0.4))-sz/2)
+        anim=str(st.get("anim","pop"))
         inputs+=["-loop","1","-t",f"{d}","-i",p]; idx+=1
-        parts.append(f"[{idx}:v]scale={sz}:{sz},"
-                     f"zoompan=z='if(lte(on,6),1.35-0.058*on,1.0)':d={fr}:s={sz}x{sz}:fps=30,"
-                     f"format=yuva420p,fade=t=in:st=0:d=0.12:alpha=1,fade=t=out:st={max(0.01,d-0.22):.2f}:d=0.22:alpha=1,"
-                     f"setpts=PTS+{s:.2f}/TB[stk{k}]")
+        pre=f"[{idx}:v]scale={sz}:{sz},"
+        zp=f"zoompan=z='if(lte(on,6),1.35-0.058*on,1.0)':d={fr}:s={sz}x{sz}:fps=30,"   # pop (default)
+        if anim=="bounce": zp=f"zoompan=z='if(lte(on,4),1.6-0.15*on,if(lte(on,9),1.0+0.04*(9-on),1.0))':d={fr}:s={sz}x{sz}:fps=30,"
+        elif anim=="grow": zp=f"zoompan=z='min(1.0+0.02*on,1.25)':d={fr}:s={sz}x{sz}:fps=30,"
+        elif anim=="pulse": zp=f"zoompan=z='1.0+0.08*sin(on*0.6)':d={fr}:s={sz}x{sz}:fps=30,"
+        elif anim in ("fade","slidel","slider","drop"): zp=""   # bu animatsiyalar overlay/fadeda
+        fadea="format=yuva420p,fade=t=in:st=0:d=0.12:alpha=1,fade=t=out:st=%.2f:d=0.22:alpha=1,"%max(0.01,d-0.22)
+        if anim=="fade": fadea="format=yuva420p,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st=%.2f:d=0.3:alpha=1,"%max(0.01,d-0.3)
+        parts.append(f"{pre}{zp}{fadea}setpts=PTS+{s:.2f}/TB[stk{k}]")
+        # overlay joyi (slide/drop uchun harakat)
+        ox=str(x); oy=str(y)
+        if anim=="slidel": ox=f"'{x}+{sz}*0.6*max(0,1-(t-{s:.2f})/0.3)'"
+        elif anim=="slider": ox=f"'{x}-{sz}*0.6*max(0,1-(t-{s:.2f})/0.3)'"
+        elif anim=="drop": oy=f"'{y}-{sz}*0.6*max(0,1-(t-{s:.2f})/0.3)'"
         nxt=f"[sv{k}]"
-        parts.append(f"{cur}[stk{k}]overlay={x}:{y}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
+        parts.append(f"{cur}[stk{k}]overlay={ox}:{oy}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
     parts.append(f"[0:a]{af}[aout]")
     fc=";".join(parts)
@@ -991,13 +1002,13 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     c,_=run(cmd)
     return c==0 and os.path.exists(outp)
 
-def filmstrip(src, outp, n=None, h=48):
-    """Videodan sekundma-sekund kadrlar — 1 qatorli sprite rasm. Kadrlar sonini qaytaradi."""
+def filmstrip(src, outp, n=None, h=96):
+    """Videodan sekundma-sekund kadrlar — 1 qatorli sprite rasm (aniq). Kadrlar sonini qaytaradi."""
     dur = _probe_dur(src) or 1.0
-    N = n or min(60, max(4, int(round(dur))))
+    N = n or min(80, max(6, int(round(dur*1.5))))
     fps = max(0.05, N/dur)
-    vf = f"fps={fps:.5f},scale=-2:{int(h)},tile={N}x1"
-    c,_ = run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",src,"-frames:v","1","-vf",vf,"-q:v","4",outp])
+    vf = f"fps={fps:.5f},scale=-2:{int(h)}:flags=bicubic,tile={N}x1"
+    c,_ = run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",src,"-frames:v","1","-vf",vf,"-q:v","2",outp])
     if c==0 and os.path.exists(outp) and os.path.getsize(outp)>500:
         return N
     return 0

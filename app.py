@@ -291,6 +291,8 @@ async def render(req: Request, x_auth: str = Header("")):
     brolls_in = body.get("brolls", [])
     removes = [list(r) for r in (body.get("removes") or []) if r and len(r) == 2]
     do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
+    sticker_items = body.get("sticker_items")      # brauzer rejasi (emoji belgisi bilan) yoki None
+    hook_override = body.get("hook_text")           # brauzerdan tahrirlangan hook matni
     jid = new_job()
     def fn(prog):
         nonlocal cut, words
@@ -307,12 +309,31 @@ async def render(req: Request, x_auth: str = Header("")):
                 cut = tmp
         prog(15, "Subtitr tayyorlanyapti...")
         ass = os.path.join(d, "subs.ass")
-        hooktext = montaj.hook_text(meta.get("full_text", ""), lang) if do_hook else None
+        if hook_override is not None:
+            hooktext = (hook_override or "").strip() or None
+        else:
+            hooktext = montaj.hook_text(meta.get("full_text", ""), lang) if do_hook else None
         if subtitle_on and words:
             open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang, hook=hooktext))
         else:
             open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang, hook=hooktext))
-        stickers = montaj.emoji_plan(words, d, n=8) if do_stickers else []
+        # STIKERLAR: brauzer rejasi bo'lsa uni chizamiz (foydalanuvchi tahrirlagan), aks holda avto
+        if isinstance(sticker_items, list):
+            stickers = []
+            for it in sticker_items:
+                emo = (it.get("emoji") or "").strip()
+                if not emo: continue
+                code = "_".join(f"{ord(c):x}" for c in emo)
+                pth = os.path.join(d, f"emo_{code}.png")
+                if not os.path.exists(pth): montaj._emoji_png(emo, pth)
+                if os.path.exists(pth):
+                    stickers.append({"path": pth, "time": float(it.get("time", 0)), "dur": float(it.get("dur", 1.4)),
+                                     "x": float(it.get("x", 0.5)), "y": float(it.get("y", 0.4)),
+                                     "size": float(it.get("size", 0.15)), "anim": it.get("anim", "pop")})
+        elif do_stickers:
+            stickers = montaj.emoji_plan(words, d, n=8)
+        else:
+            stickers = []
         brolls = []
         for b in brolls_in:
             if not b.get("on", True): continue

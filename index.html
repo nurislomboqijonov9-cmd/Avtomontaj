@@ -110,6 +110,12 @@ a{color:#c9a7ff;text-decoration:none}
 .videoBox video{width:100%;height:100%;object-fit:contain;display:block}
 .playov{position:absolute;inset:0;display:grid;place-items:center;font-size:44px;color:#fff;background:rgba(0,0,0,.25);cursor:pointer;text-shadow:0 2px 12px rgba(0,0,0,.6);z-index:4}
 .playov.hide{display:none}
+.fxOv{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+.fxOv .hook{position:absolute;top:26%;left:50%;transform:translateX(-50%);text-align:center;font-weight:900;color:#ffea00;font-size:9cqh;line-height:1.05;text-transform:uppercase;text-shadow:0 3px 14px rgba(0,0,0,.75);padding:0 6%;animation:hookIn .4s ease both}
+@keyframes hookIn{from{transform:translateX(-50%) scale(.4);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+.fxOv .stk{position:absolute;font-size:12cqh;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));animation:stkPop .35s cubic-bezier(.34,1.7,.5,1) both}
+@keyframes stkPop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+.tltile{image-rendering:auto}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
 .tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;flex-wrap:wrap}
@@ -290,7 +296,7 @@ a{color:#c9a7ff;text-decoration:none}
       <div class="grid2">
         <div>
           <div class="card">
-            <div class="videoBox" onclick="tlToggle()"><video id="vid" playsinline></video><div class="capOv" id="capOv"></div><div class="playov" id="playov">▶</div></div>
+            <div class="videoBox" onclick="tlToggle()"><video id="vid" playsinline></video><div class="fxOv" id="fxOv"></div><div class="capOv" id="capOv"></div><div class="playov" id="playov">▶</div></div>
             <div class="tlbar">
               <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">🔍−</button>
               <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">🔍＋</button>
@@ -388,6 +394,16 @@ a{color:#c9a7ff;text-decoration:none}
               </div>
               <div class="hint" id="brollMsg"></div>
               <div id="brollList"></div>
+            </div>
+            <div class="card">
+              <h3>😀 <span data-i="el_stk">Emoji elementlar</span></h3>
+              <div class="field"><div class="lbl" data-i="el_hook">Hook sarlavha (boshida)</div>
+                <input id="hookInp" placeholder="masalan: PUL TOPISH SIRI" oninput="S&&(S.hookText=this.value)" style="width:100%"></div>
+              <div class="row" style="margin-bottom:8px">
+                <button class="pri sm" onclick="autoStickers()" data-i="el_auto">✨ Avto emoji</button>
+                <button class="gh sm" onclick="addSticker()" data-i="el_add">+ Emoji qo'shish</button>
+              </div>
+              <div id="stkList"></div>
             </div>
           </div>
 
@@ -501,7 +517,7 @@ const I={
   sub_on:"Subtitr yoqilgan",sync:"Vaqt siljishi",height:"Balandligi",size:"O'lcham",wpg:"Guruhda so'z",c_active:"Faol rang",c_base:"Asosiy",caps:"KATTA HARF",
   text:"Matn",dbl:"2 marta bosib tuzating",b_height:"Balandligi",b_auto:"✨ Avto g'oyalar",b_manual:"+ Qo'lda",ref_hint:"Yoqtirgan videongizni yuklang — bot uning subtitr tempini moslaydi.",
   ref_up:"Namuna yuklash",zoom:"Zoom",clean:"Ovoz tozalash",new_video:"🔄 Yangi video",hist_empty:"Hali tayyor video yo'q.",
-  o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi (Ken Burns)",o_stk:"Emoji stiker",o_stk_d:"Kalit so'zga mos emoji chiqadi",o_hook:"Hook sarlavha",o_hook_d:"Boshida animatsion sarlavha",
+  o_sub:"Subtitr",o_sub_d:"O'zbek/rus/ingliz aniq subtitr",o_cut:"Kesish",o_cut_d:"Jimlik va takrorni oladi",o_broll:"Animatsiya",o_broll_d:"Gapga mos rasm qo'shadi (Ken Burns)",o_stk:"Emoji stiker",o_stk_d:"Kalit so'zga mos emoji chiqadi",o_hook:"Hook sarlavha",o_hook_d:"Boshida animatsion sarlavha",el_stk:"Emoji elementlar",el_hook:"Hook sarlavha (boshida)",el_auto:"✨ Avto emoji",el_add:"+ Emoji qo'shish",
   proc:"Montaj qilinyapti...",done_t:"Tayyor! Pastda tuzatishingiz mumkin.",cont:"✏️ Davom ettirish",
   onb_t:"Sizga moslaymiz",onb_s:"3 ta savol — keyin hammasi tayyor.",onb_lang:"Til",onb_who:"Kim uchun video?",onb_style:"Qaysi uslub yoqadi?",onb_go:"Boshlash →",
   edit_style:"Montaj uslubi",customize:"⚙️ Moslash",who_personal:"Shaxsiy / bloger",who_biz:"Biznes",who_smm:"SMM / reklama",who_client:"Mijozlar uchun",font:"Shrift",tl_cut:"Kesish",cut_from:"Boshi belgilandi — oxirini tanlab yana bosing",cut_added:"Kesildi",
@@ -518,7 +534,7 @@ const I={
   sub_on:"Субтитры включены",sync:"Сдвиг времени",height:"Высота",size:"Размер",wpg:"Слов в группе",c_active:"Активный цвет",c_base:"Основной",caps:"ЗАГЛАВНЫЕ",
   text:"Текст",dbl:"двойной клик для правки",b_height:"Высота",b_auto:"✨ Авто‑идеи",b_manual:"+ Вручную",ref_hint:"Загрузите любимое видео — бот подстроит темп субтитров.",
   ref_up:"Загрузить образец",zoom:"Zoom",clean:"Чистка звука",new_video:"🔄 Новое видео",hist_empty:"Пока нет готовых видео.",
-  o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Картинки по смыслу (Ken Burns)",o_stk:"Эмодзи‑стикеры",o_stk_d:"Эмодзи по ключевым словам",o_hook:"Хук‑заголовок",o_hook_d:"Анимированный заголовок в начале",
+  o_sub:"Субтитры",o_sub_d:"Точные суб. узб/рус/англ",o_cut:"Обрезка",o_cut_d:"Убирает паузы и повторы",o_broll:"Анимация",o_broll_d:"Картинки по смыслу (Ken Burns)",o_stk:"Эмодзи‑стикеры",o_stk_d:"Эмодзи по ключевым словам",o_hook:"Хук‑заголовок",o_hook_d:"Анимированный заголовок в начале",el_stk:"Эмодзи‑элементы",el_hook:"Хук‑заголовок (в начале)",el_auto:"✨ Авто эмодзи",el_add:"+ Добавить эмодзи",
   proc:"Монтаж...",done_t:"Готово! Можно доработать ниже.",cont:"✏️ Продолжить",
   onb_t:"Настроим под вас",onb_s:"3 вопроса — и всё готово.",onb_lang:"Язык",onb_who:"Для кого видео?",onb_style:"Какой стиль нравится?",onb_go:"Начать →",
   edit_style:"Стиль монтажа",customize:"⚙️ Настроить",who_personal:"Личное / блог",who_biz:"Бизнес",who_smm:"SMM / реклама",who_client:"Для клиентов",font:"Шрифт",tl_cut:"Обрезка",cut_from:"Начало отмечено — выберите конец и нажмите ещё",cut_added:"Вырезано",
@@ -535,7 +551,7 @@ const I={
   sub_on:"Captions on",sync:"Time offset",height:"Height",size:"Size",wpg:"Words per group",c_active:"Active color",c_base:"Base",caps:"UPPERCASE",
   text:"Text",dbl:"double-click to edit",b_height:"Height",b_auto:"✨ Auto ideas",b_manual:"+ Manual",ref_hint:"Upload a video you like — the bot matches its caption pace.",
   ref_up:"Upload reference",zoom:"Zoom",clean:"Clean audio",new_video:"🔄 New video",hist_empty:"No finished videos yet.",
-  o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Matching images (Ken Burns)",o_stk:"Emoji stickers",o_stk_d:"Emoji on keywords",o_hook:"Hook title",o_hook_d:"Animated title at the start",
+  o_sub:"Captions",o_sub_d:"Accurate uz/ru/en captions",o_cut:"Cut",o_cut_d:"Removes silence & repeats",o_broll:"Animation",o_broll_d:"Matching images (Ken Burns)",o_stk:"Emoji stickers",o_stk_d:"Emoji on keywords",o_hook:"Hook title",o_hook_d:"Animated title at the start",el_stk:"Emoji elements",el_hook:"Hook title (start)",el_auto:"✨ Auto emoji",el_add:"+ Add emoji",
   proc:"Editing...",done_t:"Done! You can fine-tune below.",cont:"✏️ Continue",
   onb_t:"Let's set you up",onb_s:"3 questions and you're ready.",onb_lang:"Language",onb_who:"Who is the video for?",onb_style:"Which style do you like?",onb_go:"Start →",
   edit_style:"Edit style",customize:"⚙️ Customize",who_personal:"Personal / creator",who_biz:"Business",who_smm:"SMM / ads",who_client:"For clients",font:"Font",tl_cut:"Cut",cut_from:"Start marked — pick end and tap again",cut_added:"Cut added",
@@ -864,7 +880,7 @@ function renderOpts(){
   $("opts").innerHTML=defs.map(o=>`<div class="opt ${OPTS[o.k]?'on':''}" onclick="toggleOpt('${o.k}')">
     <div class="t">${o.t}<span class="chk">${OPTS[o.k]?'✓':''}</span></div><div class="d">${o.d}</div></div>`).join("");
 }
-function toggleOpt(k){OPTS[k]=!OPTS[k];renderOpts()}
+function toggleOpt(k){OPTS[k]=!OPTS[k];renderOpts();if(S){computeAnims();updateFxOv(vid.currentTime||0);}}
 function renderPresets(){
   $("presets").innerHTML=PRESETS.map(p=>`<div class="preset ${p.id===PRESET.id?'on':''}" onclick="pickPreset('${p.id}')">
     <div class="g subframe" style="align-items:flex-end;min-height:70px">
@@ -1045,7 +1061,7 @@ async function runAuto(){
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
     S.removes=[];  // avto-kesish videoga allaqachon qo'llangan; endi faqat qo'lda kesishlar
     S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
-    renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
+    renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();
     if(res.broll_note)$("brollMsg").textContent="Animatsiya: "+res.broll_note;
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("done_t"));loadHistory();
@@ -1231,15 +1247,82 @@ let tlDragging=false;
   inner.addEventListener("pointercancel",end);
 })();
 function tlToggle(){ if(!vid.src)return; if(vid.paused){vid.play().catch(()=>{});} else {vid.pause();} }
-vid.addEventListener("play",()=>{const o=$("playov");if(o)o.classList.add("hide");const b=$("tlPlayBtn");if(b)b.textContent="⏸";});
+// ---- SILLIQ playhead (requestAnimationFrame) + jonli animatsiya ----
+let _raf=null;
+function _tick(){
+  if(!S||vid.paused){ _raf=null; return; }
+  const tt=vid.currentTime;
+  for(const r of activeRemoves()){ if(tt>=r.s-0.02 && tt<r.e-0.05){ vid.currentTime=r.e+0.03; break; } }
+  $("tInfo").textContent=tt.toFixed(1)+"s / "+(S.duration||0).toFixed(1)+"s";
+  tlPlay(); liveCaption(tt); hlWord(tt); updateFxOv(tt);
+  _raf=requestAnimationFrame(_tick);
+}
+function _startRaf(){ if(!_raf) _raf=requestAnimationFrame(_tick); }
+vid.addEventListener("play",()=>{const o=$("playov");if(o)o.classList.add("hide");const b=$("tlPlayBtn");if(b)b.textContent="⏸";_startRaf();});
 vid.addEventListener("pause",()=>{const o=$("playov");if(o)o.classList.remove("hide");const b=$("tlPlayBtn");if(b)b.textContent="▶";});
 vid.addEventListener("ended",()=>{const o=$("playov");if(o)o.classList.remove("hide");const b=$("tlPlayBtn");if(b)b.textContent="▶";});
-vid.addEventListener("timeupdate",()=>{
-  if(S && !vid.paused){ // kesilgan joylarni tashlab o'ynaydi (darhol ko'rinadi, render kutilmaydi)
-    for(const r of activeRemoves()){ if(vid.currentTime>=r.s-0.02 && vid.currentTime<r.e-0.05){ vid.currentTime=r.e+0.03; break; } }
+vid.addEventListener("seeked",()=>{const tt=vid.currentTime;tlPlay();liveCaption(tt);hlWord(tt);updateFxOv(tt);});
+vid.addEventListener("timeupdate",()=>{ if(vid.paused){const tt=vid.currentTime;$("tInfo").textContent=tt.toFixed(1)+"s / "+(S?S.duration:0).toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt);updateFxOv(tt);} });
+
+// ---- jonli animatsiya preview (emoji + hook) editorda ko'rinadi ----
+const EMOJI_JS={ "🔥":["olov","zo'r","zор","fire","огонь","круто","hot","top","zajig"],
+ "💰":["pul","daromad","biznes","money","деньги","бизнес","доход","sotuv","boylik"],
+ "❤️":["sevgi","yaxshi","love","любовь","like","yoqdi"], "😂":["kulgi","haha","смех","funny","prikol"],
+ "🚀":["tez","o'sish","boshla","launch","рост","старт","быстро","success","muvaffaqiyat"],
+ "✅":["to'g'ri","bo'ldi","tayyor","done","готово","правильно"], "💡":["g'oya","fikr","idea","идея","совет","maslahat"],
+ "🎯":["maqsad","aniq","target","цель","natija","result"], "⭐":["eng","best","лучший","top","yulduz","star"],
+ "👀":["qara","ko'r","look","смотри","внимание","diqqat"], "💪":["kuch","sport","mashq","gym","сила","тренировка","fitnes"],
+ "🤯":["hayron","wow","вау","шок","ajoyib"], "🎉":["bayram","tabrik","party","праздник","yutuq"],
+ "📈":["o'sish","grafik","growth","график","рост"], "🎬":["video","montaj","kino","film"],
+ "📱":["telefon","ilova","app","instagram","tiktok","reels"], "🧠":["aql","miya","brain","мозг","bilim"] };
+function _normw(s){return (s||"").toLowerCase().replace(/[^\wʻ']/g,"")}
+function computeAnims(){
+  if(!S){return}
+  const stk=[]; const pos=[[20,30],[78,32],[24,66],[80,64],[50,24]]; let last=-9,idx=0;
+  if(OPTS.stickers){
+    for(const w of (S.words||[])){ const kw=_normw(w.w); if(kw.length<3)continue;
+      let emo=null; for(const e in EMOJI_JS){ if(EMOJI_JS[e].some(k=>kw===k||(k.length>=4&&kw.includes(k)))){emo=e;break} }
+      if(emo && (w.s-last)>=1.6){ last=w.s; const p=pos[idx%pos.length]; idx++; stk.push({t:+w.s.toFixed(2),emo,x:p[0],y:p[1],size:0.15,dur:1.4,anim:"pop"}); if(stk.length>=8)break; }
+    }
   }
-  const tt=vid.currentTime,D=S?S.duration:1;$("tInfo").textContent=tt.toFixed(1)+"s / "+D.toFixed(1)+"s";tlPlay();liveCaption(tt);hlWord(tt);
-});
+  S.stickerPlan=stk;
+  if(S.hookText==null) S.hookText = OPTS.hook ? ((S.words||[]).slice(0,4).map(w=>w.w).join(" ")||"") : "";
+  renderStickerList();
+}
+const STK_ANIMS=[["pop","Pop"],["bounce","Sakrash"],["grow","Kattalashish"],["pulse","Puls"],["fade","Erish"],["slidel","Chapdan"],["slider","O'ngdan"],["drop","Tepadan"]];
+const EMOJI_PICK=["🔥","💰","❤️","😂","🚀","✅","💡","🎯","⭐","👀","💪","🤯","🎉","📈","🧠","📱","🎬","👍","😱","💯","⚡","🥇","😮","🤔","👏","🙌","💥","🎁"];
+function renderStickerList(){
+  const el=$("stkList"); if(!el||!S)return;
+  const h=$("hookInp"); if(h && document.activeElement!==h) h.value=S.hookText||"";
+  const list=S.stickerPlan||[];
+  if(!list.length){ el.innerHTML='<div class="hint">Emoji yo\'q. "Avto emoji" yoki "+ Emoji qo\'shish".</div>'; return; }
+  el.innerHTML=list.map((s,i)=>`<div class="item" style="display:block">
+    <div class="row sb" style="margin-bottom:6px">
+      <span style="font-size:22px">${s.emo}</span>
+      <span class="hint">${(s.t||0).toFixed(1)}s</span>
+      <button class="sm gh" onclick="stkSeek(${i})">▶</button>
+      <button class="sm gh" onclick="stkDel(${i})">✕</button>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">
+      <select onchange="stkSet(${i},'emo',this.value)" style="max-width:70px">${EMOJI_PICK.map(e=>`<option ${e===s.emo?'selected':''}>${e}</option>`).join("")}</select>
+      <select onchange="stkSet(${i},'anim',this.value)">${STK_ANIMS.map(a=>`<option value="${a[0]}" ${a[0]===s.anim?'selected':''}>${a[1]}</option>`).join("")}</select>
+      <button class="sm gh" onclick="stkNudge(${i},-0.2)">−0.2s</button>
+      <button class="sm gh" onclick="stkNudge(${i},0.2)">+0.2s</button>
+    </div></div>`).join("");
+}
+function stkSet(i,k,v){ if(!S.stickerPlan[i])return; S.stickerPlan[i][k]=v; renderStickerList(); updateFxOv(vid.currentTime||0); }
+function stkNudge(i,d){ if(!S.stickerPlan[i])return; S.stickerPlan[i].t=Math.max(0,+(S.stickerPlan[i].t+d).toFixed(2)); renderStickerList(); }
+function stkDel(i){ S.stickerPlan.splice(i,1); renderStickerList(); updateFxOv(vid.currentTime||0); }
+function stkSeek(i){ if(S.stickerPlan[i]){vid.currentTime=S.stickerPlan[i].t+0.05; vid.play();} }
+function addSticker(){ if(!S)return; (S.stickerPlan=S.stickerPlan||[]).push({t:+(vid.currentTime||0).toFixed(2),emo:"🔥",x:78,y:32,size:0.16,dur:1.4,anim:"pop"}); renderStickerList(); updateFxOv(vid.currentTime||0); toast("Emoji qo'shildi"); }
+function autoStickers(){ if(!S)return; S.hookText=null; OPTS.stickers=true; computeAnims(); renderOpts(); toast("Avto emoji"); }
+function updateFxOv(tt){
+  const ov=$("fxOv"); if(!ov||!S){return}
+  let html="";
+  if(OPTS.hook && S.hookText && tt<2.3){ html+=`<div class="hook">${esc((S.hookText||"").toUpperCase())}</div>`; }
+  if(OPTS.stickers && S.stickerPlan){ for(const s of S.stickerPlan){ if(tt>=s.t && tt<s.t+1.4){ html+=`<div class="stk" style="left:${s.x}%;top:${s.y}%;transform:translate(-50%,-50%)">${s.emo}</div>`; break; } } }
+  ov.innerHTML=html;
+}
 function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.words.length){ov.innerHTML="";return}
   const off=S.sub.delay,tt=tt0-off,n=S.sub.words;let cue=[],cur=[];
   for(const w of S.words){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cue.push(cur);cur=[]}cur.push(w)}if(cur.length)cue.push(cur);
@@ -1270,7 +1353,11 @@ async function doRender(){
   const zl=$("zoom").checked?(S.zoomLevel||1):0;
   const rems=activeRemoves().map(r=>[r.s,r.e]);
   try{const {job}=await api("/api/render",{project:S.project,words:S.words,subtitle_on:$("subOn").checked,
-      subtitle:currentSub(),brolls,removes:rems,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",stickers:OPTS.stickers,hook:OPTS.hook,audio_clean:$("audio").checked,quality:QUALITY});
+      subtitle:currentSub(),brolls,removes:rems,zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",
+      stickers:OPTS.stickers,hook:OPTS.hook,
+      sticker_items:(OPTS.stickers?(S.stickerPlan||[]).map(s=>({emoji:s.emo,time:s.t,dur:s.dur||1.4,x:(s.x||50)/100,y:(s.y||50)/100,size:s.size||0.15,anim:s.anim||"pop"})):[]),
+      hook_text:(OPTS.hook?(S.hookText||""):""),
+      audio_clean:$("audio").checked,quality:QUALITY});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("ready"));loadHistory();
@@ -1310,7 +1397,7 @@ async function resumeProject(pid){
     $("subOn").checked=d.subtitle_on!==false;$("zoom").checked=d.zoom!==false;$("audio").checked=d.audio_clean!==false;
     $("brollY").value=d.broll_y||0.72;$("byV").textContent=d.broll_y||0.72;
     if(d.quality)QUALITY=d.quality; renderQuality();
-    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();
+    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();
     if(d.final_url){$("resultBox").style.display="block";$("resVid").src=d.final_url+"?t="+Date.now();$("dl").href=d.final_url}
     toast(t("cont"));
   }catch(e){toast(e.message)}
