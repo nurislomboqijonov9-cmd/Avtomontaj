@@ -930,8 +930,9 @@ FX_MAP={  # oila -> effekt
 }
 
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
-                 quality="1080", fast=False, fx="none", stickers=None):
-    """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}] (emoji pop). fx=montaj effekti."""
+                 quality="1080", fast=False, fx="none", stickers=None,
+                 music=None, music_vol=0.28, orig_vol=1.0):
+    """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz."""
     stickers = stickers or []
     tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
@@ -952,8 +953,9 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     fxparts=_fx_parts(fx, "[v0]", "[vfx]", tw, th, dur, strong)
     # 3) subtitr [vfx]->[base]
     subpart=f"[vfx]{sub}[base]"
-    af=("highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
-        "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else "aresample=48000"
+    ov=max(0.0,float(orig_vol))
+    af=(f"volume={ov:.2f},highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
+        "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else f"volume={ov:.2f},aresample=48000"
     parts=[base0]+fxparts+[subpart]; cur="[base]"; inputs=["-i",cut]
     idx=0
     # --- B-ROLL: Ken Burns (sekin zoom/pan) ---
@@ -992,7 +994,14 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
         nxt=f"[sv{k}]"
         parts.append(f"{cur}[stk{k}]overlay={ox}:{oy}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
-    parts.append(f"[0:a]{af}[aout]")
+    # --- AUDIO: original + (ixtiyoriy) musiqa ---
+    if music and os.path.exists(music):
+        inputs+=["-i",music]; idx+=1; midx=idx
+        parts.append(f"[0:a]{af}[a0]")
+        parts.append(f"[{midx}:a]volume={max(0.0,float(music_vol)):.2f},aresample=48000[mus]")
+        parts.append(f"[a0][mus]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]")
+    else:
+        parts.append(f"[0:a]{af}[aout]")
     fc=";".join(parts)
     preset="veryfast" if fast else "medium"
     cmd=["ffmpeg","-y","-hide_banner","-loglevel","error"]+inputs+[

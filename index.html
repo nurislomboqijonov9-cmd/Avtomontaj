@@ -119,6 +119,13 @@ a{color:#c9a7ff;text-decoration:none}
 .capOv{position:absolute;left:6%;right:6%;text-align:center;pointer-events:none;font-weight:800;text-transform:uppercase;line-height:1.15;text-shadow:0 0 6px #000,2px 2px 0 #000,-2px -2px 0 #000}
 .capOv .w{color:#fff}
 .tlbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;flex-wrap:wrap}
+.undoBtn{font-size:18px;line-height:1;min-width:34px}
+.undoBtn:disabled{opacity:.32;cursor:default}
+.cctools{display:flex;gap:6px;overflow-x:auto;padding:8px 2px;margin-top:6px;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line)}
+.cctools button{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:none;color:#cfcfe6;cursor:pointer;padding:4px 8px;min-width:56px}
+.cctools button .ic{font-size:20px;line-height:1;width:44px;height:44px;display:grid;place-items:center;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px}
+.cctools button .lb{font-size:10px}
+.cctools button:hover .ic{border-color:var(--vio);background:rgba(91,52,230,.14)}
 .tlwrap{position:relative;overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:14px;background:#0b0b15;-webkit-overflow-scrolling:touch;touch-action:pan-x}
 .tlinner{position:relative;min-width:100%;user-select:none;-webkit-user-select:none;cursor:text}
 .tlinner.cutting{touch-action:none;cursor:crosshair}
@@ -298,6 +305,8 @@ a{color:#c9a7ff;text-decoration:none}
           <div class="card">
             <div class="videoBox" onclick="tlToggle()"><video id="vid" playsinline></video><div class="fxOv" id="fxOv"></div><div class="capOv" id="capOv"></div><div class="playov" id="playov">▶</div></div>
             <div class="tlbar">
+              <button class="sm gh undoBtn" id="undoBtn" onclick="undoEdit()" title="Orqaga (undo)" disabled>⟲</button>
+              <button class="sm gh undoBtn" id="redoBtn" onclick="redoEdit()" title="Oldinga (redo)" disabled>⟳</button>
               <button class="sm gh" onclick="tlZoom(-1)" title="kichraytir">🔍−</button>
               <button class="sm gh" onclick="tlZoom(1)" title="kattalashtir">🔍＋</button>
               <button class="sm gh" onclick="tlNudgePlay(-0.1)" title="0.1s orqaga">⏴</button>
@@ -317,6 +326,17 @@ a{color:#c9a7ff;text-decoration:none}
                 <div class="tlplay" id="tlplay"><div class="knob"></div></div>
               </div>
             </div>
+          </div>
+          <!-- CapCut uslubidagi asboblar paneli -->
+          <div class="cctools" id="cctools">
+            <button onclick="ccTool('split')"><span class="ic">✂️</span><span class="lb">Bo'lish</span></button>
+            <button onclick="ccTool('style')"><span class="ic">🎬</span><span class="lb">Uslub</span></button>
+            <button onclick="ccTool('sub')"><span class="ic">💬</span><span class="lb">Subtitr</span></button>
+            <button onclick="ccTool('sticker')"><span class="ic">😀</span><span class="lb">Stiker</span></button>
+            <button onclick="ccTool('music')"><span class="ic">🎵</span><span class="lb">Musiqa</span></button>
+            <button onclick="ccTool('broll')"><span class="ic">🖼️</span><span class="lb">Nalojeniya</span></button>
+            <button onclick="ccTool('volume')"><span class="ic">🔊</span><span class="lb">Ovoz</span></button>
+            <button onclick="ccTool('font')"><span class="ic">🔤</span><span class="lb">Shrift</span></button>
           </div>
           <div id="renderProg" class="prog" style="display:none"><div></div></div>
           <div id="renderTxt" class="hint" style="text-align:center"></div>
@@ -341,6 +361,7 @@ a{color:#c9a7ff;text-decoration:none}
             <button class="pill on" data-s="cut" onclick="goStep('cut')" data-i="tab_cut">Kesish</button>
             <button class="pill" data-s="sub" onclick="goStep('sub')" data-i="tab_sub">Subtitr</button>
             <button class="pill" data-s="broll" onclick="goStep('broll')" data-i="tab_broll">Animatsiya</button>
+            <button class="pill" data-s="audio" onclick="goStep('audio')" data-i="tab_audio">Musiqa</button>
             <button class="pill" data-s="ref" onclick="goStep('ref')" data-i="tab_ref">Namuna</button>
           </div>
 
@@ -398,12 +419,26 @@ a{color:#c9a7ff;text-decoration:none}
             <div class="card">
               <h3>😀 <span data-i="el_stk">Emoji elementlar</span></h3>
               <div class="field"><div class="lbl" data-i="el_hook">Hook sarlavha (boshida)</div>
-                <input id="hookInp" placeholder="masalan: PUL TOPISH SIRI" oninput="S&&(S.hookText=this.value)" style="width:100%"></div>
+                <input id="hookInp" placeholder="masalan: PUL TOPISH SIRI" onfocus="S&&histPush()" oninput="S&&(S.hookText=this.value)&&updateFxOv(vid.currentTime||0)" style="width:100%"></div>
               <div class="row" style="margin-bottom:8px">
                 <button class="pri sm" onclick="autoStickers()" data-i="el_auto">✨ Avto emoji</button>
                 <button class="gh sm" onclick="addSticker()" data-i="el_add">+ Emoji qo'shish</button>
               </div>
               <div id="stkList"></div>
+            </div>
+          </div>
+
+          <div class="step" id="step-audio">
+            <div class="card">
+              <h3>🎵 <span data-i="tab_audio">Musiqa</span></h3>
+              <p class="hint" data-i="mus_hint">Fon musiqa qo'shing (mp3/m4a/wav). Videongiz ovozi ustidan qo'shiladi.</p>
+              <input id="musFile" type="file" accept="audio/*" style="display:none">
+              <button class="pri" onclick="document.getElementById('musFile').click()" data-i="mus_up">🎵 Musiqa yuklash</button>
+              <div id="musMsg" class="hint" style="margin-top:8px"></div>
+              <div class="field" style="margin-top:12px"><div class="lbl"><span data-i="mus_vol">Musiqa ovozi</span>: <b id="mvolV">28</b>%</div>
+                <input type="range" id="musVol" min="0" max="100" step="1" value="28" oninput="S&&(S.musicVol=this.value/100);document.getElementById('mvolV').textContent=this.value"></div>
+              <div class="field"><div class="lbl"><span data-i="orig_vol">Video ovozi</span>: <b id="ovolV">100</b>%</div>
+                <input type="range" id="origVol" min="0" max="150" step="5" value="100" oninput="S&&(S.origVol=this.value/100);document.getElementById('ovolV').textContent=this.value"></div>
             </div>
           </div>
 
@@ -513,7 +548,7 @@ const I={
   hero_t:"G'oyani ajoyib videoga aylantiring",hero_s:"Aniq subtitr · Aqlli kesish · Animatsiya — bir necha bosishда. Uslubni tanlang va videoni tashlang.",
   what:"Nima qilamiz?",style:"Subtitr uslubi",add_media:"Media qo'shish",add_hint:"MP4 / MOV — bu yerga tashlang yoki tanlang.",
   choose:"🚀 Video tanlash va montaj",reauto:"🚀 Avtomatik montaj",rerender:"🎬 Tayyor qilish",ready:"🎉 Tayyor!",download:"⬇️ Yuklab olish",in_hist:"Tarixda",
-  tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"▶ Kesilgan holda ko'rish",
+  tab_cut:"Kesish",tab_sub:"Subtitr",tab_broll:"Animatsiya",tab_ref:"Namuna",tab_audio:"Musiqa",mus_hint:"Fon musiqa qo'shing (mp3/m4a/wav). Video ovozi ustidan qo'shiladi.",mus_up:"🎵 Musiqa yuklash",mus_vol:"Musiqa ovozi",orig_vol:"Video ovozi",m_start:"Boshi",m_end:"Oxiri",m_add:"+ Kesish",apply_cut:"▶ Kesilgan holda ko'rish",
   sub_on:"Subtitr yoqilgan",sync:"Vaqt siljishi",height:"Balandligi",size:"O'lcham",wpg:"Guruhda so'z",c_active:"Faol rang",c_base:"Asosiy",caps:"KATTA HARF",
   text:"Matn",dbl:"2 marta bosib tuzating",b_height:"Balandligi",b_auto:"✨ Avto g'oyalar",b_manual:"+ Qo'lda",ref_hint:"Yoqtirgan videongizni yuklang — bot uning subtitr tempini moslaydi.",
   ref_up:"Namuna yuklash",zoom:"Zoom",clean:"Ovoz tozalash",new_video:"🔄 Yangi video",hist_empty:"Hali tayyor video yo'q.",
@@ -530,7 +565,7 @@ const I={
   hero_t:"Превратите идею в потрясающее видео",hero_s:"Точные субтитры · Умная нарезка · Анимация — в пару кликов. Выберите стиль и загрузите видео.",
   what:"Что делаем?",style:"Стиль субтитров",add_media:"Добавить медиа",add_hint:"MP4 / MOV — перетащите сюда или выберите.",
   choose:"🚀 Выбрать видео и смонтировать",reauto:"🚀 Авто‑монтаж",rerender:"🎬 Готовое видео",ready:"🎉 Готово!",download:"⬇️ Скачать",in_hist:"В истории",
-  tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"▶ Смотреть с обрезкой",
+  tab_cut:"Обрезка",tab_sub:"Субтитры",tab_broll:"Анимация",tab_ref:"Образец",tab_audio:"Музыка",mus_hint:"Добавьте фоновую музыку (mp3/m4a/wav). Поверх звука видео.",mus_up:"🎵 Загрузить музыку",mus_vol:"Громкость музыки",orig_vol:"Громкость видео",m_start:"Начало",m_end:"Конец",m_add:"+ Вырезать",apply_cut:"▶ Смотреть с обрезкой",
   sub_on:"Субтитры включены",sync:"Сдвиг времени",height:"Высота",size:"Размер",wpg:"Слов в группе",c_active:"Активный цвет",c_base:"Основной",caps:"ЗАГЛАВНЫЕ",
   text:"Текст",dbl:"двойной клик для правки",b_height:"Высота",b_auto:"✨ Авто‑идеи",b_manual:"+ Вручную",ref_hint:"Загрузите любимое видео — бот подстроит темп субтитров.",
   ref_up:"Загрузить образец",zoom:"Zoom",clean:"Чистка звука",new_video:"🔄 Новое видео",hist_empty:"Пока нет готовых видео.",
@@ -547,7 +582,7 @@ const I={
   hero_t:"Turn ideas into stunning videos",hero_s:"Accurate captions · Smart cuts · Animation — in a few taps. Pick a style and drop your video.",
   what:"What should we do?",style:"Caption style",add_media:"Add media",add_hint:"MP4 / MOV — drop here or choose.",
   choose:"🚀 Choose video & edit",reauto:"🚀 Auto edit",rerender:"🎬 Render final",ready:"🎉 Done!",download:"⬇️ Download",in_hist:"In history",
-  tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"▶ Preview with cuts",
+  tab_cut:"Cut",tab_sub:"Captions",tab_broll:"Animation",tab_ref:"Reference",tab_audio:"Music",mus_hint:"Add background music (mp3/m4a/wav). Mixed over the video audio.",mus_up:"🎵 Upload music",mus_vol:"Music volume",orig_vol:"Video volume",m_start:"Start",m_end:"End",m_add:"+ Cut",apply_cut:"▶ Preview with cuts",
   sub_on:"Captions on",sync:"Time offset",height:"Height",size:"Size",wpg:"Words per group",c_active:"Active color",c_base:"Base",caps:"UPPERCASE",
   text:"Text",dbl:"double-click to edit",b_height:"Height",b_auto:"✨ Auto ideas",b_manual:"+ Manual",ref_hint:"Upload a video you like — the bot matches its caption pace.",
   ref_up:"Upload reference",zoom:"Zoom",clean:"Clean audio",new_video:"🔄 New video",hist_empty:"No finished videos yet.",
@@ -710,7 +745,7 @@ function renderFontPicker(){
   const el=$("fontGrid");if(!el||!S)return;
   el.innerHTML=availFonts().map(x=>`<div class="fchip ${S.sub.font===x.f?'on':''}" style="font-family:'${x.f}',sans-serif" title="${x.f}" onclick="pickFont('${x.f}')">${x.f}</div>`).join("");
 }
-function pickFont(f){S.sub.font=f;renderFontPicker();subChanged()}
+function pickFont(f){if(S)histPush();S.sub.font=f;renderFontPicker();subChanged()}
 const CATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"trend",u:"Trend",r:"Тренд",e:"Trending"},{k:"bold",u:"Jasur",r:"Смелые",e:"Bold"},{k:"min",u:"Minimal",r:"Минимал",e:"Minimal"},{k:"cine",u:"Kino",r:"Кино",e:"Cinematic"},{k:"vlog",u:"Vlog",r:"Влог",e:"Vlog"},{k:"biz",u:"Biznes",r:"Бизнес",e:"Business"},{k:"luxe",u:"Hashamat",r:"Люкс",e:"Luxe"},{k:"sport",u:"Sport",r:"Спорт",e:"Sport"},{k:"retro",u:"Retro",r:"Ретро",e:"Retro"},{k:"fun",u:"Qiziqarli",r:"Фан",e:"Fun"},{k:"tech",u:"Texno",r:"Техно",e:"Tech"}];
 const SCATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"highlight",u:"Yorqin",r:"Яркие",e:"Highlight"},{k:"word",u:"Karaoke",r:"Караоке",e:"Karaoke"},{k:"top",u:"Tepada",r:"Сверху",e:"Top"},{k:"center",u:"Markazda",r:"Центр",e:"Center"},{k:"mini",u:"Mayda",r:"Мелкий",e:"Mini"}];
 const FCATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"impact",u:"Impact",r:"Импакт",e:"Impact"},{k:"heavy",u:"Qalin",r:"Жирные",e:"Heavy"},{k:"clean",u:"Toza",r:"Чистые",e:"Clean"},{k:"serif",u:"Serif",r:"Сериф",e:"Serif"},{k:"tech",u:"Texno",r:"Техно",e:"Tech"},{k:"round",u:"Yumaloq",r:"Круглые",e:"Round"},{k:"fun",u:"Qiziq",r:"Весёлые",e:"Fun"},{k:"script",u:"Yozma",r:"Рукопись",e:"Script"}];
@@ -718,12 +753,12 @@ const FCATS=[{k:"all",u:"Hammasi",r:"Все",e:"All"},{k:"impact",u:"Impact",r:"
 function applyStyle(st){
   STYLE=st;
   OPTS.sub=true; OPTS.cut=st.cut; OPTS.broll=st.broll;
-  if(S){ S.sub=subFromStyle(); S.grade=st.grade; S.zoomLevel=st.zoom_level; S.fx=st.fx||"none"; applyStyleControls&&applyStyleControls(); }
+  if(S){ histPush(); S.sub=subFromStyle(); S.grade=st.grade; S.zoomLevel=st.zoom_level; S.fx=st.fx||"none"; applyStyleControls&&applyStyleControls(); }
   renderStyles(); renderOpts(); if($("stylesGrid2"))renderStylesPage();
 }
 function applySubStyle(id){
   const su=SUBS.find(s=>s.id===id)||SUBS[0]; SUB_SEL=su;
-  if(S){ S.sub.font=su.font; S.sub.active=su.active; S.sub.base=su.base; S.sub.size=su.size;
+  if(S){ histPush(); S.sub.font=su.font; S.sub.active=su.active; S.sub.base=su.base; S.sub.size=su.size;
     S.sub.words=su.words; S.sub.margin=su.margin; S.sub.upper=su.upper; S.sub.anim=su.anim;
     fillSubControls(); }
   // keyingi montaj uchun standart subtitrni ham yangilaymiz
@@ -891,7 +926,7 @@ function renderPresets(){
 }
 function sampleWord(i){const m={uz:["Salom","dunyo"],ru:["Привет","мир"],en:["Hello","world"]};return (m[LANG]||m.uz)[i-1]}
 function pickPreset(id){PRESET=PRESETS.find(p=>p.id===id)||PRESETS[0];renderPresets();
-  if(S){S.sub.active=PRESET.active;S.sub.base=PRESET.base;S.sub.size=PRESET.size;S.sub.words=PRESET.words;S.sub.margin=PRESET.margin;S.sub.upper=PRESET.upper;S.sub.font=PRESET.font;S.sub.anim=PRESET.anim;fillSubControls()}}
+  if(S){histPush();S.sub.active=PRESET.active;S.sub.base=PRESET.base;S.sub.size=PRESET.size;S.sub.words=PRESET.words;S.sub.margin=PRESET.margin;S.sub.upper=PRESET.upper;S.sub.font=PRESET.font;S.sub.anim=PRESET.anim;fillSubControls()}}
 
 function applyLang(){
   document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.getAttribute("data-i"))});
@@ -1004,8 +1039,27 @@ function renderSettings(){
   $("setLang").innerHTML=["uz","ru","en"].map(l=>`<button class="${l===LANG?'on':''}" onclick="setLang('${l}');renderSettings()">${({uz:"O'zbek",ru:"Русский",en:"English"})[l]}</button>`).join("");
   $("setStyles").innerHTML=STYLES.filter(s=>/_pop$/.test(s.id)).slice(0,8).map(s=>estCard(s, s.id===STYLE.id?'on':'', `pickStyle('${s.id}')`)).join("");
 }
-function goStep(s){document.querySelectorAll(".step").forEach(e=>e.classList.remove("on"));$("step-"+s).classList.add("on");
+function goStep(s){document.querySelectorAll(".step").forEach(e=>e.classList.remove("on"));const el=$("step-"+s);if(el)el.classList.add("on");
   document.querySelectorAll(".tabs2 .pill").forEach(e=>e.classList.toggle("on",e.dataset.s===s));}
+// CapCut pastki asboblar
+function ccTool(t){
+  if(t==="split"){ tlCutMark(); return; }
+  if(t==="style"){ showTab("styles"); return; }
+  if(t==="font"){ showTab("fonts"); return; }
+  if(t==="sticker"||t==="broll"){ goStep("broll"); if(t==="sticker"){var e=$("stkList");if(e)e.scrollIntoView({behavior:"smooth",block:"center"});} return; }
+  if(t==="music"||t==="volume"){ goStep("audio"); return; }
+  goStep(t);
+}
+function uploadMusic(f){
+  if(!S){toast("Avval video yuklang");return}
+  $("musMsg").textContent="⏳ yuklanyapti...";
+  const fd=new FormData(); fd.append("file",f); fd.append("project",S.project);
+  const xhr=new XMLHttpRequest(); xhr.open("POST","/api/music"); if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
+  xhr.onload=()=>{ if(xhr.status!==200){$("musMsg").innerHTML='<span class=err>xato</span>';return}
+    try{const r=JSON.parse(xhr.responseText); S.musicName=r.name; $("musMsg").innerHTML='<span style="color:var(--ok)">🎵 '+esc(r.name)+' — "Tayyor qilish"da qo\'shiladi</span>';}catch(e){} };
+  xhr.onerror=()=>$("musMsg").innerHTML='<span class=err>tarmoq xato</span>';
+  xhr.send(fd);
+}
 
 // ---------- upload ----------
 function setupDrop(){
@@ -1054,14 +1108,16 @@ async function runAuto(){
   try{
     const zl=$("zoom").checked?(S.zoomLevel||1):0;
     const body={project:S.project,lang:LANG,cut:OPTS.cut,subtitle_on:OPTS.sub,broll:OPTS.broll,broll_n:4,
-      broll_y:+($("brollY").value||0.72),zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",stickers:OPTS.stickers,hook:OPTS.hook,audio_clean:$("audio").checked,subtitle:currentSub(),quality:QUALITY};
+      broll_y:+($("brollY").value||0.72),zoom:zl>0,zoom_level:zl,grade:S.grade||"vivid",fx:S.fx||"none",stickers:OPTS.stickers,hook:OPTS.hook,
+      music:true,music_vol:(S.musicVol!=null?S.musicVol:0.28),orig_vol:(S.origVol!=null?S.origVol:1),
+      audio_clean:$("audio").checked,subtitle:currentSub(),quality:QUALITY};
     const {job}=await api("/api/auto",body);
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     S.cut=true;S.words=res.words;S.videoUrl=res.cut_url;S.duration=res.duration;
     vid.src=res.cut_url;$("tInfo").textContent=res.duration.toFixed(1)+"s";$("engBadge").textContent=res.engine;
     S.removes=[];  // avto-kesish videoga allaqachon qo'llangan; endi faqat qo'lda kesishlar
     S.brolls=(res.brolls||[]).map(b=>({image:b.image,image_url:b.image_url,prompt:b.prompt,time:b.time,dur:b.dur||2.5,on:true}));
-    renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();
+    renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();histReset();
     if(res.broll_note)$("brollMsg").textContent="Animatsiya: "+res.broll_note;
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
     toast(t("done_t"));loadHistory();
@@ -1079,8 +1135,8 @@ function renderRemoves(){
   drawTimeline();
 }
 function setManual(k){S.manual[k]=vid.currentTime;$(k==="s"?"mS":"mE").textContent=vid.currentTime.toFixed(1)+"s"}
-function addManual(){const{s,e}=S.manual;if(s==null||e==null||e<=s){toast("?");return}S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves()}
-function delRemove(i){S.removes.splice(i,1);renderRemoves()}
+function addManual(){const{s,e}=S.manual;if(s==null||e==null||e<=s){toast("?");return}histPush();S.removes.push({s:+s.toFixed(2),e:+e.toFixed(2),type:"manual"});S.manual={s:null,e:null};$("mS").textContent="–";$("mE").textContent="–";renderRemoves()}
+function delRemove(i){histPush();S.removes.splice(i,1);renderRemoves()}
 // Kesishni DARHOL ko'rish (server kutilmaydi) — video kesilgan joylarni tashlab o'ynaydi.
 // Haqiqiy kesish "🎬 Tayyor qilish" bosilganda bitta bosqichda qo'llanadi.
 function doCut(){
@@ -1100,7 +1156,7 @@ function renderWords(){
   const el=$("wordList");el.innerHTML="";
   S.words.forEach((w,i)=>{const c=document.createElement("span");c.className="wchip";c.textContent=w.w;c.dataset.i=i;
     c.onclick=()=>{vid.currentTime=w.s+0.01;vid.play()};
-    c.ondblclick=()=>{const nv=prompt("=",w.w);if(nv!=null){w.w=nv;renderWords()}};el.appendChild(c)});
+    c.ondblclick=()=>{const nv=prompt("=",w.w);if(nv!=null){histPush();w.w=nv;renderWords();computeAnims&&computeAnims()}};el.appendChild(c)});
 }
 
 // ---------- BROLL ----------
@@ -1140,6 +1196,27 @@ function esc(s){return (s||"").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 function cueGroups(){const n=(S.sub&&S.sub.words)||3;let cues=[],cur=[];
   for(const w of (S.words||[])){if(cur.length&&(cur.length>=n||w.s-cur[cur.length-1].e>0.7)){cues.push(cur);cur=[]}cur.push(w)}
   if(cur.length)cues.push(cur);return cues}
+// ================= UNDO / REDO (CapCut uslubida) =================
+let _undo=[], _redo=[];
+function _snap(){ if(!S)return null; try{ return JSON.stringify({
+  removes:S.removes||[], stickerPlan:S.stickerPlan||[], hookText:S.hookText||"",
+  words:S.words||[], sub:S.sub||{}, brolls:S.brolls||[],
+  grade:S.grade||"vivid", zoomLevel:S.zoomLevel||0, fx:S.fx||"none" }); }catch(e){return null} }
+function histPush(){ if(!S)return; const s=_snap(); if(s==null)return; _undo.push(s); if(_undo.length>80)_undo.shift(); _redo=[]; updateUndoBtns(); }
+function _restore(js){ if(!js||!S)return; let d; try{d=JSON.parse(js)}catch(e){return}
+  S.removes=d.removes; S.stickerPlan=d.stickerPlan; S.hookText=d.hookText; S.words=d.words;
+  S.sub=d.sub; S.brolls=d.brolls; S.grade=d.grade; S.zoomLevel=d.zoomLevel; S.fx=d.fx;
+  try{fillSubControls()}catch(e){} try{renderWords()}catch(e){} try{renderRemoves()}catch(e){}
+  try{renderBrolls()}catch(e){} try{renderStickerList()}catch(e){} try{drawTimeline()}catch(e){}
+  try{updateFxOv(vid.currentTime||0)}catch(e){}
+}
+function undoEdit(){ if(!_undo.length){return} _redo.push(_snap()); _restore(_undo.pop()); updateUndoBtns(); toast("↶ Qaytarildi"); }
+function redoEdit(){ if(!_redo.length){return} _undo.push(_snap()); _restore(_redo.pop()); updateUndoBtns(); toast("↷ Qaytarildi"); }
+function updateUndoBtns(){ const u=$("undoBtn"),r=$("redoBtn"); if(u)u.disabled=!_undo.length; if(r)r.disabled=!_redo.length; }
+function histReset(){ _undo=[]; _redo=[]; updateUndoBtns(); }
+document.addEventListener("keydown",function(e){ if(!(e.ctrlKey||e.metaKey))return; const k=(e.key||"").toLowerCase();
+  if(k==="z"&&!e.shiftKey){e.preventDefault();undoEdit();} else if((k==="z"&&e.shiftKey)||k==="y"){e.preventDefault();redoEdit();} });
+
 function drawTimeline(){
   if(!S){return}
   const D=S.duration||1, pps=S.pps||60, W=Math.max(320,Math.round(D*pps));
@@ -1198,10 +1275,11 @@ function _commitCut(a,b){
   a=Math.max(0,Math.min(S.duration,a)); b=Math.max(0,Math.min(S.duration,b));
   const lo=Math.min(a,b), hi=Math.max(a,b);
   if(hi-lo<0.08){toast(LANG==='ru'?'Слишком коротко':(LANG==='en'?'Too short':'Juda qisqa'));return false;}
+  histPush();
   S.removes.push({s:+lo.toFixed(2),e:+hi.toFixed(2),type:"manual"});
   renderRemoves();drawTimeline();toast(t("cut_added")+" · "+(hi-lo).toFixed(1)+"s");return true;
 }
-function tlDelRem(a,b){S.removes=S.removes.filter(r=>!(Math.abs(r.s-a)<0.01&&Math.abs(r.e-b)<0.01));renderRemoves();drawTimeline()}
+function tlDelRem(a,b){histPush();S.removes=S.removes.filter(r=>!(Math.abs(r.s-a)<0.01&&Math.abs(r.e-b)<0.01));renderRemoves();drawTimeline()}
 // ---- filmstrip: kadrlarni SERVER chizadi (telefonda ham ishonchli) ----
 async function buildFilmstrip(){
   if(!S||!S.project)return;
@@ -1310,12 +1388,12 @@ function renderStickerList(){
       <button class="sm gh" onclick="stkNudge(${i},0.2)">+0.2s</button>
     </div></div>`).join("");
 }
-function stkSet(i,k,v){ if(!S.stickerPlan[i])return; S.stickerPlan[i][k]=v; renderStickerList(); updateFxOv(vid.currentTime||0); }
-function stkNudge(i,d){ if(!S.stickerPlan[i])return; S.stickerPlan[i].t=Math.max(0,+(S.stickerPlan[i].t+d).toFixed(2)); renderStickerList(); }
-function stkDel(i){ S.stickerPlan.splice(i,1); renderStickerList(); updateFxOv(vid.currentTime||0); }
+function stkSet(i,k,v){ if(!S.stickerPlan[i])return; histPush(); S.stickerPlan[i][k]=v; renderStickerList(); updateFxOv(vid.currentTime||0); }
+function stkNudge(i,d){ if(!S.stickerPlan[i])return; histPush(); S.stickerPlan[i].t=Math.max(0,+(S.stickerPlan[i].t+d).toFixed(2)); renderStickerList(); }
+function stkDel(i){ histPush(); S.stickerPlan.splice(i,1); renderStickerList(); updateFxOv(vid.currentTime||0); }
 function stkSeek(i){ if(S.stickerPlan[i]){vid.currentTime=S.stickerPlan[i].t+0.05; vid.play();} }
-function addSticker(){ if(!S)return; (S.stickerPlan=S.stickerPlan||[]).push({t:+(vid.currentTime||0).toFixed(2),emo:"🔥",x:78,y:32,size:0.16,dur:1.4,anim:"pop"}); renderStickerList(); updateFxOv(vid.currentTime||0); toast("Emoji qo'shildi"); }
-function autoStickers(){ if(!S)return; S.hookText=null; OPTS.stickers=true; computeAnims(); renderOpts(); toast("Avto emoji"); }
+function addSticker(){ if(!S)return; histPush(); (S.stickerPlan=S.stickerPlan||[]).push({t:+(vid.currentTime||0).toFixed(2),emo:"🔥",x:78,y:32,size:0.16,dur:1.4,anim:"pop"}); renderStickerList(); updateFxOv(vid.currentTime||0); toast("Emoji qo'shildi"); }
+function autoStickers(){ if(!S)return; histPush(); S.hookText=null; OPTS.stickers=true; computeAnims(); renderOpts(); toast("Avto emoji"); }
 function updateFxOv(tt){
   const ov=$("fxOv"); if(!ov||!S){return}
   let html="";
@@ -1334,6 +1412,7 @@ function hlWord(tt){const off=S.sub.delay;document.querySelectorAll(".wchip").fo
 
 // ---------- reference ----------
 $("refFile").onchange=e=>{if(e.target.files[0])uploadRef(e.target.files[0])};
+$("musFile").onchange=e=>{if(e.target.files[0])uploadMusic(e.target.files[0])};
 function uploadRef(f){$("refProg").style.display="block";$("refProg").firstChild.style.width="10%";$("refMsg").textContent="⏳";
   const fd=new FormData();fd.append("file",f);const xhr=new XMLHttpRequest();xhr.open("POST","/api/reference");if(TOKEN)xhr.setRequestHeader("X-Auth",TOKEN);
   xhr.upload.onprogress=e=>{if(e.lengthComputable)$("refProg").firstChild.style.width=(10+e.loaded/e.total*30)+"%"};
@@ -1357,6 +1436,7 @@ async function doRender(){
       stickers:OPTS.stickers,hook:OPTS.hook,
       sticker_items:(OPTS.stickers?(S.stickerPlan||[]).map(s=>({emoji:s.emo,time:s.t,dur:s.dur||1.4,x:(s.x||50)/100,y:(s.y||50)/100,size:s.size||0.15,anim:s.anim||"pop"})):[]),
       hook_text:(OPTS.hook?(S.hookText||""):""),
+      music:true,music_vol:(S.musicVol!=null?S.musicVol:0.28),orig_vol:(S.origVol!=null?S.origVol:1),
       audio_clean:$("audio").checked,quality:QUALITY});
     const res=await waitJob(job,(p,s)=>{$("renderProg").firstChild.style.width=p+"%";$("renderTxt").textContent=s||p+"%"});
     $("renderTxt").textContent="";$("resultBox").style.display="block";$("resVid").src=res.final_url+"?t="+Date.now();$("dl").href=res.final_url;
@@ -1397,7 +1477,7 @@ async function resumeProject(pid){
     $("subOn").checked=d.subtitle_on!==false;$("zoom").checked=d.zoom!==false;$("audio").checked=d.audio_clean!==false;
     $("brollY").value=d.broll_y||0.72;$("byV").textContent=d.broll_y||0.72;
     if(d.quality)QUALITY=d.quality; renderQuality();
-    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();
+    subChanged();renderWords();renderBrolls();renderRemoves();drawTimeline();buildFilmstrip();computeAnims();histReset();
     if(d.final_url){$("resultBox").style.display="block";$("resVid").src=d.final_url+"?t="+Date.now();$("dl").href=d.final_url}
     toast(t("cont"));
   }catch(e){toast(e.message)}

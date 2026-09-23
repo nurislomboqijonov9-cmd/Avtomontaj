@@ -198,6 +198,22 @@ async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
     return {"project": pid, "video_url": f"/media/{pid}/{use}",
             "duration": meta["duration"], "name": meta["name"]}
 
+# ---------- MUSIQA yuklash ----------
+@app.post("/api/music")
+async def music_upload(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
+    check_auth(x_auth)
+    d = pdir(project); meta = load_meta(project)
+    ext = os.path.splitext(file.filename or "m.mp3")[1].lower() or ".mp3"
+    if ext not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus"): ext = ".mp3"
+    mp = os.path.join(d, "music" + ext)
+    with open(mp, "wb") as f:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk: break
+            f.write(chunk)
+    meta["music"] = os.path.basename(mp); save_meta(project, meta)
+    return {"ok": True, "name": file.filename or "music", "url": f"/media/{project}/{os.path.basename(mp)}"}
+
 # ---------- 2) TAHLIL ----------
 @app.post("/api/analyze")
 async def analyze(req: Request, x_auth: str = Header("")):
@@ -293,6 +309,12 @@ async def render(req: Request, x_auth: str = Header("")):
     do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
     sticker_items = body.get("sticker_items")      # brauzer rejasi (emoji belgisi bilan) yoki None
     hook_override = body.get("hook_text")           # brauzerdan tahrirlangan hook matni
+    use_music = bool(body.get("music", True)); music_vol = float(body.get("music_vol", 0.28))
+    orig_vol = float(body.get("orig_vol", 1.0))
+    music_path = None
+    if use_music and meta.get("music"):
+        mp = os.path.join(d, meta["music"])
+        if os.path.exists(mp): music_path = mp
     jid = new_job()
     def fn(prog):
         nonlocal cut, words
@@ -346,7 +368,7 @@ async def render(req: Request, x_auth: str = Header("")):
                                "w": float(b.get("w", 0.78))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers)
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
@@ -424,6 +446,11 @@ async def auto(req: Request, x_auth: str = Header("")):
     grade = body.get("grade", "vivid"); zoom_level = int(body.get("zoom_level", 1))
     quality = str(body.get("quality", "1080")); fx = str(body.get("fx", "none"))
     do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
+    use_music = bool(body.get("music", True)); music_vol = float(body.get("music_vol", 0.28)); orig_vol = float(body.get("orig_vol", 1.0))
+    music_path = None
+    if use_music and meta.get("music"):
+        _mp = os.path.join(d, meta["music"])
+        if os.path.exists(_mp): music_path = _mp
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     meta["lang"] = lang
     sub = body.get("subtitle") or {"delay": 0.0, "margin_v": 660, "size": 90, "words": 3,
@@ -471,7 +498,7 @@ async def auto(req: Request, x_auth: str = Header("")):
         rbrolls = [{"path": os.path.join(d, b["image"]), "time": b["time"], "dur": b["dur"],
                     "y": broll_y, "w": 0.92} for b in outb]
         out = os.path.join(d, "final.mp4")
-        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers):
+        if not montaj.render_final(cut, ass, out, rbrolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol):
             raise RuntimeError("render xato")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()), brolls=outb,
                     render_settings={"subtitle": sub, "zoom": zoom, "audio_clean": audio,
