@@ -1903,7 +1903,7 @@ function liveCaption(tt0){const ov=$("capOv");if(!S||!$("subOn").checked||!S.wor
   if(!show){ov.innerHTML="";return}for(let i=0;i<show.length;i++){if(tt>=show[i].s)act=i}
   const box=$("capOv");box.style.bottom=(S.sub.margin/1920*100)+"%";box.style.top="auto";box.style.fontSize=(S.sub.size/1920*100)+"cqh";box.style.textTransform=S.sub.upper?"uppercase":"none";box.style.fontFamily="'"+(S.sub.font||"Anton")+"',sans-serif";
   ov.innerHTML=show.map((w,i)=>`<span class="w" style="color:${i===act?S.sub.active:S.sub.base}">${w.w}</span>`).join(" ")}
-function hlWord(tt){const off=S.sub.delay;document.querySelectorAll(".wchip").forEach(c=>{const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&tt-off>=w.s&&tt-off<=w.e)})}
+function hlWord(tt){if(!S||!S.sub)return;const off=S.sub.delay;document.querySelectorAll(".wchip").forEach(c=>{const w=S.words[+c.dataset.i];c.classList.toggle("now",w&&tt-off>=w.s&&tt-off<=w.e)})}
 
 // ---------- reference ----------
 $("refFile").onchange=e=>{if(e.target.files[0])uploadRef(e.target.files[0])};
