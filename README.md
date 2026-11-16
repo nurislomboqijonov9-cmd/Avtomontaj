@@ -71,3 +71,24 @@ python app.py                        # http://localhost:8080
 ## Eslatma
 - **Rasm chizish** Vertex'da `gemini-2.5-flash-image` orqali. Ishlamasa avtomatik Imagen'ga, keyin Pexels'ga o'tadi. Xato bo'lsa animatsiya izohda sabab ko'rsatiladi (video baribir chiqadi).
 - Tarix serverdagi `data/` papkasida saqlanadi. Railway'da doimiy saqlash uchun **Volume** ulab, `DATA_DIR` ni /shu volumega yo'naltiring.
+
+## Yangi imkoniyatlar (Studio)
+
+**AI:** matndan ovoz (Audio bo'limi), subtitrni 9 tilga tarjima qilish (Matn), tavsif bo'yicha AI stiker (Stiker), Pexels stok rasm/video (Media), uzun videodan qisqa kliplar (AI bo'limi → «Eng yaxshi joylarni topish»).
+
+**Montaj:** klip tartibini almashtirish, 90° burish, tezlik egri chiziqlari, musiqa ritmiga moslash, zoom fokusi, stabilizatsiya, ovoz o'zgartirgich (8 xil), videodan ovozni ajratib olish, animatsiyali matn shablonlari, tus / xira / don sozlamalari, rasm qatlamiga niqob, chroma key (yashil fon), fonni avto olib tashlash, 2K va 4K eksport.
+
+**Mobil:** 760px dan tor ekranda muharrir telefon tartibiga o'tadi — pleyer tepada, taymlayn pastda, kutubxona va sozlamalar pastki paneldan ochiladi.
+
+### Sozlamalar (muhit o'zgaruvchilari)
+
+| O'zgaruvchi | Standart | Vazifasi |
+|---|---|---|
+| `MAX_RENDERS` | 2 | Bir vaqtda nechta og'ir ish (eksport, klip qo'shish) bajariladi; qolganlari navbatda kutadi |
+| `MAX_UPLOAD_MB` | 2048 | Bitta video faylning eng katta hajmi |
+| `MAX_PROJECTS` | 300 | Bitta foydalanuvchidagi loyihalar soni |
+| `DAILY_EXPORTS` | 0 | Kunlik eksport limiti (0 = cheksiz) |
+| `PEXELS_API_KEY` | — | Stok kutubxona uchun |
+| `GEMINI_API_KEY` | — | Vertex bo'lmasa: tarjima, AI ovoz, kliplar |
+
+Xavfsizlik: kirishga urinishlar cheklangan (10 daqiqada 10 ta), sessiya 90 kun amal qiladi, loyiha amallari faqat egasiga ruxsat etiladi, xato matnlarida kalit va ichki manzillar ko'rsatilmaydi.

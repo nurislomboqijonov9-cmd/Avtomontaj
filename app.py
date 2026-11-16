@@ -17,6 +17,13 @@ PROJ = os.path.join(DATA, "projects")
 os.makedirs(PROJ, exist_ok=True)
 
 app = FastAPI(title="VIZEN")
+@app.middleware("http")
+async def _sec_headers(request, call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return resp
 
 # ================= AKKAUNT TIZIMI =================
 USERS_F = os.path.join(DATA, "users.json")
@@ -37,6 +44,7 @@ def user_from_token(token):
     if not token: return None
     s=sessions().get(token)
     if not s: return None
+    if time.time()-float(s.get("created",0) or 0) > 90*86400: return None      # 90 kundan eski sessiya yaroqsiz
     u=users().get(s.get("email",""))
     return u
 def check_auth(token):
@@ -53,9 +61,35 @@ async def _peek(req):
     """So'rov tanasidan loyiha ID sini o'qiydi (egalikni tekshirish uchun)."""
     try: return str((await req.json()).get("project") or "")
     except Exception: return ""
+MAX_RENDERS = max(1, int(os.environ.get("MAX_RENDERS", "2") or 2))          # bir vaqtda nechta og'ir (ffmpeg) ish
+MAX_UPLOAD_MB = max(50, int(os.environ.get("MAX_UPLOAD_MB", "2048") or 2048))  # bitta video fayl chegarasi
+MAX_PROJECTS = max(1, int(os.environ.get("MAX_PROJECTS", "300") or 300))       # bitta foydalanuvchidagi loyihalar
+DAILY_EXPORTS = max(0, int(os.environ.get("DAILY_EXPORTS", "0") or 0))         # kunlik eksport limiti (0 = cheksiz)
+_HEAVY = threading.BoundedSemaphore(MAX_RENDERS)
+_RATE = {}; _EXPORTS = {}
+def _rate(key, n, per):
+    """Oddiy xotiradagi cheklov: `per` soniyada `n` tadan ko'p bo'lsa 429."""
+    now = time.time(); q = [t for t in _RATE.get(key, []) if now - t < per]
+    if len(q) >= n:
+        _RATE[key] = q; raise HTTPException(429, "Juda ko'p urinish — birozdan keyin qayta urinib ko'ring")
+    q.append(now); _RATE[key] = q
+    if len(_RATE) > 5000:
+        for k in [k for k, v in _RATE.items() if not v or now - v[-1] > 3600]: _RATE.pop(k, None)
+def _ip(req):
+    return (req.headers.get("x-forwarded-for", "").split(",")[0].strip() or (req.client.host if req.client else "")) or "?"
+def _export_quota(usr):
+    if not DAILY_EXPORTS: return
+    k = (usr["id"], time.strftime("%Y%m%d")); n = _EXPORTS.get(k, 0)
+    if n >= DAILY_EXPORTS: raise HTTPException(429, f"Kunlik eksport limiti tugadi ({DAILY_EXPORTS} ta) — ertaga davom eting")
+    _EXPORTS[k] = n + 1
+    if len(_EXPORTS) > 5000:
+        for kk in [kk for kk in _EXPORTS if kk[1] != k[1]]: _EXPORTS.pop(kk, None)
 def new_job():
-    jid = uuid.uuid4().hex[:12]
-    JOBS[jid] = {"status": "running", "progress": 0, "step": "", "result": None, "error": None}
+    now = time.time()
+    if len(JOBS) > 400:                         # tugagan eski ishlarni xotiradan tozalaymiz
+        for k in [k for k, v in JOBS.items() if v.get("status") != "running" and now - v.get("t", now) > 7200]: JOBS.pop(k, None)
+    jid = uuid.uuid4().hex
+    JOBS[jid] = {"status": "running", "progress": 0, "step": "", "result": None, "error": None, "t": now}
     return jid
 def _clean_err(e):
     """Foydalanuvchiga ko'rsatiladigan xato: kalit va ichki manzillar yashiriladi."""
@@ -66,15 +100,23 @@ def _clean_err(e):
         return "AI xizmati javob bermadi" + (f" ({m.group(1)})" if m else "") + " — kalit yoki ruxsatni tekshiring"
     t = re.sub(r"(key|token|access_token)=[^&\s'\"]+", r"\1=***", raw)
     return re.sub(r"https?://\S+", "[manzil]", t)[:400]
-def run_job(jid, fn):
+def run_job(jid, fn, heavy=False):
     def worker():
+        got = False
         try:
+            if heavy:                            # og'ir ishlar navbat bilan: server bir vaqtda MAX_RENDERS tadan ko'p render qilmaydi
+                if not _HEAVY.acquire(blocking=False):
+                    JOBS[jid]["step"] = "Navbatda — oldingi render tugashi kutilmoqda..."
+                    _HEAVY.acquire()
+                got = True; JOBS[jid]["step"] = ""
             JOBS[jid]["result"] = fn(lambda p, s="": JOBS[jid].update(progress=p, step=s))
-            JOBS[jid]["status"] = "done"; JOBS[jid]["progress"] = 100
+            JOBS[jid]["status"] = "done"; JOBS[jid]["progress"] = 100; JOBS[jid]["t"] = time.time()
         except Exception as e:
             JOBS[jid]["status"] = "error"
-            JOBS[jid]["error"] = _clean_err(e)
+            JOBS[jid]["error"] = _clean_err(e); JOBS[jid]["t"] = time.time()
             traceback.print_exc()
+        finally:
+            if got: _HEAVY.release()
     threading.Thread(target=worker, daemon=True).start()
 
 # ---------- yordamchi ----------
@@ -152,6 +194,7 @@ def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 1
 
 @app.post("/api/auth/signup")
 async def signup(req: Request):
+    _rate("su:" + _ip(req), 6, 3600)
     b = await req.json()
     email = (b.get("email") or "").strip().lower()
     pw = b.get("password") or ""
@@ -174,6 +217,7 @@ async def auth_login(req: Request):
     b = await req.json()
     email = (b.get("email") or "").strip().lower()
     pw = b.get("password") or ""
+    _rate("li:" + _ip(req) + ":" + email[:80], 10, 600)
     u = users().get(email)
     if not u or not hmac.compare_digest(u["hash"], _hash_pw(pw, u["salt"])):
         raise HTTPException(401, "Email yoki parol noto'g'ri")
@@ -198,15 +242,29 @@ def auth_logout(x_auth: str = Header("")):
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
     usr = check_auth(x_auth)
+    ext = os.path.splitext(file.filename or "in.mp4")[1].lower() or ".mp4"
+    if ext not in (".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".3gp", ".mpg", ".mpeg", ".wmv", ".flv", ".ts"):
+        raise HTTPException(400, "Bu video fayl emas (MP4, MOV, WEBM, MKV qabul qilinadi)")
+    mine = 0
+    for q in os.listdir(PROJ):
+        try:
+            if json.load(open(os.path.join(PROJ, q, "meta.json"), encoding="utf-8")).get("user_id") == usr["id"]: mine += 1
+        except Exception: pass
+    if mine >= MAX_PROJECTS: raise HTTPException(400, f"Loyihalar soni chegaraga yetdi ({MAX_PROJECTS}) — keraksizlarini o'chiring")
     pid = uuid.uuid4().hex[:12]
     d = os.path.join(PROJ, pid); os.makedirs(d, exist_ok=True)
-    ext = os.path.splitext(file.filename or "in.mp4")[1].lower() or ".mp4"
-    inp = os.path.join(d, "input" + ext)
+    inp = os.path.join(d, "input" + ext); size = 0
     with open(inp, "wb") as f:
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk: break
+            size += len(chunk)
+            if size > MAX_UPLOAD_MB * 1024 * 1024:
+                f.close(); shutil.rmtree(d, ignore_errors=True)
+                raise HTTPException(413, f"Fayl juda katta — eng ko'pi {MAX_UPLOAD_MB} MB")
             f.write(chunk)
+    if montaj.ffdur(inp) <= 0:
+        shutil.rmtree(d, ignore_errors=True); raise HTTPException(400, "Videoni o'qib bo'lmadi — fayl buzilgan yoki format qo'llanmaydi")
     # BARQAROR kadr tezligiga keltiramiz (subtitr drift'ini yo'q qiladi)
     norm = os.path.join(d, "input_cfr.mp4")
     work_input = montaj.prepare_cfr(inp, norm)
@@ -314,7 +372,7 @@ async def broll_image(req: Request, x_auth: str = Header("")):
 # ---------- 5) RENDER ----------
 @app.post("/api/render")
 async def render(req: Request, x_auth: str = Header("")):
-    _own((await _peek(req)), check_auth(x_auth))
+    _usr = check_auth(x_auth); _own((await _peek(req)), _usr); _export_quota(_usr)
     body = await req.json(); pid = body["project"]; d = pdir(pid); meta = load_meta(pid)
     cutname = meta.get("cut") or meta.get("input")
     cut = os.path.join(d, cutname)
@@ -467,7 +525,7 @@ async def render(req: Request, x_auth: str = Header("")):
                                      "stickers": do_stickers, "hook": do_hook})
         save_meta(pid, meta)
         return {"final_url": f"/media/{pid}/final.mp4"}
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 # ---------- USLUB NAMUNASI (foydalanuvchi videosida qisqa klip) ----------
@@ -497,7 +555,7 @@ async def preview(req: Request, x_auth: str = Header("")):
             if not ok:
                 raise RuntimeError("preview xato")
         return {"url": f"/media/{pid}/{outname}"}
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 # ---------- FILMSTRIP (timeline uchun haqiqiy kadrlar) ----------
@@ -598,7 +656,7 @@ async def auto(req: Request, x_auth: str = Header("")):
         return {"final_url": f"/media/{pid}/final.mp4", "cut_url": f"/media/{pid}/{os.path.basename(cut)}",
                 "words": w2, "duration": cdur, "brolls": outb, "removes": removes,
                 "engine": res["engine"], "broll_note": bnote}
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 # ---------- NAMUNA USLUB ----------
@@ -621,7 +679,7 @@ async def reference(file: UploadFile = File(...), x_auth: str = Header("")):
             return montaj.analyze_reference(inp, tmp)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 # ---------- JOB holati ----------
@@ -887,7 +945,7 @@ async def studio_clip(req: Request, x_auth: str = Header("")):
                  "lang": m.get("lang", "uz"), "words": ws, "full_text": " ".join(w["w"] for w in ws), "folder": m.get("folder", "")}
         save_meta(new, meta2)
         return {"project": new}
-    run_job(jid, fn); return {"job": jid}
+    run_job(jid, fn, heavy=True); return {"job": jid}
 
 @app.post("/api/studio/reorder")
 async def studio_reorder(req: Request, x_auth: str = Header("")):
@@ -904,7 +962,7 @@ async def studio_reorder(req: Request, x_auth: str = Header("")):
         try: os.remove(os.path.join(d, "thumb.jpg"))
         except Exception: pass
         return {"video_url": f"/media/{pid}/{outn}", "duration": m["duration"]}
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 @app.post("/api/studio/beats")
@@ -989,7 +1047,7 @@ async def style_create(file: UploadFile = File(...), name: str = Form(""), x_aut
             return prof
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 @app.delete("/api/studio/styles/{sid}")
@@ -1071,7 +1129,7 @@ async def studio_append(file: UploadFile = File(...), project: str = Form(...), 
         m = load_meta(project); m.update(input=outn, duration=round(montaj.ffdur(outp), 2)); m.pop("cut", None); m.pop("cut_duration", None)
         save_meta(project, m)
         return {"video_url": f"/media/{project}/{outn}", "duration": m["duration"], "join": round(old, 3)}
-    run_job(jid, fn)
+    run_job(jid, fn, heavy=True)
     return {"job": jid}
 
 @app.post("/api/studio/save")
