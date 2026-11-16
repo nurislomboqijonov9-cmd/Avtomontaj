@@ -581,8 +581,9 @@ def subtract_ranges(segs, removes):
     return out
 
 def cut_video(inp,outp,segs):
-    if len(segs)<=1:
-        shutil.copy(inp,outp); return [(0,ffdur(inp))]
+    full=ffdur(inp)
+    if not segs or (len(segs)==1 and segs[0][0]<=0.02 and segs[0][1]>=full-0.06):
+        shutil.copy(inp,outp); return [(0,full)]
     sel="+".join("between(t,%.3f,%.3f)"%(a,b) for a,b in segs)
     fc=("[0:v]select='%s',setpts=N/FRAME_RATE/TB[v];"
         "[0:a]aselect='%s',asetpts=N/SR/TB[a]"%(sel,sel))
@@ -591,6 +592,60 @@ def cut_video(inp,outp,segs):
         "-c:v","libx264","-preset","veryfast","-crf","20","-c:a","aac","-b:a","160k",outp])
     if c!=0: shutil.copy(inp,outp)
     return segs
+
+def ffsize(p):
+    c,o=run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","csv=p=0:s=x",p],capture=True)
+    try: w,h=o.strip().split("\n")[0].split("x")[:2]; return int(w),int(h)
+    except Exception: return 1080,1920
+
+def _atempo(v):
+    """atempo 0.5..2 oralig'ida ishlaydi -> zanjir qilib ulanadi."""
+    out=[]; v=max(0.1,min(10.0,float(v)))
+    while v>2.0: out.append("atempo=2.0"); v/=2.0
+    while v<0.5: out.append("atempo=0.5"); v/=0.5
+    out.append("atempo=%.4f"%v); return ",".join(out)
+
+def cut_video_speed(inp,outp,segs,work=None):
+    """segs=[(a,b,tezlik)] — har bo'lak o'z tezligida (0.25x..4x) kesilib, ketma-ket ulanadi."""
+    work=work or os.path.dirname(outp); parts=[]
+    for i,(a,b,v) in enumerate(segs):
+        v=max(0.25,min(4.0,float(v or 1))); pp=os.path.join(work,"seg_%03d.mp4"%i)
+        c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-ss","%.3f"%a,"-to","%.3f"%b,"-i",inp,
+            "-vf","setpts=PTS/%.4f"%v,"-af",_atempo(v),"-r","30","-c:v","libx264","-preset","veryfast","-crf","18",
+            "-pix_fmt","yuv420p","-c:a","aac","-ar","48000","-ac","2","-b:a","160k",pp])
+        if c==0 and os.path.exists(pp) and os.path.getsize(pp)>500: parts.append(pp)
+    if not parts: return False
+    lst=os.path.join(work,"seg_list.txt")
+    open(lst,"w").write("".join("file '%s'\n"%x.replace("'","'\\''") for x in parts))
+    c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","concat","-safe","0","-i",lst,
+             "-c:v","copy","-c:a","aac","-ar","48000","-b:a","160k","-movflags","+faststart",outp])
+    for x in parts+[lst]:
+        try: os.remove(x)
+        except Exception: pass
+    return c==0 and os.path.exists(outp)
+
+def append_clip(cur, new, outp):
+    """Yangi klipni joriy video oxiriga ulaydi (o'lcham/kadr/audio bir xil qilinadi)."""
+    w,h=ffsize(cur)
+    def _has_audio(pth):
+        c,o=run(["ffprobe","-v","error","-select_streams","a","-show_entries","stream=index","-of","csv=p=0",pth],capture=True)
+        return bool((o or "").strip())
+    a0="[0:a]" if _has_audio(cur) else None; a1="[1:a]" if _has_audio(new) else None
+    extra=[]
+    if not (a0 and a1): extra=["-f","lavfi","-i","anullsrc=r=48000:cl=stereo"]
+    def _aud(lbl,src,dur_):
+        return (f"{src}aresample=48000,aformat=channel_layouts=stereo[{lbl}];" if src else f"[2:a]atrim=0:{dur_:.3f}[{lbl}];")
+    fc=(f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,setsar=1,format=yuv420p[v1];"
+        f"[0:v]fps=30,setsar=1,format=yuv420p[v0];"+_aud("a0",a0,ffdur(cur))+_aud("a1",a1,ffdur(new))+"[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
+    c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",cur,"-i",new]+extra+["-filter_complex",fc,"-map","[v]","-map","[a]",
+             "-c:v","libx264","-preset","veryfast","-crf","18","-c:a","aac","-b:a","160k","-movflags","+faststart",outp])
+    return c==0 and os.path.exists(outp)
+    fc=(f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,setsar=1,format=yuv420p[v1];"
+        f"[0:v]fps=30,setsar=1,format=yuv420p[v0];[0:a]aresample=48000,aformat=channel_layouts=stereo[a0];"
+        f"[1:a]aresample=48000,aformat=channel_layouts=stereo[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
+    c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",cur,"-i",new,"-filter_complex",fc,"-map","[v]","-map","[a]",
+             "-c:v","libx264","-preset","veryfast","-crf","18","-c:a","aac","-b:a","160k","-movflags","+faststart",outp])
+    return c==0 and os.path.exists(outp)
 
 def remap_words(words,segs):
     out=[];cut=0.0
@@ -603,6 +658,16 @@ def remap_words(words,segs):
     out.sort(key=lambda x:x["s"]); return out
 
 # ---------- subtitr (ASS) ----------
+def split_rows(n):
+    """n ta so'zni 3 qatorga (kam bo'lsa 1-2 qatorga) taqsimlaydi; ortiqchasi o'rta qatorga."""
+    if n<=0: return []
+    if n==1: return [1]
+    if n==2: return [1,1]
+    a=n//3; r=n%3; c=[a,a,a]
+    if r>=1: c[1]+=1
+    if r==2: c[2]+=1
+    return c
+
 def group_cues(words,n):
     cues=[];cur=[]
     for w in words:
@@ -627,6 +692,9 @@ def build_ass(words, sub, lang="uz", hook=None):
     font=pick_font(sub.get("font","Anton"), lang); size=int(sub.get("size",90)); border=sub.get("border",4)
     mv=int(sub.get("margin_v",660)); off=float(sub.get("delay",0.20)); n=int(sub.get("words",3))
     anim=sub.get("anim","pop")
+    stack=(sub.get("layout")=="stack3")
+    lscale=[float(x) for x in (sub.get("line_scale") or [0.62,1.0,0.78])][:3] or [1.0]
+    lcols=[hexass(sub.get(k) or sub.get("base","#FFFFFF")) for k in ("c1","c2","c3")]
     ANIMS={
         "pop":"{\\fad(50,0)\\fscx90\\fscy90\\t(0,120,\\fscx100\\fscy100)}",
         "fade":"{\\fad(170,90)}",
@@ -675,9 +743,21 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
         if end<=start: end=start+0.20
         prev_end=end
         disp=[(x["w"].upper() if upper else x["w"]).replace("{","(").replace("}",")") for x in cue]
-        parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
         ov=aeff if wi==0 else ""
-        lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov," ".join(parts)))
+        if stack:
+            # UCH POG'ONALI: so'zlar 3 qatorga bo'linadi, har qator o'z o'lchami/rangida, aytilayotgan so'z ajralib turadi
+            rows=[]; k=0
+            for li,cnt in enumerate(split_rows(len(disp))):
+                fs=max(10,int(round(size*lscale[min(li,len(lscale)-1)]))); lc=lcols[min(li,len(lcols)-1)]
+                toks=[]
+                for j in range(k,k+cnt):
+                    toks.append("{\\c%s}%s{\\c%s}"%(acc,disp[j],lc) if j==wi else disp[j])
+                rows.append("{\\fs%d\\c%s}%s"%(fs,lc," ".join(toks))); k+=cnt
+            text="\\N".join(rows)
+        else:
+            parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
+            text=" ".join(parts)
+        lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov,text))
     return head+"\n".join(lines0+lines)+"\n"
 
 # ---------- B-ROLL rasm ----------
@@ -867,6 +947,191 @@ def gen_image(prompt, dest):
     return got
 
 # rang bahosi (color grade) — montaj stilistikasi
+# ================= ANIMATSIYALI QATLAMLAR (stiker / rasm / matn): In + Out + Loop =================
+# Bu formulalar studio.html dagi animState() bilan AYNAN bir xil -> preview eksportga mos keladi.
+import math as _m
+ANIM_IN=("none","fade","pop","grow","zoomin","slide_l","slide_r","slide_u","slide_d","spin","bounce","drop","flip")
+ANIM_OUT=("none","fade","shrink","zoomout","slide_l","slide_r","slide_u","slide_d","spin","fall")
+ANIM_LOOP=("none","pulse","shake","wobble","float","spin","swing","heartbeat","blink","jelly")
+def _clip01(v): return 0.0 if v<0 else (1.0 if v>1 else v)
+def _back_out(p): c1=1.70158; c3=c1+1; return 1+c3*(p-1)**3+c1*(p-1)**2
+def _bounce_out(p):
+    n1=7.5625; d1=2.75
+    if p<1/d1: return n1*p*p
+    if p<2/d1: p-=1.5/d1; return n1*p*p+0.75
+    if p<2.5/d1: p-=2.25/d1; return n1*p*p+0.9375
+    p-=2.625/d1; return n1*p*p+0.984375
+
+def anim_state(tau, d, a_in="pop", a_out="fade", a_loop="none", in_d=0.35, out_d=0.3):
+    """tau = qatlam boshidan o'tgan vaqt. -> (sx, sy, rot_deg, alpha, dx, dy); dx/dy element o'lchami birligida."""
+    sx=sy=1.0; rot=0.0; al=1.0; dx=dy=0.0
+    in_d=min(max(0.0,in_d), d*0.5); out_d=min(max(0.0,out_d), d*0.5)
+    p=1.0 if in_d<=0 else _clip01(tau/in_d)
+    if p<1 and a_in!="none":
+        e=1-(1-p)**3
+        if a_in=="fade": al*=p
+        elif a_in=="pop": k=max(0.0,_back_out(p)); sx*=k; sy*=k; al*=min(1.0,p*3)
+        elif a_in=="grow": k=0.3+0.7*e; sx*=k; sy*=k; al*=e
+        elif a_in=="zoomin": k=1.7-0.7*e; sx*=k; sy*=k; al*=e
+        elif a_in=="slide_l": dx-=(1-e)*0.7; al*=e
+        elif a_in=="slide_r": dx+=(1-e)*0.7; al*=e
+        elif a_in=="slide_u": dy-=(1-e)*0.7; al*=e
+        elif a_in=="slide_d": dy+=(1-e)*0.7; al*=e
+        elif a_in=="spin": rot-=(1-e)*270; sx*=e; sy*=e; al*=min(1.0,p*2)
+        elif a_in=="bounce": k=_bounce_out(p); sx*=k; sy*=k
+        elif a_in=="drop": dy-=(1-_bounce_out(p))*0.9; al*=min(1.0,p*4)
+        elif a_in=="flip": sx*=e; al*=min(1.0,p*3)
+    q=0.0 if out_d<=0 else _clip01((tau-(d-out_d))/out_d)
+    if q>0 and a_out!="none":
+        e=q**3
+        if a_out=="fade": al*=1-q
+        elif a_out=="shrink": sx*=1-e; sy*=1-e
+        elif a_out=="zoomout": sx*=1+0.7*e; sy*=1+0.7*e; al*=1-q
+        elif a_out=="slide_l": dx-=e*0.7; al*=1-e
+        elif a_out=="slide_r": dx+=e*0.7; al*=1-e
+        elif a_out=="slide_u": dy-=e*0.7; al*=1-e
+        elif a_out=="slide_d": dy+=e*0.7; al*=1-e
+        elif a_out=="spin": rot+=e*270; sx*=1-e; sy*=1-e
+        elif a_out=="fall": dy+=e*0.9; rot+=e*40; al*=1-q
+    T=2*_m.pi*tau
+    if a_loop=="pulse": k=1+0.08*_m.sin(T*1.5); sx*=k; sy*=k
+    elif a_loop=="shake": dx+=0.04*_m.sin(T*9); dy+=0.03*_m.cos(T*11)
+    elif a_loop=="wobble": rot+=9*_m.sin(T*1.3)
+    elif a_loop=="float": dy+=0.07*_m.sin(T*0.7)
+    elif a_loop=="spin": rot+=360*tau/2.0
+    elif a_loop=="swing": rot+=16*_m.sin(T*0.8)
+    elif a_loop=="heartbeat":
+        h=(tau*1.2)%1.0; k=1+(0.16*max(0.0,_m.sin(T*1.2*2)) if h<0.5 else 0.0); sx*=k; sy*=k
+    elif a_loop=="blink": al*=0.55+0.45*(0.5+0.5*_m.sin(T*2))
+    elif a_loop=="jelly": j=0.07*_m.sin(T*2); sx*=1+j; sy*=1-j
+    return sx,sy,rot,_clip01(al),dx,dy
+
+def _kf_at(keys, tau):
+    """Keyframe'lar orasida silliq (smoothstep) interpolatsiya. -> dict yoki None."""
+    if not keys: return None
+    if tau<=keys[0]["t"]: return keys[0]
+    if tau>=keys[-1]["t"]: return keys[-1]
+    for a,b in zip(keys,keys[1:]):
+        if a["t"]<=tau<=b["t"]:
+            p=(tau-a["t"])/max(1e-6,b["t"]-a["t"]); e=p*p*(3-2*p)
+            return {k:a[k]+(b[k]-a[k])*e for k in ("x","y","s","rot","op")}
+    return keys[-1]
+
+def layer_frames(img, outdir, dur, L, fps=30, frame=None):
+    """PIL rasm (RGBA) yoki [(rasm, tugash_vaqti)] (GIF) -> animatsiya kadrlari (PNG). -> (kadrlar soni, kanvas eni, bo'yi).
+    L["keys"] bo'lsa (keyframe) kadrlar butun ekran (frame=(tw,th)) kanvasiga chiziladi."""
+    from PIL import Image
+    os.makedirs(outdir, exist_ok=True)
+    srcs=img if isinstance(img,list) else None
+    if srcs: img=srcs[0][0]; gtot=max(0.05,srcs[-1][1])
+    keys=[]
+    for kf in (L.get("keys") or []):
+        try: keys.append({"t":float(kf.get("t",0)),"x":float(kf.get("x",0.5)),"y":float(kf.get("y",0.5)),"s":float(kf.get("s",1)),"rot":float(kf.get("rot",0)),"op":float(kf.get("op",1))})
+        except Exception: pass
+    keys.sort(key=lambda z:z["t"])
+    if not frame: keys=[]
+    w0,h0=img.size; n=max(1,int(round(dur*fps)))
+    a_in=L.get("in","pop"); a_out=L.get("out","fade"); a_loop=L.get("loop","none")
+    in_d=float(L.get("in_d",0.35)); out_d=float(L.get("out_d",0.3))
+    rot0=float(L.get("rot",0) or 0); op=_clip01(float(L.get("op",1) if L.get("op") is not None else 1))
+    sts=[anim_state(i/fps, dur, a_in, a_out, a_loop, in_d, out_d) for i in range(n)]
+    kfs=[_kf_at(keys,i/fps) for i in range(n)] if keys else None
+    if kfs:   # keyframe: masshtab/burilish/shaffoflik holatga qo'shiladi, joylashuv butun ekranda
+        sts=[(sx*k["s"],sy*k["s"],rot+k["rot"],al*_clip01(k["op"]),dx,dy) for (sx,sy,rot,al,dx,dy),k in zip(sts,kfs)]
+    hx=hy=1.0
+    for sx,sy,rot,al,dx,dy in sts:
+        ww=w0*abs(sx); hh=h0*abs(sy)
+        if abs(rot+rot0)>0.01: r=_m.hypot(ww,hh)/2; ex=ey=r
+        else: ex=ww/2; ey=hh/2
+        hx=max(hx,abs(dx)*w0+ex); hy=max(hy,abs(dy)*h0+ey)
+    cw=int(_m.ceil(hx))*2+4; ch=int(_m.ceil(hy))*2+4
+    cw+=cw%2; ch+=ch%2
+    if kfs: cw,ch=int(frame[0]),int(frame[1])
+    prev_key=None; prev_path=None
+    for i,(sx,sy,rot,al,dx,dy) in enumerate(sts):
+        path=os.path.join(outdir,"%05d.png"%i); gi=0
+        if srcs:
+            tt=(i/fps)%gtot
+            for gi,(gim,gend) in enumerate(srcs):
+                if tt<gend: break
+            img=srcs[gi][0]
+        ox,oy=(kfs[i]["x"]*cw, kfs[i]["y"]*ch) if kfs else (cw/2, ch/2)
+        key=(round(sx,3),round(sy,3),round(rot,2),round(al,3),round(dx,4),round(dy,4),gi,round(ox,1),round(oy,1))
+        if key==prev_key and prev_path:
+            try: os.link(prev_path,path)
+            except Exception: shutil.copy(prev_path,path)
+            continue
+        canvas=Image.new("RGBA",(cw,ch),(0,0,0,0))
+        ww=int(round(w0*sx)); hh=int(round(h0*sy)); a=al*op
+        if ww>=2 and hh>=2 and a>0.004:
+            fr=img if (ww==w0 and hh==h0) else img.resize((ww,hh), Image.BILINEAR)
+            if abs(rot+rot0)>0.01: fr=fr.rotate(-(rot+rot0), expand=True, resample=Image.BICUBIC)
+            if a<0.999:
+                fr=fr.copy(); fr.putalpha(fr.getchannel("A").point(lambda v,a=a:int(v*a)))
+            px_=int(round(ox+dx*w0-fr.size[0]/2)); py_=int(round(oy+dy*h0-fr.size[1]/2))
+            if px_<0 or py_<0 or px_+fr.size[0]>cw or py_+fr.size[1]>ch:      # kanvasdan chiqsa qirqamiz
+                l=max(0,-px_); t_=max(0,-py_); r=min(fr.size[0],cw-px_); b_=min(fr.size[1],ch-py_)
+                if r>l and b_>t_: fr=fr.crop((l,t_,r,b_)); px_+=l; py_+=t_
+                else: fr=None
+            if fr is not None: canvas.alpha_composite(fr,(px_,py_))
+        canvas.save(path, compress_level=1)
+        prev_key=key; prev_path=path
+    return n,cw,ch
+
+_FONT_FILES={}
+def font_file(family):
+    """Shrift oilasi nomi -> fayl yo'li (FONTS_DIR ichidan)."""
+    if not _FONT_FILES:
+        try:
+            from fontTools.ttLib import TTFont
+            for fn in sorted(os.listdir(FONTS_DIR)):
+                if not fn.lower().endswith((".ttf",".otf")): continue
+                try:
+                    f=TTFont(os.path.join(FONTS_DIR,fn),lazy=True,fontNumber=0); fam=f["name"].getBestFamilyName(); f.close()
+                    if fam: _FONT_FILES.setdefault(fam, os.path.join(FONTS_DIR,fn))
+                except Exception: continue
+        except Exception: pass
+    return _FONT_FILES.get(family) or _FONT_FILES.get("Anton") or (next(iter(_FONT_FILES.values())) if _FONT_FILES else None)
+
+def _rgb(h, d=(255,255,255)):
+    h=str(h or "").lstrip("#")
+    try: return (int(h[0:2],16),int(h[2:4],16),int(h[4:6],16)) if len(h)==6 else d
+    except Exception: return d
+
+def text_png(L, th, lang="uz"):
+    """Erkin matn qatlami -> shaffof PNG (PIL). o'lcham 1920 balandlik birligida (subtitr kabi)."""
+    from PIL import Image, ImageDraw, ImageFont
+    txt=str(L.get("text") or "").replace("\r","")[:300]
+    if L.get("upper"): txt=txt.upper()
+    if not txt.strip(): return None
+    k=th/1920.0; px=max(8,int(round(float(L.get("size",110))*k))); bw=max(0,int(round(float(L.get("border",5))*k)))
+    ff=font_file(pick_font(L.get("font","Anton"), lang))
+    font=ImageFont.truetype(ff, px) if ff else ImageFont.load_default()
+    dr=ImageDraw.Draw(Image.new("RGBA",(8,8)))
+    sp=int(px*0.12)
+    x0,y0,x1,y1=dr.multiline_textbbox((0,0),txt,font=font,stroke_width=bw,align="center",spacing=sp)
+    bg=L.get("bg"); pad=int(px*0.28) if bg else int(px*0.08)+2
+    w=int(x1-x0)+2*pad; h=int(y1-y0)+2*pad
+    img=Image.new("RGBA",(w+w%2,h+h%2),(0,0,0,0)); d=ImageDraw.Draw(img)
+    if bg: d.rounded_rectangle((0,0,img.size[0]-1,img.size[1]-1), radius=int(px*0.22), fill=_rgb(bg,(0,0,0))+(235,))
+    d.multiline_text((pad-x0,pad-y0),txt,font=font,fill=_rgb(L.get("color"))+(255,),stroke_width=bw,
+                     stroke_fill=_rgb(L.get("outline"),(0,0,0))+(255,),align="center",spacing=sp)
+    return img
+
+# ---------- OVOZ EFFEKTLARI (sintez — litsenziya kerak emas) ----------
+SFX={"whoosh":("anoisesrc=d=0.5:c=pink:a=0.9,highpass=f=350,lowpass=f=5000,afade=t=in:d=0.28:curve=qsin,afade=t=out:st=0.28:d=0.22,volume=1.6",None),
+     "pop":(None,"aevalsrc='0.7*sin(2*PI*(900-3600*t)*t)*exp(-26*t)':d=0.14:s=48000"),
+     "ding":(None,"aevalsrc='0.45*sin(2*PI*1318*t)*exp(-5*t)+0.2*sin(2*PI*2637*t)*exp(-7*t)':d=0.9:s=48000"),
+     "boom":(None,"aevalsrc='0.9*sin(2*PI*(70-40*t)*t)*exp(-5*t)':d=0.8:s=48000"),
+     "click":(None,"aevalsrc='0.6*sin(2*PI*2200*t)*exp(-90*t)':d=0.05:s=48000")}
+def sfx_file(kind, cache_dir):
+    if kind not in SFX: return None
+    os.makedirs(cache_dir, exist_ok=True); p=os.path.join(cache_dir, kind+".wav")
+    if os.path.exists(p) and os.path.getsize(p)>200: return p
+    chain,src=SFX[kind]
+    run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","lavfi","-i",src or chain,"-ar","48000","-ac","2",p])
+    return p if os.path.exists(p) else None
+
 GRADES={
  "clean":"eq=contrast=1.03:saturation=1.02",
  "vivid":"eq=contrast=1.06:saturation=1.18",
@@ -880,6 +1145,18 @@ GRADES={
  "neon":"eq=contrast=1.1:saturation=1.25,colorbalance=bs=0.05:rm=0.03",
  "none":"",
 }
+def grade_filter(grade):
+    """grade = preset nomi YOKI Studio slayderlari: {sat,con,bri,temp}. ffmpeg filtr matnini qaytaradi."""
+    if isinstance(grade,dict):
+        def num(k,d,lo,hi):
+            try: return max(lo,min(hi,float(grade.get(k,d))))
+            except Exception: return d
+        sat=num("sat",1.0,0.0,2.0); con=num("con",1.0,0.5,1.6); bri=num("bri",0.0,-0.3,0.3); temp=num("temp",0.0,-1.0,1.0)
+        f="eq=contrast=%.3f:saturation=%.3f:brightness=%.3f"%(con,sat,bri)
+        if abs(temp)>0.01: f="colorbalance=rs=%.3f:bs=%.3f:rm=%.3f:bm=%.3f,"%(0.14*temp,-0.14*temp,0.07*temp,-0.07*temp)+f
+        return f
+    return GRADES.get(grade, GRADES["vivid"])
+
 _ZOOM={0:0.0, 1:0.0004, 2:0.0009}  # zoom tezligi
 _ZMAX={0:1.0, 1:1.05, 2:1.12}
 
@@ -931,24 +1208,65 @@ FX_MAP={  # oila -> effekt
 
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
                  quality="1080", fast=False, fx="none", stickers=None,
-                 music=None, music_vol=0.28, orig_vol=1.0):
-    """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz."""
-    stickers = stickers or []
+                 music=None, music_vol=0.28, orig_vol=1.0,
+                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False):
+    """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz.
+    anim_layers=[{dir,time,dur,cx,cy,cw,ch}] (layer_frames kadrlari), transitions=[{t,type,dur}] (chiqish vaqtida),
+    zooms=[{a,b,scale,ramp}], sfx=[{path,t,vol}]."""
+    stickers = stickers or []; anim_layers = anim_layers or []
+    transitions = [x for x in (transitions or []) if x.get("type") not in (None,"","none")][:60]
+    zooms = (zooms or [])[:40]; sfx = (sfx or [])[:40]
     tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
     lvl=0 if not zoom else int(zoom_level if zoom_level in (0,1,2) else 1)
-    g=GRADES.get(grade, GRADES["vivid"]); geq=("," + g) if g else ""
+    g=grade_filter(grade); geq=("," + g) if g else ""
     dur=_probe_dur(cut) or 3.0
     strong = 2 if lvl>=2 else 1
+    # --- kesimlardagi o'tishlar va zoom zarbalari (vaqt = in/30, chunki kirish 30fps CFR) ---
+    T="(in/30)"; zadd=[]; shk=[]; win={}
+    for tr in transitions:
+        c=float(tr.get("t",0)); hh=max(0.08,float(tr.get("dur",0.3))/2); ty=str(tr.get("type"))
+        win.setdefault(ty,[]).append((c,hh))
+        if ty=="spin": zadd.append(f"0.45*max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
+        if ty=="zoom": zadd.append(f"0.16*max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
+        elif ty=="shake": zadd.append(f"0.07*max(0,1-abs({T}-{c:.3f})/{hh:.3f})"); shk.append(f"max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
+    for z in zooms:
+        a_=float(z.get("a",0)); b_=float(z.get("b",0)); sc=max(1.0,min(2.0,float(z.get("scale",1.15)))); rp=max(0.0,float(z.get("ramp",0.12)))
+        if b_-a_<0.1 or sc<=1.001: continue
+        if rp<0.02: zadd.append(f"{sc-1:.3f}*between({T},{a_:.3f},{b_:.3f})")
+        else: zadd.append(f"{sc-1:.3f}*clip(({T}-{a_:.3f})/{rp:.3f},0,1)*clip(({b_:.3f}-{T})/{rp:.3f},0,1)")
+    zplus=("+"+"+".join(zadd)) if zadd else ""
+    sx_=(f"+{int(tw*0.012)}*sin(in*2.3)*("+"+".join(shk)+")") if shk else ""
+    sy_=(f"+{int(tw*0.010)}*cos(in*1.9)*("+"+".join(shk)+")") if shk else ""
+    def _sumwin(ty, var="t"): return "+".join(f"max(0,1-abs({var}-{c:.3f})/{hh:.3f})" for c,hh in win.get(ty,[]))
+    def _betw(ty): return "+".join(f"between(t,{c-hh:.3f},{c+hh:.3f})" for c,hh in win.get(ty,[]))
+    post=""
+    if win.get("flash") or win.get("dip"):
+        ex="+".join(x for x in [("0.85*("+_sumwin("flash")+")") if win.get("flash") else "", ("-0.95*("+_sumwin("dip")+")") if win.get("dip") else ""] if x)
+        post+=f",eq=brightness='max(-1,min(1,{ex}))':eval=frame"
+    if win.get("blur"): post+=f",gblur=sigma={max(6,tw//60)}:steps=1:enable='{_betw('blur')}'"
+    if win.get("spin"):
+        ang="+".join(f"(PI*pow(clip((t-{c-hh:.3f})/{hh:.3f},0,1),2)*lt(t,{c:.3f})-PI*pow(1-clip((t-{c:.3f})/{hh:.3f},0,1),2)*gte(t,{c:.3f})*lt(t,{c+hh:.3f}))" for c,hh in win["spin"])
+        post+=f",rotate=a='{ang}':c=black:ow=iw:oh=ih"
+    def _whip(ty, size, sign):
+        return "+".join(f"({sign}{size}*(-pow(clip((t-{c-hh:.3f})/{hh:.3f},0,1),2)*lt(t,{c:.3f})+pow(1-clip((t-{c:.3f})/{hh:.3f},0,1),2)*gte(t,{c:.3f})*lt(t,{c+hh:.3f})))" for c,hh in win.get(ty,[]))
+    wx="+".join(x for x in [_whip("slide_l",tw,""),_whip("slide_r",tw,"-")] if x)
+    wy="+".join(x for x in [_whip("slide_u",th,""),_whip("slide_d",th,"-")] if x)
+    if win.get("glitch"): post+=f",rgbashift=rh={max(6,tw//80)}:bh=-{max(6,tw//80)}:gv={max(3,tw//160)}:enable='{_betw('glitch')}'"
     # 1) asosiy oqim (scale/crop/zoom/grade) -> [v0]
-    if lvl>0:
+    if lvl>0 or zadd:
         spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
         base0=(f"[0:v]scale={int(tw*1.14)}:{int(th*1.14)}:force_original_aspect_ratio=increase,crop={int(tw*1.14)}:{int(th*1.14)},"
-               f"zoompan=z='min(1.0+{spd}*in,{zmx})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={tw}x{th}:fps=30"
-               f"{geq},setsar=1[v0]")
+               f"zoompan=z='min(1.0+{spd}*in,{zmx}){zplus}':d=1:x='iw/2-(iw/zoom/2){sx_}':y='ih/2-(ih/zoom/2){sy_}':s={tw}x{th}:fps=30"
+               f"{geq}{post},setsar=1[v0]")
     else:
-        base0=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq},setsar=1[v0]"
+        base0=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq}{post},setsar=1[v0]"
+    whip=[]
+    if wx or wy:   # surilish o'tishi: kadr xiralashgan nusxasi ustida tez surilib chiqadi/kiradi
+        base0=base0[:-len("[v0]")]+"[vw]"
+        whip=[f"[vw]split[wa][wb]",f"[wb]scale={max(2,tw//12)}:-2,gblur=sigma=3,scale={tw}:{th},eq=brightness=-0.2[wbg]",
+              f"[wbg][wa]overlay=x='{wx or 0}':y='{wy or 0}':eval=frame[v0]"]
     # 2) effekt [v0]->[vfx]
     fxparts=_fx_parts(fx, "[v0]", "[vfx]", tw, th, dur, strong)
     # 3) subtitr [vfx]->[base]
@@ -956,17 +1274,27 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     ov=max(0.0,float(orig_vol))
     af=(f"volume={ov:.2f},highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else f"volume={ov:.2f},aresample=48000"
-    parts=[base0]+fxparts+[subpart]; cur="[base]"; inputs=["-i",cut]
+    parts=[base0]+whip+fxparts; cur="[vfx]"; inputs=["-i",cut]
     idx=0
-    # --- B-ROLL: Ken Burns (sekin zoom/pan) ---
-    for k,b in enumerate(brolls):
+    # --- B-ROLL: avval to'liq ekranlilar (subtitr ULARNING USTIDA qoladi), keyin subtitr, keyin kartochkalar ---
+    order=[(k,b) for k,b in enumerate(brolls) if b.get("full")]+[(None,None)]+[(k,b) for k,b in enumerate(brolls) if not b.get("full")]
+    for k,b in order:
+        if b is None:
+            parts.append(f"{cur}{sub}[base]"); cur="[base]"; continue
         p=b["path"]; s=float(b["time"]); d=float(b.get("dur",2.5))
         y=float(b.get("y",0.72)); bw=int(tw*float(b.get("w",0.78))); bh=int(bw*0.62); fr=max(1,int(d*30))
-        inputs+=["-loop","1","-t",f"{d}","-i",p]; idx+=1
-        parts.append(f"[{idx}:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
+        if b.get("full"): bw,bh,y=tw,th,0.0          # to'liq ekran (haqiqiy b-roll kesim)
+        fd_=0.12 if b.get("full") else 0.3
+        fades=f"format=yuva420p,fade=t=in:st=0:d={fd_}:alpha=1,fade=t=out:st={max(0.01,d-fd_):.2f}:d={fd_}:alpha=1,"
+        if os.path.splitext(p)[1].lower() in (".mp4",".mov",".webm",".mkv",".m4v"):   # video b-roll
+            inputs+=["-stream_loop","-1","-t",f"{d}","-i",p]; idx+=1
+            parts.append(f"[{idx}:v]fps=30,scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},setsar=1,"
+                         f"{fades}setpts=PTS-STARTPTS+{s:.2f}/TB[ov{k}]")
+        else:
+            inputs+=["-loop","1","-t",f"{d}","-i",p]; idx+=1
+            parts.append(f"[{idx}:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
                      f"zoompan=z='min(zoom+0.0016,1.14)':d={fr}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={bw}x{bh}:fps=30,"
-                     f"format=yuva420p,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(0.01,d-0.3):.2f}:d=0.3:alpha=1,"
-                     f"setpts=PTS+{s:.2f}/TB[ov{k}]")
+                     f"{fades}setpts=PTS+{s:.2f}/TB[ov{k}]")
         nxt=f"[vb{k}]"
         parts.append(f"{cur}[ov{k}]overlay=(W-w)/2:{int(th*y)}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
@@ -994,14 +1322,28 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
         nxt=f"[sv{k}]"
         parts.append(f"{cur}[stk{k}]overlay={ox}:{oy}:enable='between(t,{s:.2f},{s+d:.2f})':eof_action=pass:repeatlast=0{nxt}")
         cur=nxt
-    # --- AUDIO: original + (ixtiyoriy) musiqa ---
+    # --- ANIMATSIYALI QATLAMLAR (stiker/rasm/matn): tayyor PNG kadrlar ---
+    for k,L in enumerate(anim_layers):
+        s=float(L["time"]); d=float(L["dur"])
+        inputs+=["-framerate","30","-i",os.path.join(L["dir"],"%05d.png")]; idx+=1
+        parts.append(f"[{idx}:v]format=rgba,setpts=PTS+{s:.3f}/TB[al{k}]")
+        nxt=f"[av{k}]"
+        parts.append(f"{cur}[al{k}]overlay={int(L['cx']-L['cw']/2)}:{int(L['cy']-L['ch']/2)}:enable='between(t,{s:.3f},{s+d:.3f})':eof_action=pass:repeatlast=0{nxt}")
+        cur=nxt
+    # --- AUDIO: original + (ixtiyoriy) musiqa + ovoz effektlari ---
+    mixin=["[a0]"]; parts.append(f"[0:a]{af}[a0]")
     if music and os.path.exists(music):
-        inputs+=["-i",music]; idx+=1; midx=idx
-        parts.append(f"[0:a]{af}[a0]")
-        parts.append(f"[{midx}:a]volume={max(0.0,float(music_vol)):.2f},aresample=48000[mus]")
-        parts.append(f"[a0][mus]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]")
+        inputs+=["-stream_loop","-1","-i",music]; idx+=1
+        mf=(f",afade=t=in:d=0.6,afade=t=out:st={max(0.1,dur-1.3):.2f}:d=1.2" if music_fade else "")
+        parts.append(f"[{idx}:a]atrim=0:{dur:.2f},volume={max(0.0,float(music_vol)):.2f}{mf},aresample=48000[mus]"); mixin.append("[mus]")
+    for k,x in enumerate(sfx):
+        if not x.get("path") or not os.path.exists(x["path"]): continue
+        inputs+=["-i",x["path"]]; idx+=1
+        parts.append(f"[{idx}:a]adelay={max(0,int(float(x.get('t',0))*1000))}:all=1,volume={max(0.0,min(2.0,float(x.get('vol',0.5)))):.2f},aresample=48000[sx{k}]"); mixin.append(f"[sx{k}]")
+    if len(mixin)>1:
+        parts.append("".join(mixin)+f"amix=inputs={len(mixin)}:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]")
     else:
-        parts.append(f"[0:a]{af}[aout]")
+        parts.append("[a0]anull[aout]")
     fc=";".join(parts)
     preset="veryfast" if fast else "medium"
     cmd=["ffmpeg","-y","-hide_banner","-loglevel","error"]+inputs+[
@@ -1130,6 +1472,85 @@ def analyze_reference(video_path, work):
     pace="tez" if wps>=3.0 else ("o'rtacha" if wps>=2.0 else "sekin")
     return {"words_per_cue":words_per_cue,"wps":round(wps,2),"pace":pace,
             "fast_cut":bool(fast),"engine":eng}
+
+# ================= NAMUNA VIDEODAN USLUB PROFILI (Studio) =================
+_LOOKS={"clean":{"sat":1.02,"con":1.03,"bri":0.0,"temp":0.0},"vivid":{"sat":1.18,"con":1.06,"bri":0.0,"temp":0.0},
+        "warm":{"sat":1.08,"con":1.04,"bri":0.01,"temp":0.45},"cool":{"sat":1.05,"con":1.05,"bri":0.0,"temp":-0.4},
+        "cinema":{"sat":1.05,"con":1.08,"bri":0.0,"temp":0.2},"mono":{"sat":0.0,"con":1.1,"bri":0.0,"temp":0.0},
+        "moody":{"sat":0.9,"con":1.13,"bri":-0.03,"temp":0.1}}
+_STYLE_PROMPT=("You are a video editing analyst. Watch this short vertical social-media video and describe its EDITING STYLE "
+    "so that another video can be edited the same way. Look at the on-screen captions, cuts, zooms, colors, overlays. "
+    "Return ONLY a JSON object with exactly these keys: "
+    "{\"subtitle\":{\"present\":true,\"lines\":1,\"words_per_screen\":3,\"uppercase\":true,\"position\":\"bottom|center|top\","
+    "\"color_main\":\"#RRGGBB\",\"color_accent\":\"#RRGGBB\",\"size\":\"small|medium|large\",\"animation\":\"pop|bounce|fade|none\"},"
+    "\"pace\":\"slow|medium|fast\",\"zoom\":\"none|light|strong\",\"look\":\"clean|vivid|warm|cool|cinema|mono|moody\","
+    "\"effect\":\"none|glow|grain|glitch|shake|letterbox|vhs|dream|flash\",\"broll_per_30s\":0,\"emoji_stickers\":false,"
+    "\"hook_title\":false,\"notes\":\"one short sentence in Uzbek (Latin) describing the style\"}. "
+    "lines = how many text lines the captions occupy at once (1, 2 or 3). color_accent = color of the highlighted/spoken word "
+    "(same as color_main if none). broll_per_30s = how many cutaway images/clips appear per 30 seconds.")
+
+def _hexok(v, d):
+    v=str(v or "").strip()
+    return v.lower() if re.match(r"^#[0-9a-fA-F]{6}$", v) else d
+
+def style_measure(video_path, limit=60):
+    """AI'siz o'lchanadigan narsalar: kadr almashish tezligi va pauzalar uzunligi."""
+    dur=ffdur(video_path); span=max(1.0,min(dur,float(limit)))
+    c,o=run(["ffmpeg","-hide_banner","-t",str(limit),"-i",video_path,"-an",
+             "-vf","scale=320:-2,select='gt(scene,0.32)',showinfo","-f","null","-"],capture=True)
+    cuts=len(re.findall(r"pts_time:",o or ""))
+    sils=[(a,b) for a,b in detect_silences(video_path, dB=-32, mind=0.2) if b is not None and a<limit]
+    lens=sorted(b-a for a,b in sils)
+    if len(lens)>=3: pmax=lens[min(len(lens)-1,int(len(lens)*0.75))]
+    elif lens: pmax=lens[-1]
+    else: pmax=0.3
+    return {"duration":round(dur,2),"cuts_per_min":round(cuts/(span/60.0),1),"pause_max":round(max(0.25,min(1.0,pmax)),2)}
+
+def analyze_style(video_path, work):
+    """Namuna videoning montaj uslubi -> Studio qo'llay oladigan profil.
+    Vertex bo'lsa Gemini videoni ko'rib tavsiflaydi; bo'lmasa faqat o'lchovlar (temp/pauza)."""
+    m=style_measure(video_path)
+    fast=m["cuts_per_min"]>=14 or m["pause_max"]<=0.35
+    prof={"source":"measured","measured":m,
+          "subtitle":{"layout":"stack3","words":6,"upper":True,"position":"bottom","color_main":"#ffffff",
+                      "color_second":"#ffe14a","color_accent":"#39e75f","size":"medium","anim":"pop"},
+          "pace":{"pause_max":m["pause_max"],"cuts_per_min":m["cuts_per_min"]},
+          "look":dict(_LOOKS["vivid"]),"zoom":2 if fast else 1,"fx":"none","broll":4 if fast else 2,
+          "stickers":fast,"hook":True,
+          "notes":"Faqat temp o'lchandi (AI ulanmagan): %s kesish/daqiqa, pauza %.2fs gacha."%(m["cuts_per_min"],m["pause_max"])}
+    if not have_vertex(): return prof
+    try:
+        small=os.path.join(work,"style_small.mp4")
+        c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-t","40","-i",video_path,
+                 "-vf","scale=-2:640,fps=8","-c:v","libx264","-preset","veryfast","-crf","32",
+                 "-c:a","aac","-b:a","32k","-ac","1","-movflags","+faststart",small])
+        if c!=0 or not os.path.exists(small) or os.path.getsize(small)>18*1024*1024: raise RuntimeError("namuna klip tayyorlanmadi")
+        b64=base64.b64encode(open(small,"rb").read()).decode()
+        txt,model=_vertex_audio_call(b64,"video/mp4",_STYLE_PROMPT)
+        j=json.loads(txt)
+        if isinstance(j,list): j=j[0] if j else {}
+        su=j.get("subtitle") or {}
+        lines=int(su.get("lines",1) or 1); wps=int(su.get("words_per_screen",3) or 3)
+        layout="stack3" if lines>=3 else "line"
+        main=_hexok(su.get("color_main"),"#ffffff"); acc=_hexok(su.get("color_accent"),"#ffea00")
+        prof["subtitle"]={"present":su.get("present",True) is not False,"layout":layout,
+            "words":max(3 if layout=="stack3" else 1,min(9,wps)),"upper":bool(su.get("uppercase",True)),
+            "position":su.get("position") if su.get("position") in ("bottom","center","top") else "bottom",
+            "color_main":main,"color_second":main,"color_accent":acc,
+            "size":su.get("size") if su.get("size") in ("small","medium","large") else "medium",
+            "anim":{"pop":"pop","bounce":"bounce","fade":"fade","none":"none"}.get(str(su.get("animation","pop")),"pop")}
+        pace=str(j.get("pace","medium"))
+        ai_p={"fast":0.3,"medium":0.5,"slow":0.8}.get(pace,0.5)
+        prof["pace"]["pause_max"]=round(max(0.25,min(1.0,(ai_p+m["pause_max"])/2)),2); prof["pace"]["label"]=pace
+        prof["look"]=dict(_LOOKS.get(str(j.get("look","vivid")),_LOOKS["vivid"])); prof["look_name"]=str(j.get("look","vivid"))
+        prof["zoom"]={"none":0,"light":1,"strong":2}.get(str(j.get("zoom","light")),1)
+        fx=str(j.get("effect","none")); prof["fx"]=fx if fx in ("none","glow","grain","glitch","shake","letterbox","vhs","dream","flash") else "none"
+        prof["broll"]=max(0,min(8,int(j.get("broll_per_30s",0) or 0)))
+        prof["stickers"]=bool(j.get("emoji_stickers",False)); prof["hook"]=bool(j.get("hook_title",False))
+        prof["notes"]=str(j.get("notes") or "")[:240]; prof["source"]="ai:"+model
+    except Exception as e:
+        prof["notes"]="AI tahlil ishlamadi (%s). Faqat temp o'lchandi."%str(e)[:120]
+    return prof
 
 def apply_cut(video_path, words, removes, work, dur):
     """removes = [[s,e],...] (o'chiriladigan). Kesadi, so'zlarni qayta moslaydi."""

@@ -9,6 +9,26 @@ Videongizni yuklaysiz → bot o'zbekcha subtitr qo'yadi, keraksiz joylarni (jiml
 3. **Animatsiya** — "Avto g'oyalar" yoki qo'lda; har biriga Gemini rasm chizadi, joyini/vaqtini o'zingiz tanlaysiz.
 4. **Namuna uslub** — yoqtirgan videongizni yuklang, bot uning subtitr tempi/kesish uslubini o'lchab sizga moslaydi.
 
+## Studio (asosiy interfeys)
+Sayt ochilganda (`/`) yangi Studio chiqadi. Eski interfeys `/classic` manzilida o'zgarishsiz turadi.
+- **Avto montaj:** video tashlanadi -> transkripsiya, pauza va takrorlarni kesish, subtitr, stiker, hook, b-roll avtomatik qo'yiladi. Keyin hammasini taymlaynda qo'lda o'zgartirish mumkin.
+- **Namuna videodan uslub:** bosh sahifada yoki «AI uslub» bo'limida namuna video yuklanadi. Gemini (Vertex) uning subtitr turi, tempi, rangi, zoomi va b-roll zichligini o'rganadi, profil saqlanadi va yangi videolarga qo'llanadi. Vertex ulanmagan bo'lsa faqat temp (pauza, kadr almashish) o'lchanadi.
+- **Tuzilishi:** chapda kutubxona (Media, Audio, Matn, Stiker, Effekt, Filtr, AI uslub), o'rtada pleyer, o'ngda tanlangan element sozlamalari va agentlar paneli, pastda ko'p trekli taymlayn.
+- **Taymlayn:** Bo'lish (S yoki Ctrl+B), chapini/o'ngini o'chirish (Q / W), Delete, oraliq kesish (B), Ctrl+Z. Kesilgan joylar qizil bo'lib ko'rinadi va istalgan payt tiklanadi.
+- **Uch pog'onali subtitr:** so'zlar 3 qatorga bo'linadi, har qator o'z o'lchami va rangida, aytilayotgan so'z ajralib turadi. Preview eksport bilan bir xil ko'rinadi.
+- **Stiker va matn animatsiyalari:** har bir qatlamga kirish (13 tur), chiqish (10 tur) va takroriy (10 tur) animatsiya birga qo'yiladi; pleyerda sichqoncha bilan suriladi. Emoji kutubxonasi (6 bo'lim) va o'z rasm/logongizni stiker qilib yuklash.
+- **Erkin matn qatlamlari:** 6 ta tayyor ko'rinish, shrift, rang, kontur, fon, burilish, shaffoflik.
+- **O'tishlar:** kesilgan joylarga zoom zarba, oq chaqnash, qoraga botish, xiralashish, glitch, silkinish.
+- **Zoom zarbalari:** qo'lda yoki «Avto zoom» (har ikkinchi bo'lak yaqinlashadi).
+- **Ovoz effektlari:** o'tishda whoosh, stiker/matnda pop (serverda sintez qilinadi), musiqaga fade.
+- **Tezlik:** har bir video bo'lagiga alohida 0.25×–4× tezlik (ovoz balandligi buzilmaydi).
+- **Surilish va aylanish o'tishlari:** chapga/o'ngga/tepaga/pastga surish, aylanish; har bir kesimga alohida o'tish tanlash mumkin.
+- **Video va to'liq ekranli b-roll:** rasm yoki video qatlam, «To'liq ekran» rejimida asosiy video o'rnini egallaydi, subtitr ustida qoladi.
+- **Keyframe:** stiker va matn vaqt davomida harakatlanadi (joy, masshtab, burilish, shaffoflik). Harakatli GIF stikerlar.
+- **Ovoz effektlari:** qo'lda whoosh/pop/ding/boom/click qo'yish, pleyerda ham eshitiladi.
+- **Bir nechta klip:** «Klip qo'shish» yana bir videoni loyiha oxiriga ulaydi.
+- Barcha o'zgarishlar avtomatik saqlanadi (`studio.json`).
+
 ---
 
 ## Railway'ga o'rnatish (24/7 onlayn)

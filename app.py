@@ -111,6 +111,13 @@ def preview_clip(fname: str):
     return FileResponse(path, media_type="video/mp4")
 
 @app.get("/", response_class=HTMLResponse)
+def home():
+    """Asosiy sahifa — yangi Studio. Eski interfeys /classic da."""
+    p = os.path.join(HERE, "studio.html")
+    if os.path.exists(p): return open(p, encoding="utf-8").read()
+    return index()
+
+@app.get("/classic", response_class=HTMLResponse)
 def index():
     # index.html qayerda bo'lsa ham topamiz (static/ ichida yoki asosiy papkada)
     for p in [os.path.join(STATIC, "index.html"),
@@ -306,11 +313,15 @@ async def render(req: Request, x_auth: str = Header("")):
     lang = (body.get("lang") or meta.get("lang") or "uz").lower()
     brolls_in = body.get("brolls", [])
     removes = [list(r) for r in (body.get("removes") or []) if r and len(r) == 2]
+    segments = body.get("segments")                 # Studio: [{a,b,v}] — tezlik o'zgargan bo'lsa (so'zlar allaqachon chiqish vaqtida)
     do_stickers = bool(body.get("stickers", True)); do_hook = bool(body.get("hook", True))
     sticker_items = body.get("sticker_items")      # brauzer rejasi (emoji belgisi bilan) yoki None
     hook_override = body.get("hook_text")           # brauzerdan tahrirlangan hook matni
     use_music = bool(body.get("music", True)); music_vol = float(body.get("music_vol", 0.28))
     orig_vol = float(body.get("orig_vol", 1.0))
+    layers_in = body.get("layers")                  # Studio: animatsiyali stiker/rasm/matn qatlamlari
+    transitions = body.get("transitions") or []; zooms_in = body.get("zooms") or []
+    sfx_in = body.get("sfx") or []; music_fade = bool(body.get("music_fade", False))
     music_path = None
     if use_music and meta.get("music"):
         mp = os.path.join(d, meta["music"])
@@ -318,8 +329,14 @@ async def render(req: Request, x_auth: str = Header("")):
     jid = new_job()
     def fn(prog):
         nonlocal cut, words
+        if isinstance(segments, list) and segments:
+            prog(10, "Bo'laklar kesilib, tezligi o'zgartirilyapti...")
+            segs = [(float(x["a"]), float(x["b"]), float(x.get("v", 1))) for x in segments if float(x["b"]) - float(x["a"]) > 0.05][:200]
+            tmp = os.path.join(d, "render_src.mp4")
+            if not montaj.cut_video_speed(cut, tmp, segs, d): raise RuntimeError("bo'laklarni kesishda xato")
+            cut = tmp
         # qo'lda belgilangan kesishlarni SHU render ichida qo'llaymiz (alohida kutish yo'q)
-        if removes:
+        elif removes:
             prog(10, "Kesilgan joylar olib tashlanyapti...")
             cdur = meta.get("cut_duration") or montaj.ffdur(cut)
             keep = montaj.subtract_ranges([(0.0, float(cdur))], [tuple(r) for r in removes])
@@ -327,7 +344,7 @@ async def render(req: Request, x_auth: str = Header("")):
             tmp = os.path.join(d, "render_src.mp4")
             montaj.cut_video(cut, tmp, keep)
             if os.path.exists(tmp):
-                words = montaj.remap_words(words, keep) if len(keep) > 1 else words
+                words = montaj.remap_words(words, keep)   # bitta bo'lak qolsa ham vaqt siljiydi
                 cut = tmp
         prog(15, "Subtitr tayyorlanyapti...")
         ass = os.path.join(d, "subs.ass")
@@ -339,8 +356,45 @@ async def render(req: Request, x_auth: str = Header("")):
             open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang, hook=hooktext))
         else:
             open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang, hook=hooktext))
-        # STIKERLAR: brauzer rejasi bo'lsa uni chizamiz (foydalanuvchi tahrirlagan), aks holda avto
-        if isinstance(sticker_items, list):
+        anim_layers = []
+        if isinstance(layers_in, list):
+            # STUDIO QATLAMLARI: har biri In/Out/Loop animatsiyali PNG kadrlarga aylanadi
+            from PIL import Image
+            tw_, th_, _ = montaj.QMAP.get(quality.lower(), (1080, 1920, 20))
+            ldir = os.path.join(d, "layers"); shutil.rmtree(ldir, ignore_errors=True); os.makedirs(ldir, exist_ok=True)
+            for i, L in enumerate(layers_in[:40]):
+                try:
+                    kind = L.get("kind"); ldur = max(0.2, min(30.0, float(L.get("dur", 1.4)))); img = None
+                    if kind == "emoji":
+                        emo = (L.get("emoji") or "").strip()
+                        if not emo: continue
+                        pth = os.path.join(ldir, f"src{i}.png"); px = max(24, int(tw_ * float(L.get("size", 0.16))))
+                        if montaj._emoji_png(emo, pth, px=px): img = Image.open(pth).convert("RGBA")
+                    elif kind == "image":
+                        pth = os.path.join(d, os.path.basename(str(L.get("image") or "")))
+                        if os.path.isfile(pth):
+                            im0 = Image.open(pth); wpx = max(24, int(tw_ * float(L.get("size", 0.3))))
+                            hpx = max(2, int(im0.size[1] * wpx / im0.size[0]))
+                            if getattr(im0, "is_animated", False) and getattr(im0, "n_frames", 1) > 1:   # harakatli GIF
+                                img = []; tacc = 0.0
+                                for fi in range(min(im0.n_frames, 120)):
+                                    im0.seek(fi); tacc += max(0.02, (im0.info.get("duration") or 80) / 1000.0)
+                                    img.append((im0.convert("RGBA").resize((wpx, hpx), Image.BILINEAR), tacc))
+                            else:
+                                img = im0.convert("RGBA").resize((wpx, hpx), Image.LANCZOS)
+                    elif kind == "text":
+                        img = montaj.text_png(L, th_, lang)
+                    if img is None: continue
+                    fdir = os.path.join(ldir, f"L{i}")
+                    haskf = bool(L.get("keys"))
+                    n, cw, ch = montaj.layer_frames(img, fdir, ldur, L, frame=(tw_, th_))
+                    anim_layers.append({"dir": fdir, "time": max(0.0, float(L.get("time", 0))), "dur": n / 30.0,
+                                        "cx": tw_ / 2 if haskf else tw_ * float(L.get("x", 0.5)),
+                                        "cy": th_ / 2 if haskf else th_ * float(L.get("y", 0.4)), "cw": cw, "ch": ch})
+                except Exception:
+                    continue
+            stickers = []
+        elif isinstance(sticker_items, list):
             stickers = []
             for it in sticker_items:
                 emo = (it.get("emoji") or "").strip()
@@ -359,16 +413,23 @@ async def render(req: Request, x_auth: str = Header("")):
         brolls = []
         for b in brolls_in:
             if not b.get("on", True): continue
-            img = b.get("image")
+            img = os.path.basename(str(b.get("image") or ""))   # faqat shu loyiha papkasidagi fayl
             if not img: continue
             p = os.path.join(d, img)
             if os.path.exists(p):
                 brolls.append({"path": p, "time": float(b.get("time", 0)),
                                "dur": float(b.get("dur", 2.5)), "y": float(b.get("y", 0.72)),
-                               "w": float(b.get("w", 0.78))})
+                               "w": float(b.get("w", 0.78)), "full": bool(b.get("full"))})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
-        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol)
+        sfx = []
+        for x in sfx_in[:40]:
+            sp = montaj.sfx_file(str(x.get("type")), os.path.join(DATA, "sfx"))
+            if sp: sfx.append({"path": sp, "t": float(x.get("t", 0)), "vol": float(x.get("vol", 0.5))})
+        zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12))} for z in zooms_in if isinstance(z, dict)]
+        ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol,
+                                 anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade)
+        shutil.rmtree(os.path.join(d, "layers"), ignore_errors=True)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
                     cut_words=words, brolls=brolls_in,
@@ -589,11 +650,200 @@ def resume(pid: str, x_auth: str = Header("")):
             "broll_y": rs.get("broll_y", 0.72), "grade": rs.get("grade","vivid"), "zoom_level": rs.get("zoom_level",1),
             "fx": rs.get("fx","none"), "quality": rs.get("quality","1080")}
 
+# ================= STUDIO (yangi professional interfeys) =================
+_PID_RE = _re.compile(r"^[a-f0-9]{12}$")
+def _own(pid, usr):
+    """Loyiha shu foydalanuvchiniki ekanini tekshiradi, meta qaytaradi."""
+    if not _PID_RE.match(pid or ""): raise HTTPException(404, "loyiha topilmadi")
+    m = load_meta(pid)
+    if not m: raise HTTPException(404, "loyiha topilmadi")
+    if m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
+    return m
+
+@app.get("/studio", response_class=HTMLResponse)
+def studio_page():
+    p = os.path.join(HERE, "studio.html")
+    if os.path.exists(p): return open(p, encoding="utf-8").read()
+    return HTMLResponse("<h2 style='font-family:sans-serif'>studio.html topilmadi.</h2>", status_code=404)
+
+_FONT_CACHE = {"t": 0, "items": []}
+@app.get("/api/fonts")
+def fonts_list():
+    """Serverda bor shriftlar (subtitr renderi aynan shularni ishlatadi)."""
+    if _FONT_CACHE["items"] and time.time() - _FONT_CACHE["t"] < 300: return {"items": _FONT_CACHE["items"]}
+    items = []
+    try:
+        from fontTools.ttLib import TTFont
+        for fn in sorted(os.listdir(montaj.FONTS_DIR)):
+            if not fn.lower().endswith((".ttf", ".otf")): continue
+            try:
+                f = TTFont(os.path.join(montaj.FONTS_DIR, fn), lazy=True, fontNumber=0)
+                fam = f["name"].getBestFamilyName()
+                # libass shrift o'lchamini (ascent+descent) bo'yicha hisoblaydi -> preview shu nisbatda kichraytiradi
+                try:
+                    os2 = f["OS/2"]; cell = (os2.usWinAscent + os2.usWinDescent) or (f["hhea"].ascent - f["hhea"].descent)
+                    scale = round(f["head"].unitsPerEm / float(cell), 4)
+                except Exception:
+                    scale = 0.8
+                f.close()
+                if fam and not any(x["family"] == fam for x in items):
+                    items.append({"family": fam, "file": fn, "cyr": fam in montaj.FONT_CYR, "scale": scale})
+            except Exception:
+                continue
+    except Exception:
+        pass
+    _FONT_CACHE.update(t=time.time(), items=items)
+    return {"items": items}
+
+@app.get("/api/studio/projects")
+def studio_projects(x_auth: str = Header("")):
+    usr = check_auth(x_auth); items = []; made = 0
+    for pid in os.listdir(PROJ):
+        if not _PID_RE.match(pid): continue
+        m = load_meta(pid)
+        if m.get("user_id") != usr["id"]: continue
+        tp = os.path.join(PROJ, pid, "thumb.jpg")
+        if not os.path.exists(tp) and made < 8 and (m.get("cut") or m.get("input")):   # muqova kadri (birinchi so'rovda yasaladi)
+            src = os.path.join(PROJ, pid, m.get("cut") or m.get("input")); made += 1
+            if os.path.exists(src):
+                montaj.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", "0.8", "-i", src, "-frames:v", "1",
+                            "-vf", "scale=-2:360", "-q:v", "5", tp])
+        items.append({"project": pid, "name": m.get("name", "video"),
+                      "thumb_url": (f"/media/{pid}/thumb.jpg" if os.path.exists(tp) else None),
+                      "created": m.get("finished") or m.get("created", 0),
+                      "duration": m.get("cut_duration") or m.get("duration", 0),
+                      "final_url": (f"/media/{pid}/final.mp4" if m.get("final") else None)})
+    items.sort(key=lambda x: x["created"], reverse=True)
+    return {"items": items[:60]}
+
+@app.get("/api/studio/load/{pid}")
+def studio_load(pid: str, x_auth: str = Header("")):
+    usr = check_auth(x_auth); m = _own(pid, usr)
+    src = m.get("cut") or m.get("input")
+    was_cut = bool(m.get("cut")) and m.get("cut") != m.get("input")
+    words = (m.get("cut_words") if was_cut else None) or m.get("words", [])
+    removes = []
+    if not was_cut:   # avto takliflar hali videoga qo'llanmagan -> timeline'da ko'rsatamiz
+        removes = [{"s": r[0], "e": r[1], "type": "pauza"} for r in m.get("silence_removes", [])] + \
+                  [{"s": r[0], "e": r[1], "type": "takror"} for r in m.get("dup_removes", [])]
+    brolls = []
+    for b in m.get("brolls", []):
+        img = b.get("image")
+        if img and os.path.exists(os.path.join(PROJ, pid, img)):
+            brolls.append({"image": img, "image_url": f"/media/{pid}/{img}", "prompt": b.get("prompt", ""),
+                           "time": b.get("time", 0), "dur": b.get("dur", 2.5)})
+    state = _load(os.path.join(PROJ, pid, "studio.json"), None)
+    return {"project": pid, "name": m.get("name", "video"), "lang": m.get("lang", "uz"),
+            "video_url": f"/media/{pid}/{src}", "duration": (m.get("cut_duration") if was_cut else None) or m.get("duration", 0),
+            "words": words, "removes": removes, "brolls": brolls, "engine": m.get("engine", ""),
+            "analyzed": bool(m.get("words")), "music": ({"name": m["music"], "url": f"/media/{pid}/{m['music']}"} if m.get("music") else None),
+            "final_url": (f"/media/{pid}/final.mp4" if m.get("final") else None), "state": state}
+
+# ---------- USLUB PROFILLARI (namuna videodan) ----------
+STYLES_F = os.path.join(DATA, "styles.json")
+@app.get("/api/studio/styles")
+def styles_list(x_auth: str = Header("")):
+    usr = check_auth(x_auth)
+    return {"items": _load(STYLES_F, {}).get(usr["id"], [])}
+
+@app.post("/api/studio/style")
+async def style_create(file: UploadFile = File(...), name: str = Form(""), x_auth: str = Header("")):
+    """Namuna video yuklanadi -> uslub profili (subtitr, temp, rang, zoom...) chiqariladi va saqlanadi."""
+    usr = check_auth(x_auth)
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    ext = os.path.splitext(file.filename or "ref.mp4")[1].lower() or ".mp4"
+    inp = os.path.join(tmp, "ref" + ext)
+    with open(inp, "wb") as f:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk: break
+            f.write(chunk)
+    nm = (name.strip() or os.path.splitext(file.filename or "Namuna")[0])[:40]
+    jid = new_job()
+    def fn(prog):
+        try:
+            prog(25, "Namuna video ko'rilyapti...")
+            prof = montaj.analyze_style(inp, tmp)
+            prof.update(id=uuid.uuid4().hex[:10], name=nm, created=int(time.time()))
+            with _lock:
+                allst = _load(STYLES_F, {}); lst = allst.get(usr["id"], [])
+                lst.insert(0, prof); allst[usr["id"]] = lst[:20]; _save(STYLES_F, allst)
+            return prof
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    run_job(jid, fn)
+    return {"job": jid}
+
+@app.delete("/api/studio/styles/{sid}")
+def style_delete(sid: str, x_auth: str = Header("")):
+    usr = check_auth(x_auth)
+    with _lock:
+        allst = _load(STYLES_F, {})
+        allst[usr["id"]] = [x for x in allst.get(usr["id"], []) if x.get("id") != sid]
+        _save(STYLES_F, allst)
+    return {"ok": True}
+
+@app.post("/api/studio/image")
+async def studio_image(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
+    """O'z rasm / GIF / video faylingizni qatlam (b-roll yoki stiker) sifatida yuklash."""
+    usr = check_auth(x_auth); _own(project, usr)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    isvid = ext in (".mp4", ".mov", ".webm", ".m4v")
+    if not isvid and ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"): raise HTTPException(400, "faqat rasm (PNG/JPG/WEBP/GIF) yoki video (MP4/MOV/WEBM)")
+    limit = (300 if isvid else 20) * 1024 * 1024
+    name = f"broll_{'v' if isvid else 'u'}{uuid.uuid4().hex[:8]}{ext}"; dest = os.path.join(PROJ, project, name); size = 0
+    with open(dest, "wb") as f:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk: break
+            size += len(chunk)
+            if size > limit:
+                f.close(); os.remove(dest); raise HTTPException(400, "fayl juda katta")
+            f.write(chunk)
+    return {"image": name, "image_url": f"/media/{project}/{name}", "prompt": (file.filename or "fayl")[:80], "video": isvid}
+
+@app.post("/api/studio/append")
+async def studio_append(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
+    """Yana bir video klipni loyiha oxiriga qo'shadi."""
+    usr = check_auth(x_auth); meta = _own(project, usr); d = os.path.join(PROJ, project)
+    ext = os.path.splitext(file.filename or "c.mp4")[1].lower() or ".mp4"
+    newp = os.path.join(d, f"append_{uuid.uuid4().hex[:6]}{ext}")
+    with open(newp, "wb") as f:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk: break
+            f.write(chunk)
+    jid = new_job()
+    def fn(prog):
+        prog(20, "Klip qo'shilyapti...")
+        cur = os.path.join(d, meta.get("input")); old = float(meta.get("duration") or montaj.ffdur(cur))
+        outn = f"input_m{uuid.uuid4().hex[:6]}.mp4"; outp = os.path.join(d, outn)
+        ok = montaj.append_clip(cur, newp, outp)
+        try: os.remove(newp)
+        except Exception: pass
+        if not ok: raise RuntimeError("klipni qo'shib bo'lmadi (videoda ovoz yo'lakchasi bormi?)")
+        m = load_meta(project); m.update(input=outn, duration=round(montaj.ffdur(outp), 2)); m.pop("cut", None); m.pop("cut_duration", None)
+        save_meta(project, m)
+        return {"video_url": f"/media/{project}/{outn}", "duration": m["duration"], "join": round(old, 3)}
+    run_job(jid, fn)
+    return {"job": jid}
+
+@app.post("/api/studio/save")
+async def studio_save(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", "")
+    _own(pid, usr)
+    st = b.get("state")
+    if not isinstance(st, dict) or len(json.dumps(st)) > 2_000_000: raise HTTPException(400, "holat noto'g'ri")
+    with _lock: _save(os.path.join(PROJ, pid, "studio.json"), st)
+    return {"ok": True}
+
 @app.delete("/api/history/{pid}")
 def delete_project(pid: str, x_auth: str = Header("")):
     usr = check_auth(x_auth)
+    if not _PID_RE.match(pid or ""): raise HTTPException(404, "loyiha topilmadi")   # ".." kabi yo'llar butun papkani o'chirib yubormasin
     m = load_meta(pid)
-    if m and m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
+    if not m or m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
     shutil.rmtree(os.path.join(PROJ, pid), ignore_errors=True)
     return {"ok": True}
 
