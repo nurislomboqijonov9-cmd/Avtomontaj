@@ -1270,7 +1270,7 @@ FX_MAP={  # oila -> effekt
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
                  quality="1080", fast=False, fx="none", stickers=None,
                  music=None, music_vol=0.28, orig_vol=1.0,
-                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None, stab=False, voice_fx=None):
+                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None, stab=False, voice_fx=None, duck=False):
     """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz.
     anim_layers=[{dir,time,dur,cx,cy,cw,ch}] (layer_frames kadrlari), transitions=[{t,type,dur}] (chiqish vaqtida),
     zooms=[{a,b,scale,ramp}], sfx=[{path,t,vol}]."""
@@ -1414,7 +1414,12 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     if music and os.path.exists(music):
         inputs+=["-stream_loop","-1","-i",music]; idx+=1
         mf=(f",afade=t=in:d=0.6,afade=t=out:st={max(0.1,dur-1.3):.2f}:d=1.2" if music_fade else "")
-        parts.append(f"[{idx}:a]atrim=0:{dur:.2f},volume={max(0.0,float(music_vol)):.2f}{mf},aresample=48000[mus]"); mixin.append("[mus]")
+        if duck:      # gap paytida musiqa o'zi pasayadi (sidechain)
+            parts[-1]=parts[-1][:-len("[a0]")]+"[a0p]"; parts.append("[a0p]asplit[a0][a0k]")
+            parts.append(f"[{idx}:a]atrim=0:{dur:.2f},volume={max(0.0,float(music_vol)):.2f}{mf},aresample=48000[mus0]")
+            parts.append("[mus0][a0k]sidechaincompress=threshold=0.03:ratio=8:attack=25:release=450[mus]"); mixin.append("[mus]")
+        else:
+            parts.append(f"[{idx}:a]atrim=0:{dur:.2f},volume={max(0.0,float(music_vol)):.2f}{mf},aresample=48000[mus]"); mixin.append("[mus]")
     for k,x in enumerate(sfx):
         if not x.get("path") or not os.path.exists(x["path"]): continue
         inputs+=["-i",x["path"]]; idx+=1

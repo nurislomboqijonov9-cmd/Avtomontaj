@@ -7,12 +7,12 @@
 <link rel="icon" href="/assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap">
 <style>
-:root{--bg:#0c0d14;--panel:#14161f;--panel2:#1a1d29;--line:#262a3a;--dim:#6f7691;--txt:#d9dcea;
-  --lime:#d7f24a;--orange:#ff8a3d;--pink:#ff4fa3;--purple:#8f6bff;--blue:#4d8dff;--teal:#2ed3c6;--green:#7ddc5a;--red:#ff5a5a;--yellow:#ffd23d}
+:root{--bg:#0e0e10;--panel:#1b1b1f;--panel2:#26262b;--line:#303036;--dim:#8a8a94;--txt:#e6e6ea;
+  --lime:#27d3dc;--orange:#ff8a3d;--pink:#ff4fa3;--purple:#8f6bff;--blue:#4d8dff;--teal:#2ed3c6;--green:#7ddc5a;--red:#ff5a5a;--yellow:#ffd23d}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:12.5px;overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-weight:600;transition:.15s}
 button:hover{border-color:#3b4160;background:#20243a}
@@ -46,7 +46,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
 #main{display:grid;grid-template-columns:300px minmax(0,1fr) 330px;gap:10px;padding:10px 12px 0;min-height:0}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:9px;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 /* kutubxona (chap) */
-#ltabs{display:grid;grid-template-columns:repeat(8,1fr);border-bottom:1px solid var(--line)}
+#ltabs{display:grid;grid-template-columns:repeat(9,1fr);border-bottom:1px solid var(--line)}
 .lt{border:0;border-radius:0;background:none;padding:7px 0 6px;font-size:9px;color:#9aa0ba;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2px solid transparent}
 .lt b{font-size:14px;line-height:1;font-weight:400}
 .lt.on{color:var(--lime);border-bottom-color:var(--lime);background:#181b26}
@@ -317,6 +317,16 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
 .stockg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.stockg button{aspect-ratio:9/12;border-radius:8px;border:1px solid var(--line);background:#111 center/cover;position:relative;cursor:pointer;padding:0}
 .stockg button:hover{outline:2px solid var(--acc,#7c5cff)}.stockg i{position:absolute;right:4px;bottom:4px;font:600 10px/1 inherit;background:rgba(0,0,0,.65);color:#fff;padding:2px 4px;border-radius:4px;font-style:normal}
 .hlrow{align-items:center}.hlrow>div:nth-child(2){flex:1;min-width:0}.hlrow a.sm{text-decoration:none;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11px}#lib textarea{width:100%}
+/* neytral to'q mavzu */
+button:hover{border-color:#4a4a52;background:#2e2e34}button.ai{background:#16323a;border-color:#27d3dc;color:#d9fbff}
+input[type=text],input[type=email],input[type=password],select,textarea{background:#131316}
+input[type=range]{background:linear-gradient(90deg,var(--lime) var(--p,50%),#3a3a42 var(--p,50%))}
+::-webkit-scrollbar-thumb{background:#3a3a42}
+.box{border-radius:6px}.lt.on{background:#232327}.tab.on{color:#0e0e10;background:var(--lime);border-color:var(--lime)}
+.tool.on{border-color:var(--lime);background:#16323a;color:#fff}.lane{background:#161619;border-bottom-color:#232327}
+.it.cue{background:#c9793a;color:#fff}.it.aud{background:#2f6fd6}.it.mus{background:linear-gradient(90deg,#1f8f96,#2f6fd6)}.it.sel{box-shadow:0 0 0 2px #fff}
+.trs{line-height:2;max-height:240px;overflow:auto;background:#131316;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.trs i{font-style:normal;padding:2px 4px;border-radius:4px;cursor:pointer}.trs i:hover{background:#2e2e34}.trs i.cut{text-decoration:line-through;color:#ff6b6b;background:#3a1a1e}
 </style>
 </head>
 <body>
@@ -457,7 +467,7 @@ const EMAP={"🔥":["olov","zo'r","fire","dahshat"],"💰":["pul","daromad","biz
 const DEF={chat:[],words:[],removes:[],splits:[],speeds:[],sfxItems:[],brolls:[],stickers:[],texts:[],zooms:[],hook:"",lang:"uz",
   trans:{type:"none",dur:0.3},sfx:{trans:true,stk:true,vol:0.5},musicFade:true,
   sub:{on:true,layout:"stack3",font:"Anton",size:124,words:6,margin:560,active:"#39e75f",base:"#ffffff",c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",upper:true,anim:"pop",delay:0,border:5,outline:"#000000"},
-  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,stab:false,voiceFx:"",quality:"1080",pps:60,
+  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:false,stab:false,voiceFx:"",quality:"1080",pps:60,
   auto:{pause:0.8,brolls:4,stickers:true,hook:true,zooms:true},styleId:""};
 const PRESETS=[
  {n:"3 pog'ona · Sariq",v:{layout:"stack3",words:6,size:124,c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",active:"#39e75f",upper:true,anim:"pop",border:5}},
@@ -479,7 +489,7 @@ const RAT={"9:16":[1080,1920],"1:1":[1080,1080],"16:9":[1920,1080],"4:5":[1080,1
 const RW=()=>RAT[S.ratio]?RAT[S.ratio][0]:1080,RH=()=>RAT[S.ratio]?RAT[S.ratio][1]:1920;
 function fitPv(){const w=$("pvwrap"),pv=$("pv"),aw=w.clientWidth,ah=w.clientHeight-8,r=S?RW()/RH():9/16;let h=ah,ww=h*r;if(ww>aw){ww=aw;h=ww/r}pv.style.width=Math.max(60,ww)+"px";pv.style.height=Math.max(60,h)+"px"}
 const AG=[["asr-01","--purple","Transkripsiya"],["cut-01","--red","Pauza va takror"],["sub-01","--green","Subtitr"],["broll-01","--orange","B-roll rasm"],["style-01","--pink","Uslub"],["render-01","--lime","Eksport"]];
-const LT=[["ai","AI","⚡"],["media","Media","▤"],["audio","Audio","♪"],["text","Matn","T"],["stk","Stiker","☺"],["fx","Effekt","✦"],["trn","O'tish","⇄"],["flt","Filtr","◐"]];
+const LT=[["ai","AI","⚡"],["media","Media","▤"],["audio","Audio","♪"],["cap","Subtitr","㏄"],["text","Matn","T"],["stk","Stiker","☺"],["fx","Effekt","✦"],["trn","O'tish","⇄"],["flt","Filtr","◐"]];
 const TABS=[["sub","Subtitr"],["adj","Sozlash"],["sel","Qatlam"],["proj","Loyiha"]];
 
 function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display="none",3400)}
@@ -728,7 +738,7 @@ pgw.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[
 $("vidF").onchange=e=>{if(e.target.files[0]){HF.file=e.target.files[0];go("home")}e.target.value=""};
 
 /* ---------- loyiha holati ---------- */
-const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","stab","voiceFx","quality","pps","auto","styleId"];
+const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","duck","stab","voiceFx","quality","pps","auto","styleId"];
 const snap=()=>JSON.stringify(SAVE_KEYS.reduce((o,k)=>(o[k]=S[k],o),{}));
 function hist(){HIST.push(snap());if(HIST.length>80)HIST.shift();REDO=[]}
 let _ek="",_et=0;
@@ -986,7 +996,14 @@ function col(label,path){return `<label><input type="color" data-path="${path}" 
 const sameG=(a,b)=>{b=Object.assign({},G0,b);return GK.every(k=>Math.abs((a[k]==null?G0[k]:+a[k])-b[k])<0.005)};
 
 /* ---------- chap kutubxona ---------- */
-const UI={tts:"",voice:"Kore",tr:"en",stq:"",stKind:"photo",stItems:null,hl:null,aist:"",busy:""};let CFG={voices:["Kore","Puck","Charon","Aoede"],ai:false,stock:false};
+const FILL=new Set(["e","ee","eee","eeee","em","emm","hm","hmm","hmmm","m","mm","mmm","um","umm","uh","uhh","uhm","er","erm","ah","ahh","aa","aaa","э","ээ","эээ","эм","мм","ммм","хм","ну","a","ə"]);
+function cutFillers(){if(!S.words.length){toast("Avval transkripsiya kerak");return}hist();let n=0;const now=Date.now();
+  S.words.forEach(w=>{const k=(w.w||"").toLowerCase().replace(/[^\p{L}]/gu,"");if(k&&FILL.has(k)&&!remAt((w.s+w.e)/2)){S.removes.push({s:+Math.max(0,w.s-0.03).toFixed(2),e:+(w.e+0.03).toFixed(2),type:"so'z",_n:now});n++}});
+  toast(n?n+" ta ortiqcha tovush kesildi":"Ortiqcha tovush topilmadi");renderAll();dirty()}
+function wordTap(i){const w=S.words[i];if(!w)return;if(!UI.wcut){seek(w.s+0.01);return}hist();const m=(w.s+w.e)/2,hit=S.removes.findIndex(r=>m>=r.s&&m<r.e);
+  if(hit>=0){const r=S.removes[hit];if(r.type==="so'z")S.removes.splice(hit,1);else{toast("Bu joy boshqa kesim ichida — taymlaynda o'sha qizil blokni o'chiring");return}}
+  else S.removes.push({s:+Math.max(0,w.s-0.03).toFixed(2),e:+Math.min(S.duration,w.e+0.03).toFixed(2),type:"so'z",_n:Date.now()});SEL=null;renderAll();dirty()}
+const UI={wcut:false,tts:"",voice:"Kore",tr:"en",stq:"",stKind:"photo",stItems:null,hl:null,aist:"",busy:""};let CFG={voices:["Kore","Puck","Charon","Aoede"],ai:false,stock:false};
 const VFX=[["","Yo'q (asl ovoz)"],["deep","Yo'g'on"],["high","Ingichka"],["chip","Burunduq"],["robot","Robot"],["echo","Aks-sado"],["hall","Katta zal"],["phone","Telefon"],["radio","Radio"]];
 const LANGS=[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"],["tr","Turkcha"],["kk","Qozoqcha"],["ar","Arabcha"],["es","Ispancha"],["de","Nemischa"],["fr","Fransuzcha"]];
 async function uiJob(key,path,body,label){if(UI.busy){toast("Oldingi amal tugashini kuting");return null}UI.busy=key;renderLib();
@@ -1025,7 +1042,7 @@ function renderLib(){
     h+=S.music?`<div class="media"><div class="th">🎵</div><div><b>${esc(S.music.name)}</b><span>fon musiqa</span></div></div>`:`<p class="hint">Fon musiqa hali qo'shilmagan.</p>`;
     h+=`<div class="mbtns" style="margin-bottom:10px"><button class="sm" id="addMusB">＋ ${S.music?"Musiqani almashtirish":"Musiqa yuklash"}</button><button class="sm" id="addAudB" title="Audio fayl yoki video — videodan faqat ovozi olinadi">＋ Audio / videodan ovoz</button><button class="sm ${REC?"rec":""}" id="recB">${REC?"■ To'xtatish":"🎙 Ovoz yozish"}</button></div>`;
     S.audios.forEach((a,i)=>h+=`<div class="media ${SEL&&SEL.k==="aud"&&SEL.i===i?"on":""}" data-ak="${i}"><div class="th">🔊</div><div><b>${esc(a.name)}</b><span>audio · ${tc(a.time)} · ${a.dur.toFixed(1)}s</span></div></div>`);
-    h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Ovozni tozalash","S.audioClean")+selc("Ovoz o'zgartirgich","S.voiceFx",VFX);
+    h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Gap paytida musiqani pasaytirish","S.duck")+sw("Ovozni tozalash","S.audioClean")+selc("Ovoz o'zgartirgich","S.voiceFx",VFX);
     if(S.music)h+=`<div class="mbtns"><button class="sm" id="beatB">🥁 Ritmni aniqlash</button>${S.beats&&S.beats.beats.length?`<button class="sm ai" id="beatSnap">✂ Kesimlarni ritmga moslash</button>`:""}</div>${S.beats?`<p class="hint" style="margin-top:6px">${S.beats.bpm} BPM · ${S.beats.beats.length} ta zarba — musiqa trekida belgilar ko'rinadi.</p>`:""}`;
     h+=`<div class="sec lbl">AI ovoz (matndan nutq)</div><textarea id="ttsIn" rows="3" placeholder="Matnni yozing — AI o'qib beradi va audio klip qilib qo'yadi">${esc(UI.tts)}</textarea>
       <div class="frow" style="margin-top:6px"><label>Ovoz</label><select id="ttsV">${CFG.voices.map(v=>`<option ${v===UI.voice?"selected":""}>${v}</option>`).join("")}</select></div>
@@ -1033,17 +1050,22 @@ function renderLib(){
     h+=`<div class="sec lbl">Ovoz effektlari</div>`+sw("O'tishda whoosh","sfx.trans")+sw("Stiker/matnda pop","sfx.stk")+sld("Effekt ovozi","sfx.vol",0,1,0.01,"%");
     h+=`<div class="lbl" style="margin-top:8px">Qo'lda qo'shish (o'ynatgich turgan joyga)</div><div class="mbtns" style="margin-top:6px">${SFXT.map(x=>`<button class="sm" data-sfx="${x[0]}">＋ ${x[1]}</button>`).join("")}</div>`;
     h+=`<p class="hint" style="margin-top:8px">Tozalash shovqinni pasaytiradi va balandlikni −14 LUFS ga keltiradi. Ovoz effektlari eksport qilingan videoda eshitiladi.</p>`;
-  }else if(LTAB==="text"){
+  }else if(LTAB==="cap"){
+    h+=`<div class="mbtns" style="margin-bottom:8px"><button class="sm ai" id="reAn2">✦ Avto subtitr</button><button class="sm" id="fillB">🧹 «Eee, hmm» larni kesish</button></div>`;
     h+=sw("Subtitr","sub.on")+`<div class="frow"><label>Tartib</label><div class="seg"><button data-lay="line" class="${su.layout!=="stack3"?"on":""}">1 qator</button><button data-lay="stack3" class="${su.layout==="stack3"?"on":""}">3 pog'ona</button></div></div>`;
     h+=`<div class="lbl" style="margin-top:10px">Tayyor uslublar</div><div class="grid2">`+PRESETS.map((p,i)=>{const v=p.v,U=s=>v.upper?s.toUpperCase():s;
       const sm=v.layout==="stack3"?`<div style="font-size:8px;color:${v.c1}">${U("bitta")} <span style="color:${v.active}">${U("prompt")}</span></div><div style="font-size:13px;color:${v.c2}">${U("tayyor")}</div><div style="font-size:10px;color:${v.c3}">${U("video")}</div>`
         :`<div style="font-size:12px;color:${v.base}">${v.words===1?"":U("tayyor")+" "}<span style="color:${v.active}">${U("video")}</span></div>`;
       return `<button class="card2" data-pre="${i}"><div class="sw2" style="font-family:'Anton',Impact,sans-serif">${sm}</div><span>${p.n}</span></button>`}).join("")+`</div>`;
-    h+=`<div class="lbl" style="margin-top:6px">Matn qo'shish (o'ynatgich turgan joyga)</div><div class="grid2">`+TPL.map((t,i)=>`<button class="card2" data-tpl="${i}"><div class="sw2" style="height:40px;font-family:'Anton',Impact,sans-serif"><span style="padding:2px 7px;border-radius:4px;font-size:12px;color:${t.v.color};background:${t.v.bg||"transparent"};-webkit-text-stroke:${t.v.border?"0.6px "+t.v.outline:"0"}">${t.v.upper?"MATN":"Matn"}</span></div><span>${t.n}</span></button>`).join("")+`</div>`;
     h+=`<div class="sec lbl">Subtitrni tarjima qilish</div><div class="frow"><label>Tilga</label><select id="trL">${LANGS.map(l=>`<option value="${l[0]}" ${l[0]===UI.tr?"selected":""}>${l[1]}</option>`).join("")}</select></div>
       <div class="mbtns"><button class="sm ai" id="trGo">${UI.busy==="tr"?"Tarjima qilinmoqda…":"🌐 Tarjima qilish"}</button></div>`;
-    h+=`<div class="frow"><label>Hook sarlavha</label><input type="text" data-path="S.hook" value="${esc(S.hook)}" placeholder="bo'sh = sarlavhasiz"></div>`;
     h+=`<div class="mbtns"><button class="sm ai" id="reAn">↻ Avto subtitr (transkripsiya)</button></div><p class="hint" style="margin-top:8px">Shrift, o'lcham va ranglar o'ng paneldagi «Subtitr» bo'limida. Matnni tuzatish uchun taymlayndagi yashil blokni bosing.</p>`;
+    h+=`<div class="sec lbl">Transkript — matn orqali montaj</div><div class="mbtns" style="margin-bottom:6px"><button class="sm ${UI.wcut?"pri":""}" id="wcutB">✂ Kesish rejimi${UI.wcut?": yoqilgan":""}</button></div>
+      <div class="trs">${S.words.length?S.words.map((w,i)=>`<i data-wi="${i}" class="${remAt((w.s+w.e)/2)?"cut":""}">${esc(w.w)}</i>`).join(" "):`<span class="hint">Hali matn yo'q — «Avto subtitr» ni bosing.</span>`}</div>
+      <p class="hint" style="margin-top:6px">So'zni bosing — video o'sha joyga o'tadi. Kesish rejimida bosilgan so'z videodan ham kesiladi (yana bossangiz qaytadi).</p>`;
+  }else if(LTAB==="text"){
+    h+=`<div class="lbl" style="margin-top:6px">Matn qo'shish (o'ynatgich turgan joyga)</div><div class="grid2">`+TPL.map((t,i)=>`<button class="card2" data-tpl="${i}"><div class="sw2" style="height:40px;font-family:'Anton',Impact,sans-serif"><span style="padding:2px 7px;border-radius:4px;font-size:12px;color:${t.v.color};background:${t.v.bg||"transparent"};-webkit-text-stroke:${t.v.border?"0.6px "+t.v.outline:"0"}">${t.v.upper?"MATN":"Matn"}</span></div><span>${t.n}</span></button>`).join("")+`</div>`;
+    h+=`<div class="frow"><label>Hook sarlavha</label><input type="text" data-path="S.hook" value="${esc(S.hook)}" placeholder="bo'sh = sarlavhasiz"></div>`;
   }else if(LTAB==="stk"){
     h+=`<div class="cats">${Object.keys(EMO_CATS).map(c=>`<button data-cat="${esc(c)}" class="${c===EMO_CAT?"on":""}">${esc(c)}</button>`).join("")}</div>
       <div class="emo">${EMO_CATS[EMO_CAT].map(e=>`<button data-addemo="${e}">${e}</button>`).join("")}</div>
@@ -1163,7 +1185,8 @@ function onInput(e){const el=e.target;
   updPreview(true);drawItems();dirty()}
 function onChange(e){const d=e.target.dataset;if(e.target.id==="ttsV"){UI.voice=e.target.value;return}if(e.target.id==="trL"){UI.tr=e.target.value;return}
   if(e.target.id==="ttsIn"){UI.tts=e.target.value;return}if(e.target.id==="stqIn"){UI.stq=e.target.value;return}if(e.target.id==="aistIn"){UI.aist=e.target.value;return}if(d.seg){renderInsp();return}if(d.re||d.w!==undefined||d.path==="sel.prompt"||d.path==="sel.text"||(d.path||"").startsWith("grade.")||(d.path||"").startsWith("trans."))renderAll()}
-function onClick(e){const b=e.target.closest("button,.media[data-mk],.media[data-ak]");if(!b)return;const d=b.dataset;
+function onClick(e){const wi=e.target.closest("i[data-wi]");if(wi){wordTap(+wi.dataset.wi);return}
+  const b=e.target.closest("button,.media[data-mk],.media[data-ak]");if(!b)return;const d=b.dataset;
   if(d.ak!==undefined){select("aud",+d.ak);seek(S.audios[+d.ak].time);return}
   if(d.mk!==undefined){select("broll",+d.mk);seek(S.brolls[+d.mk].time)}
   else if(d.lay){hist();S.sub.layout=d.lay;S.sub.words=d.lay==="stack3"?6:3;reindex();renderAll();dirty()}
@@ -1178,6 +1201,9 @@ function onClick(e){const b=e.target.closest("button,.media[data-mk],.media[data
   else if(d.mv)moveSeg(+d.mv);
   else if(b.id==="beatB")findBeats();
   else if(b.id==="ttsGo")doTTS();
+  else if(b.id==="reAn2")runAnalyze();
+  else if(b.id==="fillB")cutFillers();
+  else if(b.id==="wcutB"){UI.wcut=!UI.wcut;renderLib()}
   else if(b.id==="cutB"){const o=selObj();if(!o||!o.image)return;toast("Fon olib tashlanmoqda…");api("/api/studio/cutout",{project:S.project,image:o.image}).then(d=>{hist();o.image=d.image;o.image_url=d.image_url;updPreview(true);dirty();toast("Fon olib tashlandi (bir xil rangli fonlarda ishlaydi)")}).catch(x=>toast(x.message))}
   else if(b.id==="ttsCue"){UI.tts=CUES[SEL.i].map(j=>S.words[j].w).join(" ");renderLib()}
   else if(b.id==="trGo")doTranslate();
@@ -1443,7 +1469,7 @@ $("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();await save();busy(tru
     transitions:cutList().map(q=>({t:+q.c.toFixed(3),type:q.type,dur:S.trans.dur})),
     zooms:S.zooms.map(z=>({a:+mapT(z.time).toFixed(3),b:+mapT(z.time+z.dur).toFixed(3),scale:z.scale,ramp:z.ramp||0,x:z.x||0,y:z.y||0})).filter(z=>z.b-z.a>0.1),
     sfx:sfxList().map(x=>({t:+x.t.toFixed(3),type:x.type,vol:x.vol})),
-    music_fade:!!S.musicFade,
+    music_fade:!!S.musicFade,duck:!!S.duck,
     hook:true,hook_text:S.hook||"",zoom:S.zoomLevel>0,zoom_level:S.zoomLevel,grade:S.grade,fx:S.fx,
     music:true,music_vol:S.musicVol,orig_vol:S.origVol,audio_clean:S.audioClean,quality:S.quality,stab:!!S.stab,voice_fx:S.voiceFx||""};
   try{ag("render-01","Eksport boshlandi…","run");

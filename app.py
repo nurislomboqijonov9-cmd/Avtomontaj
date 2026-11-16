@@ -514,7 +514,7 @@ async def render(req: Request, x_auth: str = Header("")):
         zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12)), "x": float(z.get("x", 0) or 0), "y": float(z.get("y", 0) or 0)} for z in zooms_in if isinstance(z, dict)]
         ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol,
                                  anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade,
-                                 size=(out_w, out_h), frame=frame_in, stab=stab, voice_fx=voice_fx)
+                                 size=(out_w, out_h), frame=frame_in, stab=stab, voice_fx=voice_fx, duck=bool(body.get("duck")))
         shutil.rmtree(os.path.join(d, "layers"), ignore_errors=True)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
