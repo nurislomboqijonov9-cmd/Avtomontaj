@@ -335,7 +335,8 @@ async def render(req: Request, x_auth: str = Header("")):
     orig_vol = float(body.get("orig_vol", 1.0))
     RAT = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080), "4:5": (1080, 1350)}
     res_w, res_h = RAT.get(str(body.get("ratio") or "9:16"), (1080, 1920))
-    qs_ = {"480": 480, "540": 540, "720": 720}.get(quality.lower(), 1080) / 1080.0
+    qs_ = montaj.QSCALE.get(quality.lower(), 1080) / 1080.0
+    stab = bool(body.get("stab")); voice_fx = str(body.get("voice_fx") or "")
     out_w, out_h = int(res_w * qs_) // 2 * 2, int(res_h * qs_) // 2 * 2
     frame_in = body.get("frame") if isinstance(body.get("frame"), dict) else {}
     audios_in = body.get("audios") or []
@@ -402,6 +403,8 @@ async def render(req: Request, x_auth: str = Header("")):
                                     img.append((im0.convert("RGBA").resize((wpx, hpx), Image.BILINEAR), tacc))
                             else:
                                 img = im0.convert("RGBA").resize((wpx, hpx), Image.LANCZOS)
+                            if L.get("mask") or L.get("chroma"):
+                                img = [(montaj.img_fx(f_, L), t_) for f_, t_ in img] if isinstance(img, list) else montaj.img_fx(img, L)
                     elif kind == "text":
                         img = montaj.text_png(L, min(tw_, th_) / 1080.0, lang)
                     if img is None: continue
@@ -439,7 +442,8 @@ async def render(req: Request, x_auth: str = Header("")):
             if os.path.exists(p):
                 brolls.append({"path": p, "time": float(b.get("time", 0)),
                                "dur": float(b.get("dur", 2.5)), "y": float(b.get("y", 0.72)),
-                               "w": float(b.get("w", 0.78)), "full": bool(b.get("full"))})
+                               "w": float(b.get("w", 0.78)), "full": bool(b.get("full")),
+                               "op": float(b.get("op", 1) or 1), "chroma": b.get("chroma") if isinstance(b.get("chroma"), dict) else None})
         prog(45, "Video render qilinyapti (1-3 daqiqa)...")
         out = os.path.join(d, "final.mp4")
         sfx = []
@@ -449,10 +453,10 @@ async def render(req: Request, x_auth: str = Header("")):
         for x in audios_in[:20]:      # qo'shimcha audio kliplar (ovoz yozuvi, yuklangan fayl)
             ap = os.path.join(d, os.path.basename(str(x.get("file") or "")))
             if os.path.isfile(ap): sfx.append({"path": ap, "t": float(x.get("t", 0)), "vol": float(x.get("vol", 1)), "dur": float(x.get("dur") or 0) or None})
-        zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12))} for z in zooms_in if isinstance(z, dict)]
+        zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12)), "x": float(z.get("x", 0) or 0), "y": float(z.get("y", 0) or 0)} for z in zooms_in if isinstance(z, dict)]
         ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol,
                                  anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade,
-                                 size=(out_w, out_h), frame=frame_in)
+                                 size=(out_w, out_h), frame=frame_in, stab=stab, voice_fx=voice_fx)
         shutil.rmtree(os.path.join(d, "layers"), ignore_errors=True)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
@@ -1021,16 +1025,24 @@ async def studio_audio(file: UploadFile = File(...), project: str = Form(...), x
     """Qo'shimcha audio klip: yuklangan fayl yoki mikrofondan yozilgan ovoz."""
     usr = check_auth(x_auth); _own(project, usr)
     ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".webm", ".mp4"): raise HTTPException(400, "audio fayl emas")
+    if ext not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".webm", ".mp4", ".mov", ".m4v", ".mkv", ".flac"): raise HTTPException(400, "audio fayl emas")
     name = f"aud_{uuid.uuid4().hex[:8]}{ext}"; dest = os.path.join(PROJ, project, name); size = 0
+    isvid = ext in (".mp4", ".mov", ".m4v", ".mkv")
     with open(dest, "wb") as f:
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk: break
             size += len(chunk)
-            if size > 60 * 1024 * 1024:
+            if size > (400 if isvid else 60) * 1024 * 1024:
                 f.close(); os.remove(dest); raise HTTPException(400, "fayl juda katta")
             f.write(chunk)
+    if isvid:                                   # videodan faqat ovozini ajratib olamiz
+        name2 = os.path.splitext(name)[0] + ".m4a"; dest2 = os.path.join(PROJ, project, name2)
+        montaj.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", dest, "-vn", "-c:a", "aac", "-b:a", "160k", dest2])
+        try: os.remove(dest)
+        except Exception: pass
+        if not os.path.exists(dest2): raise HTTPException(400, "bu videoda ovoz yo'q")
+        name, dest = name2, dest2
     dur = montaj.ffdur(dest)
     if not dur or dur <= 0:
         os.remove(dest); raise HTTPException(400, "audio o'qilmadi")

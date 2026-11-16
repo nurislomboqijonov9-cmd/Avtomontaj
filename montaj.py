@@ -1171,13 +1171,57 @@ def grade_filter(grade):
         if abs(shd)>0.01 or abs(hil)>0.01: f+=",curves=all='0/0 0.25/%.3f 0.75/%.3f 1/1'"%(0.25+0.12*shd,0.75+0.12*hil)
         if vig>0.01: f+=",vignette=a=%.3f"%(0.25+0.6*vig)
         if shp>0.01: f+=",unsharp=5:5:%.2f"%(1.6*shp)
+        hue=num("hue",0.0,-180.0,180.0); grn=num("grain",0.0,0.0,1.0); fde=num("fade",0.0,0.0,1.0)
+        if abs(hue)>0.5: f+=",hue=h=%.1f"%hue
+        if fde>0.01: f+=",curves=all='0/%.3f 1/%.3f'"%(0.12*fde,1-0.06*fde)
+        if grn>0.01: f+=",noise=alls=%d:allf=t"%int(4+22*grn)
         return f
     return GRADES.get(grade, GRADES["vivid"])
 
 _ZOOM={0:0.0, 1:0.0004, 2:0.0009}  # zoom tezligi
 _ZMAX={0:1.0, 1:1.05, 2:1.12}
 
-QMAP={"480":(480,854,23),"540":(540,960,24),"720":(720,1280,21),"1080":(1080,1920,20),"1k":(1080,1920,20)}
+QMAP={"480":(480,854,23),"540":(540,960,24),"720":(720,1280,21),"1080":(1080,1920,20),"1k":(1080,1920,20),"1440":(1440,2560,19),"2160":(2160,3840,18),"4k":(2160,3840,18)}
+QSCALE={"480":480,"540":540,"720":720,"1080":1080,"1k":1080,"1440":1440,"2160":2160,"4k":2160}
+
+# ovoz o'zgartirgich: nom -> ffmpeg audio filtri (48 kHz oqimga qo'llanadi)
+VOICE_FX={
+ "deep":"asetrate=48000*0.84,aresample=48000,atempo=1.190476",
+ "high":"asetrate=48000*1.22,aresample=48000,atempo=0.819672",
+ "chip":"asetrate=48000*1.5,aresample=48000,atempo=0.666667",
+ "robot":"afftfilt=real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75",
+ "echo":"aecho=0.8:0.7:120:0.4",
+ "hall":"aecho=0.8:0.6:40|75:0.35|0.25",
+ "phone":"highpass=f=400,lowpass=f=3200,acompressor=threshold=-20dB:ratio=4",
+ "radio":"highpass=f=250,lowpass=f=4200,acrusher=bits=10:mix=0.25",
+}
+def _hex0x(c, d="00ff00"):
+    c=str(c or "").lstrip("#")
+    return "0x"+(c if re.fullmatch(r"[0-9a-fA-F]{6}",c) else d)
+
+def img_fx(im, L):
+    """Rasm qatlamiga niqob (doira/yumaloq burchak) va rang bo'yicha fonni olib tashlash (chroma key)."""
+    from PIL import Image, ImageDraw, ImageChops
+    im=im.convert("RGBA"); w,h=im.size
+    ch=L.get("chroma") if isinstance(L.get("chroma"),dict) else None
+    if ch and ch.get("on"):
+        c=_rgb(ch.get("color") or "#00ff00"); sim=max(0.02,min(0.8,float(ch.get("sim",0.3))))
+        thr=sim*255*1.7320508; soft=max(8.0,thr*0.35)
+        r,g,b,a=im.split()
+        def dist(band,v): return band.point(lambda x:abs(x-v))
+        dr=dist(r,c[0]); dg=dist(g,c[1]); db=dist(b,c[2])
+        mx=ImageChops.lighter(ImageChops.lighter(dr,dg),db)            # eng katta kanal farqi (tez va barqaror)
+        lim=thr/1.7320508
+        al=mx.point(lambda x:0 if x<=lim else (255 if x>=lim+soft else int((x-lim)/soft*255)))
+        im.putalpha(ImageChops.darker(a,al))
+    mk=str(L.get("mask") or "")
+    if mk in ("circle","round"):
+        m=Image.new("L",(w*2,h*2),0); d=ImageDraw.Draw(m)
+        if mk=="circle":
+            s_=min(w,h)*2; d.ellipse(((w*2-s_)//2,(h*2-s_)//2,(w*2+s_)//2,(h*2+s_)//2),fill=255)
+        else: d.rounded_rectangle((0,0,w*2-1,h*2-1),radius=int(min(w,h)*0.36),fill=255)
+        m=m.resize((w,h),Image.LANCZOS); im.putalpha(ImageChops.darker(im.getchannel("A"),m))
+    return im
 
 # ================= MONTAJ EFFEKTLARI (har uslub o'z ko'rinishi) =================
 def _fx_parts(fx, il, ol, tw, th, dur, strong=1):
@@ -1226,7 +1270,7 @@ FX_MAP={  # oila -> effekt
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
                  quality="1080", fast=False, fx="none", stickers=None,
                  music=None, music_vol=0.28, orig_vol=1.0,
-                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None):
+                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None, stab=False, voice_fx=None):
     """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz.
     anim_layers=[{dir,time,dur,cx,cy,cw,ch}] (layer_frames kadrlari), transitions=[{t,type,dur}] (chiqish vaqtida),
     zooms=[{a,b,scale,ramp}], sfx=[{path,t,vol}]."""
@@ -1238,7 +1282,7 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     frame=frame or {}
     fz=max(1.0,min(3.0,float(frame.get("zoom",1) or 1))); fpx=max(-1.0,min(1.0,float(frame.get("x",0) or 0))); fpy=max(-1.0,min(1.0,float(frame.get("y",0) or 0)))
     frot=int(frame.get("rot",0) or 0)%360
-    fpre=("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")+({90:"transpose=1,",180:"hflip,vflip,",270:"transpose=2,"}.get(frot,""))
+    fpre=("deshake=rx=32:ry=32:edge=mirror," if stab else "")+("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")+({90:"transpose=1,",180:"hflip,vflip,",270:"transpose=2,"}.get(frot,""))
     def _fit(pw,ph):   # kadr: aks/ag'darish -> kattalashtirib to'ldirish -> kerakli joyini qirqish
         return (f"{fpre}scale={int(pw*fz)//2*2}:{int(ph*fz)//2*2}:force_original_aspect_ratio=increase,"
                 f"crop={pw}:{ph}:(iw-{pw})/2*{1+fpx:.3f}:(ih-{ph})/2*{1+fpy:.3f}")
@@ -1304,6 +1348,7 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     ov=max(0.0,float(orig_vol))
     af=(f"volume={ov:.2f},highpass=f=85,afftdn=nr=12,equalizer=f=3000:t=q:w=1.5:g=3,acompressor=threshold=-18dB:ratio=3,"
         "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000") if audio_clean else f"volume={ov:.2f},aresample=48000"
+    if voice_fx and VOICE_FX.get(str(voice_fx)): af="aresample=48000,"+VOICE_FX[str(voice_fx)]+","+af
     parts=[base0]+whip+fxparts; cur="[vfx]"; inputs=["-i",cut]
     idx=0
     # --- B-ROLL: avval to'liq ekranlilar (subtitr ULARNING USTIDA qoladi), keyin subtitr, keyin kartochkalar ---
@@ -1316,6 +1361,10 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
         if b.get("full"): bw,bh,y=tw,th,0.0          # to'liq ekran (haqiqiy b-roll kesim)
         fd_=0.12 if b.get("full") else 0.3
         fades=f"format=yuva420p,fade=t=in:st=0:d={fd_}:alpha=1,fade=t=out:st={max(0.01,d-fd_):.2f}:d={fd_}:alpha=1,"
+        ck=b.get("chroma") if isinstance(b.get("chroma"),dict) else None
+        if ck and ck.get("on"): fades=f"chromakey={_hex0x(ck.get('color'))}:{max(0.02,min(0.8,float(ck.get('sim',0.3)))):.2f}:0.08,"+fades
+        bop=max(0.05,min(1.0,float(b.get("op",1) or 1)))
+        if bop<0.995: fades+=f"colorchannelmixer=aa={bop:.2f},"
         if os.path.splitext(p)[1].lower() in (".mp4",".mov",".webm",".mkv",".m4v"):   # video b-roll
             inputs+=["-stream_loop","-1","-t",f"{d}","-i",p]; idx+=1
             parts.append(f"[{idx}:v]fps=30,scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},setsar=1,"
