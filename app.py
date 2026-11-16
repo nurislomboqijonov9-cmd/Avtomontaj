@@ -724,7 +724,7 @@ def studio_projects(x_auth: str = Header("")):
         sj = os.path.join(PROJ, pid, "studio.json")
         items.append({"project": pid, "name": m.get("name", "video"),
                       "source_duration": m.get("duration", 0), "final_duration": m.get("final_duration"),
-                      "analyzed": bool(m.get("words")), "edited": os.path.exists(sj),
+                      "analyzed": bool(m.get("words")), "edited": os.path.exists(sj), "folder": m.get("folder", ""),
                       "updated": int(os.path.getmtime(sj)) if os.path.exists(sj) else (m.get("finished") or m.get("created", 0)),
                       "made": m.get("created", 0),
                       "thumb_url": (f"/media/{pid}/thumb.jpg" if os.path.exists(tp) else None),
@@ -741,6 +741,32 @@ async def studio_rename(req: Request, x_auth: str = Header("")):
     if not name: raise HTTPException(400, "nom bo'sh")
     m["name"] = name; save_meta(pid, m)
     return {"ok": True, "name": name}
+
+@app.post("/api/studio/move")
+async def studio_move(req: Request, x_auth: str = Header("")):
+    """Loyihani papkaga ko'chirish (bo'sh nom = papkasiz)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    m["folder"] = str(b.get("folder") or "").strip()[:40]; save_meta(pid, m)
+    return {"ok": True, "folder": m["folder"]}
+
+@app.post("/api/studio/plan")
+async def studio_plan(req: Request, x_auth: str = Header("")):
+    """Erkin matnli buyruqni montaj sozlamalariga aylantiradi (AI yoki kalit so'zlar)."""
+    check_auth(x_auth); b = await req.json()
+    plan, src = montaj.plan_from_prompt(str(b.get("prompt") or ""))
+    return {"plan": plan, "source": src}
+
+@app.post("/api/studio/styles/save")
+async def style_save(req: Request, x_auth: str = Header("")):
+    """Joriy loyihadagi ko'rinishni qayta ishlatiladigan uslub sifatida saqlash."""
+    usr = check_auth(x_auth); b = await req.json(); pr = b.get("profile")
+    name = str(b.get("name") or "").strip()[:40]
+    if not name or not isinstance(pr, dict) or len(json.dumps(pr)) > 20000: raise HTTPException(400, "uslub noto'g'ri")
+    pr = dict(pr); pr.update(id=uuid.uuid4().hex[:10], name=name, created=int(time.time()), source="saved")
+    with _lock:
+        allst = _load(STYLES_F, {}); lst = allst.get(usr["id"], [])
+        lst.insert(0, pr); allst[usr["id"]] = lst[:30]; _save(STYLES_F, allst)
+    return pr
 
 @app.post("/api/studio/duplicate")
 async def studio_duplicate(req: Request, x_auth: str = Header("")):

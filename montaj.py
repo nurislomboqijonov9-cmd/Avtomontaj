@@ -1577,6 +1577,124 @@ def analyze_style(video_path, work):
         prof["notes"]="AI tahlil ishlamadi (%s). Faqat temp o'lchandi."%str(e)[:120]
     return prof
 
+# ================= MATNLI BUYRUQ -> MONTAJ REJASI (Studio "prompt" va AI chat) =================
+_PLAN_PROMPT=("You convert a video editor's free-text request into editing settings. The request may be in Uzbek, Russian or English. "
+    "Return ONLY a JSON object. Include ONLY the keys the request actually asks to set or change; omit everything else. Allowed keys: "
+    "\"subtitle\":{\"on\":bool,\"layout\":\"line|stack3\",\"words\":1-9,\"upper\":bool,\"position\":\"bottom|center|top\",\"size\":\"small|medium|large\","
+    "\"color_main\":\"#RRGGBB\",\"color_second\":\"#RRGGBB\",\"color_accent\":\"#RRGGBB\",\"anim\":\"pop|bounce|rise|zoomin|fade|none\"}, "
+    "\"pause_max\": seconds 0.25-1.5 (smaller = tighter, faster pacing; 0.3 fast, 0.5 medium, 0.8 relaxed), "
+    "\"look\":\"clean|vivid|warm|cool|cinema|mono|moody\", \"slow_zoom\":0|1|2, \"auto_zoom\":bool (punch-in zooms on cuts), "
+    "\"effect\":\"none|glow|grain|leak|glitch|shake|letterbox|flash|progress|vhs|duotone|dream\", "
+    "\"transition\":\"none|zoom|flash|dip|blur|glitch|shake|slide_l|slide_r|slide_u|slide_d|spin\", "
+    "\"broll\":0-8 (number of cutaway images), \"stickers\":bool (emoji stickers), \"hook\":bool (title at the start), \"hook_text\":string, "
+    "\"ratio\":\"9:16|1:1|4:5|16:9\", \"music_vol\":0-1, \"voice_clean\":bool, \"sfx\":bool (sound effects), "
+    "\"reply\": one short sentence in Uzbek (Latin script) saying what you set. Request: ")
+_PLAN_ENUM={"look":("clean","vivid","warm","cool","cinema","mono","moody"),
+    "effect":("none","glow","grain","leak","glitch","shake","letterbox","flash","progress","vhs","duotone","dream"),
+    "transition":("none","zoom","flash","dip","blur","glitch","shake","slide_l","slide_r","slide_u","slide_d","spin"),
+    "ratio":("9:16","1:1","4:5","16:9")}
+
+def _plan_clean(j):
+    """AI yoki qoidalardan kelgan rejani tekshirib, faqat ruxsat etilgan qiymatlarni qoldiradi."""
+    if not isinstance(j,dict): return {}
+    out={}
+    su=j.get("subtitle")
+    if isinstance(su,dict):
+        o={}
+        if "on" in su: o["on"]=bool(su["on"])
+        if su.get("layout") in ("line","stack3"): o["layout"]=su["layout"]
+        try:
+            if "words" in su: o["words"]=max(1,min(9,int(su["words"])))
+        except Exception: pass
+        if "upper" in su: o["upper"]=bool(su["upper"])
+        if su.get("position") in ("bottom","center","top"): o["position"]=su["position"]
+        if su.get("size") in ("small","medium","large"): o["size"]=su["size"]
+        for k in ("color_main","color_second","color_accent"):
+            if _hexok(su.get(k),None): o[k]=_hexok(su.get(k),None)
+        if su.get("anim") in ("pop","bounce","rise","zoomin","fade","none"): o["anim"]=su["anim"]
+        if o: out["subtitle"]=o
+    try:
+        if "pause_max" in j: out["pause_max"]=round(max(0.25,min(1.5,float(j["pause_max"]))),2)
+    except Exception: pass
+    for k,vals in _PLAN_ENUM.items():
+        if j.get(k) in vals: out[k]=j[k]
+    if out.get("look"): out["look_values"]=dict(_LOOKS[out["look"]])
+    try:
+        if "slow_zoom" in j: out["slow_zoom"]=max(0,min(2,int(j["slow_zoom"])))
+        if "broll" in j: out["broll"]=max(0,min(8,int(j["broll"])))
+        if "music_vol" in j: out["music_vol"]=round(max(0.0,min(1.0,float(j["music_vol"]))),2)
+    except Exception: pass
+    for k in ("auto_zoom","stickers","hook","voice_clean","sfx"):
+        if k in j: out[k]=bool(j[k])
+    if isinstance(j.get("hook_text"),str) and j["hook_text"].strip(): out["hook_text"]=j["hook_text"].strip()[:60]
+    if isinstance(j.get("reply"),str): out["reply"]=j["reply"].strip()[:200]
+    return out
+
+def _plan_rules(text):
+    """AI ulanmagan bo'lsa: kalit so'zlar bo'yicha oddiy reja (uz/ru/en)."""
+    t=" "+(text or "").lower()+" "; j={}; su={}; did=[]
+    def has(*ws): return any(w in t for w in ws)
+    neg=lambda *ws: any((w+" yo'q" in t) or (w+"siz" in t) or ("без "+w in t) or ("no "+w in t) or (w+" kerak emas" in t) or (w+" qo'yma" in t) for w in ws)
+    if has("zich","tez temp","tezkor","dinamik","быстр","динамич","fast","tight","energetic"): j["pause_max"]=0.32; did.append("zich temp")
+    elif has("sokin","sekin","erkin","спокойн","медлен","calm","slow","relaxed"): j["pause_max"]=0.9; did.append("sokin temp")
+    if neg("subtitr","субтитр","subtitle","caption"): su["on"]=False; did.append("subtitrsiz")
+    elif has("subtitr","субтитр","subtitle","caption"):
+        su["on"]=True
+        if has("3 pog'ona","uch pog'ona","3 qator","uch qator","three line","3 line","три строк"): su["layout"]="stack3"
+        if has("1 qator","bir qator","karaoke","one line","одна строк","одну строк"): su["layout"]="line"
+        if has("bitta so'z","bir so'z","one word","по одному слову"): su.update(layout="line",words=1)
+    for names,col in ((("sariq","желт","yellow"),"#ffe14a"),(("yashil","зелен","зелён","green"),"#39e75f"),(("qizil","красн","red"),"#ff4d4d"),
+                      (("ko'k","син","blue"),"#4d8dff"),(("pushti","розов","pink"),"#ff4fa3"),(("oq subtitr","белые субтитр","white caption"),"#ffffff")):
+        if has(*names) and has("subtitr","субтитр","caption","subtitle","matn","текст","text"):
+            su["color_second"]=col; su["color_accent"]=col; did.append("subtitr rangi"); break
+    if has("katta harf","заглавн","uppercase","caps"): su["upper"]=True
+    if has("kichik harf","lowercase","строчн"): su["upper"]=False
+    if has("katta subtitr","крупные субтитр","big caption","large caption"): su["size"]="large"
+    if has("markaz","по центру","в центр","center"): su["position"]="center"; did.append("subtitr markazda")
+    if su: j["subtitle"]=su
+    for names,look in ((("kino","cinema","кино"),"cinema"),(("iliq","тепл","warm"),"warm"),(("sovuq","холодн","cool"),"cool"),
+                       (("oq-qora","oq qora","черно-бел","black and white","b&w","monochrome"),"mono"),(("yorqin","ярк","vivid","bright"),"vivid"),(("toza","clean","чист"),"clean")):
+        if has(*names): j["look"]=look; did.append(look+" rang"); break
+    if neg("b-roll","broll","rasm"): j["broll"]=0; did.append("b-rollsiz")
+    else:
+        mm=re.search(r"(\d)\s*(?:ta\s*)?(?:b-?roll|rasm|картин|image)",t)
+        if mm: j["broll"]=int(mm.group(1)); did.append("%s ta b-roll"%mm.group(1))
+        elif has("b-roll","broll"): j["broll"]=4; did.append("b-roll")
+    if neg("stiker","emoji","стикер","эмодзи","sticker"): j["stickers"]=False; did.append("stikersiz")
+    elif has("stiker","emoji","стикер","эмодзи","sticker"): j["stickers"]=True; did.append("stikerlar")
+    if neg("zoom","зум"): j["auto_zoom"]=False; j["slow_zoom"]=0; did.append("zoomsiz")
+    elif has("zoom","зум","yaqinlash"): j["auto_zoom"]=True; j["slow_zoom"]=2 if has("kuchli","сильн","strong") else 1; did.append("zoom")
+    if neg("hook","sarlavha","заголов","title"): j["hook"]=False
+    elif has("hook","sarlavha","заголов","title"): j["hook"]=True; did.append("hook sarlavha")
+    for names,tr in ((("chaqnash","вспышк","flash"),"flash"),(("glitch","глитч"),"glitch"),(("xira","blur","размыт"),"blur"),(("aylan","spin","вращ"),"spin"),
+                     (("surish","slide","сдвиг","свайп"),"slide_l"),(("silkin","shake","тряск"),"shake")):
+        if has(*names): j["transition"]=tr; did.append(tr+" o'tish"); break
+    if neg("o'tish","переход","transition"): j["transition"]="none"
+    for r_ in ("9:16","1:1","4:5","16:9"):
+        if r_ in t: j["ratio"]=r_; did.append("format "+r_)
+    if has("kvadrat","квадрат","square"): j["ratio"]="1:1"
+    if has("youtube","gorizontal","горизонт","horizontal","landscape"): j["ratio"]="16:9"
+    if has("vhs","retro","ретро"): j["effect"]="vhs"
+    elif has("letterbox","kino chiziq","черные полос"): j["effect"]="letterbox"
+    elif has("grain","dona","зерн"): j["effect"]="grain"
+    if neg("ovoz effekt","sfx","звуковые эффект"): j["sfx"]=False
+    j["reply"]=("Qo'llandi: "+", ".join(did)+".") if did else "Aniq buyruq topilmadi. Masalan: «zich temp, sariq subtitr, 3 ta b-roll, stikersiz»."
+    return j
+
+def plan_from_prompt(text):
+    """Erkin matn -> montaj rejasi. -> (reja, manba)"""
+    text=(text or "").strip()[:800]
+    if not text: return {"reply":"Buyruq bo'sh."},"rules"
+    if have_vertex() or GEMINI_KEY:
+        try:
+            j=json.loads(_ai_json(_PLAN_PROMPT+json.dumps(text,ensure_ascii=False)))
+            if isinstance(j,list): j=j[0] if j else {}
+            pl=_plan_clean(j)
+            if pl: return pl,"ai"
+        except Exception:
+            pass
+    return _plan_clean(_plan_rules(text)),"rules"
+
 def apply_cut(video_path, words, removes, work, dur):
     """removes = [[s,e],...] (o'chiriladigan). Kesadi, so'zlarni qayta moslaydi."""
     keep=subtract_ranges([(0.0,dur)], [tuple(r) for r in removes]) if removes else [(0.0,dur)]

@@ -10,6 +10,10 @@ Videongizni yuklaysiz → bot o'zbekcha subtitr qo'yadi, keraksiz joylarni (jiml
 4. **Namuna uslub** — yoqtirgan videongizni yuklang, bot uning subtitr tempi/kesish uslubini o'lchab sizga moslaydi.
 
 ## Studio (asosiy interfeys)
+**Bosh sahifa — kompozitor:** video qo'shiladi, erkin matn bilan buyruq yoziladi («zich temp, sariq subtitr, 3 ta b-roll»), loyiha turi (AI montaj / faqat subtitr / bo'sh loyiha), format va til tanlanadi, pastdagi galereyadan montaj uslubi belgilanadi. Buyruq Gemini orqali sozlamalarga aylantiriladi; AI ulanmagan bo'lsa kalit so'zlar bo'yicha ishlaydi. Muharrirda xuddi shu buyruqlar «AI» bo'limidagi chat orqali beriladi.
+
+**Uslublar:** 8 ta tayyor montaj uslubi (Viral, Toza, Kino, Neon, Podkast, Biznes, Hikoya, Hype), namuna videodan olinganlar va muharrirdan «⋯ → Uslub sifatida saqlash» orqali saqlanganlar. Loyihalar papkalarga ajratiladi.
+
 **Bo'limlar:** yon menyuda *Bosh sahifa* (statistika, yangi loyiha, so'nggi loyihalar), *Loyihalar* (qidirish, filtr, nom o'zgartirish, nusxa olish, o'chirish), *Tayyor videolar* (ko'rish va yuklab olish), *Uslublar* (namuna videodan olingan montaj uslublari), *Sozlamalar* (akkaunt, yangi loyiha uchun standart til/format/sifat, klaviatura yorliqlari). Loyiha ochilganda muharrir chiqadi.
 
 Sayt ochilganda (`/`) yangi Studio chiqadi. Eski interfeys `/classic` manzilida o'zgarishsiz turadi.
