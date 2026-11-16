@@ -291,6 +291,29 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
   #libbox{max-height:60vh}#right{grid-template-rows:auto 190px}
   .proj h1{max-width:26vw}.hidem{display:none}
 }
+#mbar,#msheetx,#mEdit{display:none}
+.it,.lay{touch-action:none}.it[data-k=seg]{touch-action:pan-x pan-y}.lane{touch-action:pan-x pan-y}.lane[data-k=ruler]{touch-action:none}
+@media (max-width:760px){
+  html,body{overflow:hidden;height:100%}
+  #app{grid-template-rows:44px minmax(0,1fr) 236px 52px;height:100dvh;min-height:0}
+  #top{padding:0 8px;gap:6px}#top .logo{display:none}#top .back.hidem{display:inline-flex;font-size:0;padding:6px 9px}#top .back.hidem:before{content:"‹";font-size:18px}
+  .proj{min-width:0;flex:1}.proj h1{max-width:none;font-size:13px}.proj p{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #autoB{font-size:0;padding:7px 10px}#autoB:before{content:"⚡";font-size:15px}#expB{padding:7px 10px;font-size:12px}
+  #main{display:block;padding:6px 8px 0;position:relative;min-height:0}
+  #center{height:100%;order:0}#pvwrap{height:auto;padding-bottom:4px}
+  #libbox,#right{display:none;position:fixed;left:0;right:0;bottom:52px;height:min(52dvh,430px);z-index:40;border-radius:14px 14px 0 0;border:1px solid var(--line);border-bottom:0;background:var(--panel);box-shadow:0 -14px 40px rgba(0,0,0,.55);max-height:none}
+  body.m-lib #libbox{display:flex;flex-direction:column}body.m-insp #right{display:block;overflow:auto;padding:0 0 10px}
+  body.m-lib #app,body.m-insp #app{grid-template-rows:44px minmax(0,1fr) 0 52px}body.m-lib #tl,body.m-insp #tl{display:none}
+  body.m-lib #main,body.m-insp #main{padding-bottom:calc(min(52dvh,430px) + 4px)}
+  #right>.box{border:0;border-radius:0;background:transparent}#ltabs{display:none}#lib,#insp{padding-top:14px}
+  body.m-lib #msheetx,body.m-insp #msheetx{display:block;position:fixed;right:10px;bottom:calc(52px + min(52dvh,430px) - 34px);z-index:41;width:28px;height:28px;border-radius:50%;background:#262a3b;color:var(--txt);border:1px solid var(--line);font-size:14px;line-height:1;padding:0}
+  #tl{margin:6px 8px 6px}#tools{gap:4px;padding:0 6px}#tools .tool{flex:none;padding:6px 9px;font-size:12px}#tlinfo{display:none}#mEdit{display:inline-flex}
+  .lab{width:42px;font-size:8px;letter-spacing:0}.it .rh,.it .lh{width:16px}
+  #mbar{display:flex;gap:2px;align-items:stretch;overflow-x:auto;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom));z-index:42;position:relative}
+  #mbar button{flex:1 0 54px;background:none;border:0;color:var(--dim);font:inherit;font-size:9.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 2px;border-radius:8px}
+  #mbar button b{font-size:17px;font-weight:400;line-height:1.1}#mbar button.on{color:#111;background:var(--lime)}
+  #toast{bottom:64px}.srow input[type=range]{height:26px}
+}
 .stockg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.stockg button{aspect-ratio:9/12;border-radius:8px;border:1px solid var(--line);background:#111 center/cover;position:relative;cursor:pointer;padding:0}
 .stockg button:hover{outline:2px solid var(--acc,#7c5cff)}.stockg i{position:absolute;right:4px;bottom:4px;font:600 10px/1 inherit;background:rgba(0,0,0,.65);color:#fff;padding:2px 4px;border-radius:4px;font-style:normal}
 .hlrow{align-items:center}.hlrow>div:nth-child(2){flex:1;min-width:0}.hlrow a.sm{text-decoration:none;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11px}#lib textarea{width:100%}
@@ -346,7 +369,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
       <button class="tool" data-tool="blade" title="Oraliqni sudrab kesish (B)">✂ Oraliq</button>
       <span class="tsep"></span>
       <button class="tool" id="zoB" title="Kichraytirish">−</button><button class="tool" id="ziB" title="Kattalashtirish">＋</button><button class="tool" id="zfB" title="Butun videoni sig'dirish">↔</button>
-      <span id="tlinfo"></span>
+      <button class="tool" id="mEdit" title="Tanlangan elementni tahrirlash">✎ Tahrir</button><span id="tlinfo"></span>
     </div>
     <div id="tlbody"><div id="tlinner">
       <div class="row" id="ruler"><div class="lab">VAQT</div><div class="lane" data-k="ruler"></div></div>
@@ -361,6 +384,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
       <div id="ph"></div>
     </div></div>
   </div>
+  <div id="mbar"></div><button id="msheetx" title="Yopish">✕</button>
 </div>
 
 <div class="ovr" id="home"><div id="shell">
@@ -1329,6 +1353,17 @@ document.addEventListener("keydown",e=>{if(e.target.id==="chatIn"&&e.key==="Ente
   else if(k==="home")seek(0);else if(k==="end")seek(S.duration)});
 $("undoB").onclick=undo;$("redoB").onclick=redo;
 addEventListener("resize",()=>{if(S){fitPv();updPreview(true)}});
+/* ---------- mobil: pastki panel ---------- */
+const isM=()=>matchMedia("(max-width:760px)").matches;
+function mSheet(kind,tab){const b=document.body,was=b.classList.contains("m-lib")?"lib:"+LTAB:b.classList.contains("m-insp")?"insp":"";
+  b.classList.remove("m-lib","m-insp");const want=kind==="lib"?"lib:"+tab:kind||"";
+  if(kind&&want!==was){if(kind==="lib"){LTAB=tab;b.classList.add("m-lib");renderLib()}else{b.classList.add("m-insp");renderInsp()}}
+  mBar();if(S){fitPv();updPreview(true)}}
+function mBar(){const b=document.body,L=b.classList.contains("m-lib"),I=b.classList.contains("m-insp");
+  $("mbar").innerHTML=LT.map(t=>`<button data-ml="${t[0]}" class="${L&&LTAB===t[0]?"on":""}"><b>${t[2]}</b>${t[1]}</button>`).join("")+`<button data-mi="1" class="${I?"on":""}"><b>⚙</b>Sozlash</button>`}
+$("mbar").onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.ml)mSheet("lib",b.dataset.ml);else mSheet("insp")};
+$("msheetx").onclick=()=>mSheet("");$("mEdit").onclick=()=>{if(!SEL){toast("Avval taymlayndan element tanlang");return}TAB="sel";document.body.classList.remove("m-lib","m-insp");mSheet("insp")};
+mBar();
 
 /* ---------- avtomatik montaj ---------- */
 let BUSY=false;
