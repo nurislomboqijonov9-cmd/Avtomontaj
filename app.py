@@ -718,13 +718,45 @@ def studio_projects(x_auth: str = Header("")):
             if os.path.exists(src):
                 montaj.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", "0.8", "-i", src, "-frames:v", "1",
                             "-vf", "scale=-2:360", "-q:v", "5", tp])
+        fin = os.path.join(PROJ, pid, "final.mp4")
+        if m.get("final") and os.path.exists(fin) and m.get("final_ts") != int(os.path.getmtime(fin)):   # tayyor video uzunligi (kesh)
+            m["final_duration"] = round(montaj.ffdur(fin), 2); m["final_ts"] = int(os.path.getmtime(fin)); save_meta(pid, m)
+        sj = os.path.join(PROJ, pid, "studio.json")
         items.append({"project": pid, "name": m.get("name", "video"),
+                      "source_duration": m.get("duration", 0), "final_duration": m.get("final_duration"),
+                      "analyzed": bool(m.get("words")), "edited": os.path.exists(sj),
+                      "updated": int(os.path.getmtime(sj)) if os.path.exists(sj) else (m.get("finished") or m.get("created", 0)),
+                      "made": m.get("created", 0),
                       "thumb_url": (f"/media/{pid}/thumb.jpg" if os.path.exists(tp) else None),
                       "created": m.get("finished") or m.get("created", 0),
                       "duration": m.get("cut_duration") or m.get("duration", 0),
                       "final_url": (f"/media/{pid}/final.mp4" if m.get("final") else None)})
-    items.sort(key=lambda x: x["created"], reverse=True)
-    return {"items": items[:60]}
+    items.sort(key=lambda x: x["updated"], reverse=True)
+    return {"items": items[:200]}
+
+@app.post("/api/studio/rename")
+async def studio_rename(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    name = str(b.get("name") or "").strip()[:80]
+    if not name: raise HTTPException(400, "nom bo'sh")
+    m["name"] = name; save_meta(pid, m)
+    return {"ok": True, "name": name}
+
+@app.post("/api/studio/duplicate")
+async def studio_duplicate(req: Request, x_auth: str = Header("")):
+    """Loyihaning to'liq nusxasi (video, sozlamalar, qatlamlar)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    new = uuid.uuid4().hex[:12]
+    shutil.copytree(os.path.join(PROJ, pid), os.path.join(PROJ, new))
+    m2 = load_meta(new); m2.update(id=new, name=(m.get("name", "video") + " (nusxa)")[:80], created=int(time.time()))
+    save_meta(new, m2)
+    sj = os.path.join(PROJ, new, "studio.json")      # qatlam manzillaridagi eski loyiha ID sini almashtiramiz
+    if os.path.exists(sj):
+        try:
+            t = open(sj, encoding="utf-8").read().replace(f"/media/{pid}/", f"/media/{new}/")
+            open(sj, "w", encoding="utf-8").write(t)
+        except Exception: pass
+    return {"project": new}
 
 @app.get("/api/studio/load/{pid}")
 def studio_load(pid: str, x_auth: str = Header("")):

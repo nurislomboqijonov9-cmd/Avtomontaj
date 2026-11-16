@@ -173,7 +173,61 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
 /* ustki oynalar */
 .ovr{position:fixed;inset:0;z-index:50;background:#06070cf5;display:none;overflow:auto}
 .ovr.show{display:block}
-#home{background:var(--bg)}
+#home{background:var(--bg);overflow:hidden}
+#shell{display:grid;grid-template-columns:232px minmax(0,1fr);height:100%}
+#side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;min-height:0}
+#side .logo{font-size:16px;margin:2px 6px 18px}
+#newB{width:100%;padding:11px;font-size:12.5px;margin-bottom:16px}
+#nav{display:flex;flex-direction:column;gap:3px}
+.nv{display:flex;align-items:center;gap:11px;border:0;background:none;text-align:left;padding:9px 11px;border-radius:9px;color:#aab0c8;font-size:12px;font-weight:600}
+.nv i{font-style:normal;width:18px;text-align:center;font-size:14px}.nv u{text-decoration:none;margin-left:auto;font-size:10px;background:#20243a;border-radius:9px;padding:1px 7px;color:#aab0c8}
+.nv:hover{background:#1a1d29}.nv.on{background:#23273d;color:var(--lime)}.nv.on u{background:var(--lime);color:#111}
+.sidefoot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:9px}
+.ava{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--pink));display:grid;place-items:center;font-weight:800;color:#fff;flex:none}
+.sidefoot div{min-width:0;flex:1;line-height:1.25}.sidefoot b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px}.sidefoot span{font-size:9.5px;color:var(--dim)}
+#pgwrap{overflow:auto;min-height:0}
+#page{max-width:1180px;margin:0 auto;padding:26px 30px 60px}
+#strip{max-width:1180px;margin:0 auto;padding:0 30px}#strip .pbar{margin-top:10px}#strip .hint{margin-top:4px}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.ph h1{font-size:23px;line-height:1.15}.ph h1 b{color:var(--lime)}.ph p{color:var(--dim);font-size:11.5px;margin-top:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+.stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.stat b{display:block;font-size:24px;font-weight:800;margin:6px 0 2px}.stat span{font-size:10px;color:var(--dim)}
+.cols2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;margin-bottom:24px}
+.pn{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.pn h3{font-size:12.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}.pn h3 a{font-size:10.5px;color:var(--lime);text-decoration:none;font-weight:600;cursor:pointer}
+.dropz{border:2px dashed #3a3f55;border-radius:14px;padding:30px 18px;text-align:center;cursor:pointer;transition:.2s;background:#10121a}
+.dropz:hover,.dropz.over{border-color:var(--lime);background:#181b26}.dropz h2{font-size:17px;margin:4px 0 6px}.dropz .plus{font-size:32px;color:var(--lime);line-height:1}
+.steps{counter-reset:st;display:flex;flex-direction:column;gap:9px}
+.steps div{display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:11px;color:#aab0c8;line-height:1.45}.steps div:before{counter-increment:st;content:counter(st);width:22px;height:22px;border-radius:50%;background:#23273d;color:var(--lime);font-weight:800;display:grid;place-items:center;font-size:11px}
+.steps b{color:var(--txt)}
+.sech{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.sech h3{font-size:13px}.sech a{font-size:10.5px;color:var(--lime);cursor:pointer}
+.tbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.tbar input{max-width:260px}.tbar select{width:auto}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:14px}
+.pc .pmenu{position:absolute;right:6px;top:6px;display:flex;gap:4px;opacity:0;transition:.15s}.pc:hover .pmenu{opacity:1}
+.pc .pmenu button{padding:3px 6px;font-size:11px;background:#000c;border-color:transparent}
+.pc .pth i{position:absolute;left:6px;bottom:6px;font-style:normal;font-size:9.5px;background:#000b;color:#fff;padding:2px 6px;border-radius:5px}
+.empty{border:1px dashed #3a3f55;border-radius:12px;padding:34px;text-align:center;color:var(--dim);font-size:11.5px;line-height:1.6}
+.xgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.xc{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}.xc video{width:100%;aspect-ratio:9/13;object-fit:cover;background:#000;display:block}
+.xc .xin{padding:9px 10px}.xc b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px}.xc span{font-size:10px;color:var(--dim)}.xc .mbtns a{text-decoration:none}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.sc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}.sc.on{border-color:var(--lime);box-shadow:0 0 0 1px var(--lime)}
+.sc h4{font-size:13px;display:flex;justify-content:space-between;gap:8px}.sc h4 em{font-style:normal;font-size:9.5px;background:var(--lime);color:#111;padding:2px 7px;border-radius:9px;font-weight:800}
+.sc .prev{height:74px;border-radius:9px;background:linear-gradient(160deg,#3b4160,#1c2030);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Anton',Impact,sans-serif;line-height:1.05;text-shadow:0 1px 0 #000,0 0 6px #000}
+.sc dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:10.5px}.sc dt{color:var(--dim)}.sc dd{text-align:right}
+.sc p{font-size:10.5px;color:#aab0c8;line-height:1.45}
+.setg{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.kbd{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:11px}.kbd kbd{background:#23273d;border:1px solid var(--line);border-radius:5px;padding:1px 7px;font:inherit;font-size:10.5px;color:var(--lime);white-space:nowrap}
+.back{color:#aab0c8;text-decoration:none;font-size:11px;font-weight:600;padding:5px 9px;border:1px solid var(--line);border-radius:7px;white-space:nowrap}.back:hover{border-color:#3b4160;color:#fff}
+@media (max-width:900px){
+  #shell{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  #side{order:2;flex-direction:row;align-items:center;padding:6px 8px;border-right:0;border-top:1px solid var(--line);gap:6px}
+  #side .logo,#newB,.sidefoot,.nv u{display:none}#nav{flex-direction:row;flex:1;justify-content:space-around}
+  .nv{flex-direction:column;gap:2px;font-size:9px;padding:5px 6px}.nv i{font-size:16px}
+  #page{padding:16px 14px 40px}.stats{grid-template-columns:1fr 1fr}.cols2{grid-template-columns:1fr}
+}
 .cardw{max-width:880px;margin:5vh auto;padding:0 16px 40px}
 #drop{border:2px dashed #3a3f55;border-radius:16px;padding:40px 20px;text-align:center;background:var(--panel);cursor:pointer;transition:.2s}
 #drop:hover,#drop.over{border-color:var(--lime);background:#181b26}
@@ -213,6 +267,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
 <div id="app">
   <header id="top">
     <a class="logo" href="/"><i></i>MONTAJ <b>AI</b></a>
+    <a class="back hidem" href="/#projects">‹ Loyihalar</a>
     <div class="proj"><h1 id="pname">—</h1><p><em id="saveDot">●</em> <span id="saveTxt">saqlangan</span> · <span id="layers">0</span> qatlam</p></div>
     <button class="ai" id="autoB" title="Transkripsiya, kesish, subtitr, stiker, b-roll — tanlangan uslubda">⚡ Avto montaj</button>
     <button class="pri" id="expB">Eksport ⭳</button>
@@ -273,30 +328,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
   </div>
 </div>
 
-<div class="ovr" id="home"><div class="cardw">
-  <div class="hbar">
-    <div class="logo" style="font-size:18px"><i style="width:20px;height:20px"></i>MONTAJ <b>AI</b> Studio</div>
-    <div class="who"><span id="whoN"></span><a href="/classic" style="color:var(--dim);text-decoration:none">eski interfeys</a><button class="sm ghost" id="logoutB">Chiqish</button></div>
+<div class="ovr" id="home"><div id="shell">
+  <aside id="side">
+    <a class="logo" href="/"><i style="width:20px;height:20px"></i>MONTAJ <b>AI</b></a>
+    <button class="pri" id="newB">＋ Yangi loyiha</button>
+    <nav id="nav"></nav>
+    <div class="sidefoot"><span class="ava" id="ava">M</span><div><b id="whoN"></b><span id="whoE"></span></div><button class="sm ghost" id="logoutB" title="Chiqish">⎋</button></div>
+  </aside>
+  <div id="pgwrap">
+    <div id="strip"><div class="pbar" id="upbar"><i></i></div><p class="hint" id="upmsg"></p><div class="pbar" id="stbar"><i></i></div><p class="hint" id="stmsg"></p></div>
+    <main id="page"></main>
   </div>
-  <div class="hero">
-    <div>
-      <h1>Videoni tashlang —<br><b>AI o'zi montaj qiladi</b></h1>
-      <p class="hint" style="font-size:11.5px">Pauzalarni kesadi, subtitr, stiker, zoom va b-roll qo'yadi. Keyin taymlaynda xohlagan joyingizni o'zingiz o'zgartirasiz.</p>
-      <div class="feats">
-        <div class="feat"><b>⚡ Avto montaj</b>Bir tugma: kesish, subtitr, stiker, zoom, b-roll</div>
-        <div class="feat"><b>🎨 Namuna uslub</b>Yoqqan videoni tashlang — o'sha uslubda montaj qiladi</div>
-        <div class="feat"><b>✂ To'liq taymlayn</b>Bo'lish, tezlik, o'tishlar, keyframe, ovoz effektlari</div>
-        <div class="feat"><b>💬 3 pog'onali subtitr</b>So'zma-so'z, aytilayotgan so'z ajralib turadi</div>
-      </div>
-    </div>
-    <div id="drop"><h2 style="font-size:34px;margin:0 0 6px"><b>＋</b></h2><h2>Yangi loyiha</h2><p class="hint">Videoni shu yerga tashlang yoki bosib tanlang<br>MP4, MOV · kameraga gapirilgan reels uchun eng yaxshi</p>
-      <div class="pbar" id="upbar"><i></i></div><p class="hint" id="upmsg" style="margin-top:8px"></p></div>
-  </div>
-  <div class="step"><span class="lbl">Montaj uslubi — yangi loyihaga qo'llanadi</span></div>
-  <div class="chips2 stylebar"></div>
-  <div class="pbar" id="stbar"><i></i></div><p class="hint" id="stmsg"></p>
   <input type="file" id="vidF" accept="video/*" hidden><input type="file" id="refF" accept="video/*" hidden>
-  <div class="step"><span class="lbl">Loyihalarim</span></div><div id="plist"></div>
 </div></div>
 
 <div class="ovr" id="auth"><div class="modal">
@@ -418,7 +461,8 @@ $("logoutB").onclick=async()=>{try{await api("/api/auth/logout",{})}catch(_){}TO
 /* ---------- uslub profillari (namuna videodan) ---------- */
 const curStyle=()=>STYLES.find(s=>s.id===STYLE_ID)||null;
 function styleChips(){return `<button class="chip ${!curStyle()?"on":""}" data-st="">Standart</button>`+STYLES.map(s=>`<button class="chip ${s.id===STYLE_ID?"on":""}" data-st="${s.id}">${esc(s.name)} <i data-sd="${s.id}" title="O'chirish">✕</i></button>`).join("")+`<button class="chip add" data-stup="1">＋ Namuna video</button>`}
-function renderStyles(){document.querySelectorAll(".stylebar").forEach(e=>e.innerHTML=styleChips());const n=$("stnote");if(n)n.innerHTML=styleNote()}
+function renderStyles(){document.querySelectorAll(".stylebar").forEach(e=>e.innerHTML=styleChips());const n=$("stnote");if(n)n.innerHTML=styleNote();
+  if($("home").classList.contains("show")&&typeof renderPage==="function")renderPage()}
 function styleNote(){const p=curStyle();if(!p)return "Standart uslub: 3 pog'onali sariq subtitr, yorqin rang, yengil zoom.";
   const su=p.subtitle||{},pc=p.pace||{};return `<b>${esc(p.name)}</b> — ${esc(p.notes||"")}<br>Subtitr: ${su.layout==="stack3"?"3 pog'ona":"1 qator"}, ${su.words} so'z, ${({bottom:"pastda",center:"markazda",top:"tepada"})[su.position]||"pastda"} · Pauza ≤ ${pc.pause_max}s · Zoom ${["yo'q","yengil","kuchli"][p.zoom]||""} · B-roll ${p.broll} · Stiker ${p.stickers?"bor":"yo'q"}${String(p.source).startsWith("ai")?"":" · <span style='color:var(--yellow)'>AI'siz o'lchangan</span>"}`}
 async function loadStyles(){try{STYLES=(await api("/api/studio/styles")).items||[]}catch(_){}renderStyles()}
@@ -446,23 +490,97 @@ function applyStyle(p){hist();const su=S.sub;
   reindex();if(S.analyzed&&S.words.length)autoApply(true);
   renderAll();dirty();ag("style-01","Uslub qo'llandi: "+(p?p.name:"Standart"))}
 
-/* ---------- bosh sahifa ---------- */
-async function showHome(){$("home").classList.add("show");loadStyles();
-  try{const r=await api("/api/studio/projects");const dd=t=>{t=Math.round(t);return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
-    $("plist").innerHTML=`<div class="pc new" id="pNew"><div><b>＋</b><br>Yangi loyiha</div></div>`+r.items.map(p=>`<div class="pc" data-p="${p.project}"><div class="pth" ${p.thumb_url?`style="background-image:url('${p.thumb_url}')"`:""}>${p.thumb_url?"":"🎞"}${p.final_url?"<em>✓ tayyor</em>":""}<u>${dd(+p.duration)}</u></div>
-      <div class="pin"><b>${esc(p.name)}</b><span>${new Date(p.created*1000).toLocaleDateString()}</span></div><button class="pdel" data-pd="${p.project}" title="O'chirish">🗑</button></div>`).join("");
-  }catch(e){}}
-$("plist").onclick=async e=>{const d=e.target.closest("[data-pd]");
-  if(d){e.stopPropagation();if(confirm("Loyiha butunlay o'chirilsinmi?")){try{await api("/api/history/"+d.dataset.pd,null,"DELETE")}catch(x){toast(x.message)}showHome()}return}
-  if(e.target.closest("#pNew")){$("vidF").click();return}
-  const c=e.target.closest(".pc");if(c)location.href="/?p="+c.dataset.p};
-const drop=$("drop");
-drop.onclick=()=>$("vidF").click();
-drop.ondragover=e=>{e.preventDefault();drop.classList.add("over")};drop.ondragleave=()=>drop.classList.remove("over");
-drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");const f=e.dataTransfer.files[0];if(f)upload(f)};
+/* ---------- dastur qobig'i: boshqaruv paneli, loyihalar, tayyor videolar, uslublar, sozlamalar ---------- */
+let PL=[],PG="home",PQ="",PF="all",PS="new",ME={};
+const NAV=[["home","Bosh sahifa","⌂"],["projects","Loyihalar","▦"],["exports","Tayyor videolar","⭳"],["styles","Uslublar","✦"],["settings","Sozlamalar","⚙"]];
+const DEFS=()=>{try{return Object.assign({lang:"uz",quality:"1080",ratio:"9:16"},JSON.parse(localStorage.getItem("mdef")||"{}"))}catch(_){return{lang:"uz",quality:"1080",ratio:"9:16"}}};
+const mmss=t=>{t=Math.round(+t||0);return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
+const human=t=>{t=+t||0;return t>=3600?(t/3600).toFixed(1)+" soat":t>=60?Math.round(t/60)+" daq":Math.round(t)+" s"};
+const dstr=ts=>{const d=new Date(ts*1000),n=new Date(),k=Math.floor((n-d)/864e5);return k<1&&d.getDate()===n.getDate()?"bugun":k<2?"kecha":k<7?k+" kun oldin":d.toLocaleDateString()};
+async function loadProjects(){try{PL=(await api("/api/studio/projects")).items||[]}catch(_){PL=[]}}
+async function showHome(){$("home").classList.add("show");const h=(location.hash||"").slice(1);if(NAV.some(n=>n[0]===h))PG=h;renderPage();await Promise.all([loadStyles(),loadProjects()]);renderPage()}
+function go(pg){PG=pg;history.replaceState(null,"","/#"+pg);renderPage();$("pgwrap").scrollTop=0}
+function pcard(p){const st=p.final_url?`<em>✓ tayyor</em>`:"",tag=p.final_url?"":p.edited?"tahrirda":p.analyzed?"tahlil qilingan":"yangi";
+  return `<div class="pc" data-p="${p.project}"><div class="pth" ${p.thumb_url?`style="background-image:url('${p.thumb_url}')"`:""}>${p.thumb_url?"":"🎞"}${st}${tag?`<i>${tag}</i>`:""}<u>${mmss(p.duration)}</u></div>
+    <div class="pin"><b title="${esc(p.name)}">${esc(p.name)}</b><span>${dstr(p.updated||p.created)}</span></div>
+    <div class="pmenu"><button data-pr="${p.project}" title="Nomini o'zgartirish">✎</button><button data-pc="${p.project}" title="Nusxa olish">⧉</button><button data-pd="${p.project}" title="O'chirish">🗑</button></div></div>`}
+function stylePrev(v){const U=x=>v.upper===false?x:x.toUpperCase();return v.layout==="line"?`<div style="font-size:15px;color:${v.c1}">${U("tayyor")} <span style="color:${v.active}">${U("video")}</span></div>`
+  :`<div style="font-size:10px;color:${v.c1}">${U("bitta")} <span style="color:${v.active}">${U("prompt")}</span></div><div style="font-size:17px;color:${v.c2}">${U("tayyor")}</div><div style="font-size:12px;color:${v.c3}">${U("video")}</div>`}
+function scard(p){const on=p?p.id===STYLE_ID:!curStyle(),su=p?(p.subtitle||{}):{},pc=p?(p.pace||{}):{};
+  const v=p?{layout:su.layout,upper:su.upper,c1:su.color_main||"#fff",c2:su.color_second||su.color_main||"#fff",c3:su.color_main||"#fff",active:su.color_accent||"#ffea00"}:{layout:"stack3",upper:true,c1:"#fff",c2:"#ffe14a",c3:"#fff",active:"#39e75f"};
+  return `<div class="sc ${on?"on":""}"><h4><span>${p?esc(p.name):"Standart"}</span>${on?"<em>tanlangan</em>":""}</h4><div class="prev">${stylePrev(v)}</div>
+    <p>${p?esc(p.notes||""):"3 pog'onali sariq subtitr, yorqin rang, yengil zoom, avto stiker va zoom zarbalari."}</p>
+    <dl><dt>Subtitr</dt><dd>${v.layout==="line"?"1 qator":"3 pog'ona"}${p?", "+su.words+" so'z":""}</dd><dt>Temp</dt><dd>pauza ≤ ${p?pc.pause_max:0.8}s</dd><dt>Zoom</dt><dd>${["yo'q","yengil","kuchli"][p?p.zoom:1]||"yengil"}</dd><dt>B-roll</dt><dd>${p?p.broll:4} ta</dd>
+      <dt>Manba</dt><dd>${p?(String(p.source).startsWith("ai")?"AI tahlil":"o'lchov (AI'siz)"):"ichki"}</dd></dl>
+    <div class="mbtns" style="margin-top:auto">${on?"":`<button class="sm pri" data-st="${p?p.id:""}">Tanlash</button>`}${p?`<button class="sm danger" data-sd="${p.id}">O'chirish</button>`:""}</div></div>`}
+function renderPage(){
+  const ready=PL.filter(p=>p.final_url),src=PL.reduce((a,p)=>a+(+p.source_duration||0),0),out=ready.reduce((a,p)=>a+(+p.final_duration||0),0),
+    saved=ready.reduce((a,p)=>a+Math.max(0,(+p.source_duration||0)-(+p.final_duration||0)),0);
+  $("nav").innerHTML=NAV.map(n=>`<button class="nv ${n[0]===PG?"on":""}" data-pg="${n[0]}"><i>${n[2]}</i>${n[1]}${n[0]==="projects"?`<u>${PL.length}</u>`:n[0]==="exports"?`<u>${ready.length}</u>`:n[0]==="styles"?`<u>${STYLES.length+1}</u>`:""}</button>`).join("");
+  let h="";const cs=curStyle();
+  if(PG==="home"){const hr=new Date().getHours(),gr=hr<5?"Xayrli tun":hr<11?"Xayrli tong":hr<17?"Xayrli kun":"Xayrli kech";
+    h+=`<div class="ph"><div><h1>${gr}${ME.name?", "+esc(ME.name.split(" ")[0]):""} 👋</h1><p>Video tashlang — AI o'zi montaj qiladi, keyin xohlagan joyingizni o'zgartirasiz.</p></div></div>
+    <div class="stats"><div class="stat" style="--c:var(--purple)"><span>LOYIHALAR</span><b>${PL.length}</b><span>${PL.filter(p=>!p.final_url).length} tasi jarayonda</span></div>
+      <div class="stat" style="--c:var(--lime)"><span>TAYYOR VIDEOLAR</span><b>${ready.length}</b><span>jami ${human(out)}</span></div>
+      <div class="stat" style="--c:var(--blue)"><span>YUKLANGAN MATERIAL</span><b>${human(src)}</b><span>${PL.length} ta video</span></div>
+      <div class="stat" style="--c:var(--orange)"><span>KESIB TASHLANGAN</span><b>${human(saved)}</b><span>pauza va ortiqcha joylar</span></div></div>
+    <div class="cols2"><div class="pn"><h3>Yangi loyiha</h3><div class="dropz"><div class="plus">＋</div><h2>Videoni shu yerga tashlang</h2><p class="hint">yoki bosib tanlang · MP4, MOV · kameraga gapirilgan reels uchun eng yaxshi</p></div>
+        <p class="hint" style="margin-top:10px">Montaj uslubi: <b style="color:var(--lime)">${cs?esc(cs.name):"Standart"}</b> · format ${DEFS().ratio} · ${DEFS().quality}p — <a data-pg="styles" style="color:var(--lime);cursor:pointer">uslubni almashtirish</a></p></div>
+      <div class="pn"><h3>Qanday ishlaydi</h3><div class="steps"><div><span><b>Video tashlang.</b> Transkripsiya va tahlil o'zi boshlanadi.</span></div><div><span><b>AI montaj qiladi.</b> Pauzalarni kesadi, subtitr, stiker, zoom, b-roll qo'yadi.</span></div>
+        <div><span><b>O'zingiz tuzatasiz.</b> Taymlaynda istalgan narsani o'zgartiring.</span></div><div><span><b>Eksport.</b> Tayyor MP4 ni yuklab oling.</span></div></div></div></div>
+    <div class="sech"><h3>So'nggi loyihalar</h3>${PL.length>6?`<a data-pg="projects">Hammasi (${PL.length}) →</a>`:""}</div>`+
+    (PL.length?`<div class="pgrid">${PL.slice(0,6).map(pcard).join("")}</div>`:`<div class="empty">Hali loyiha yo'q.<br>Birinchi videongizni yuqoridagi maydonga tashlang.</div>`);
+  }else if(PG==="projects"){const q=PQ.toLowerCase();let L=PL.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(PF==="all"||(PF==="ready")===!!p.final_url));
+    L.sort(PS==="name"?(a,b)=>a.name.localeCompare(b.name):PS==="long"?(a,b)=>b.duration-a.duration:(a,b)=>(b.updated||0)-(a.updated||0));
+    h+=`<div class="ph"><div><h1>Loyihalar</h1><p>${PL.length} ta loyiha · ${ready.length} tasi tayyor</p></div><button class="pri" data-new="1">＋ Yangi loyiha</button></div>
+    <div class="tbar"><input type="text" id="pq" placeholder="Qidirish…" value="${esc(PQ)}"><div class="seg" style="min-width:270px">${[["all","Hammasi"],["work","Jarayonda"],["ready","Tayyor"]].map(f=>`<button data-pf="${f[0]}" class="${PF===f[0]?"on":""}">${f[1]}</button>`).join("")}</div>
+      <select id="psort">${[["new","Oxirgi o'zgargan"],["name","Nomi bo'yicha"],["long","Eng uzun"]].map(o=>`<option value="${o[0]}" ${PS===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>`+
+    (L.length?`<div class="pgrid">${L.map(pcard).join("")}</div>`:`<div class="empty">${PL.length?"Bu shartga mos loyiha topilmadi.":"Hali loyiha yo'q. «Yangi loyiha» tugmasini bosing."}</div>`);
+  }else if(PG==="exports"){
+    h+=`<div class="ph"><div><h1>Tayyor videolar</h1><p>${ready.length} ta video · jami ${human(out)}</p></div></div>`+
+    (ready.length?`<div class="xgrid">${ready.map(p=>`<div class="xc"><video src="${p.final_url}#t=0.5" preload="metadata" controls playsinline ${p.thumb_url?`poster="${p.thumb_url}"`:""}></video><div class="xin"><b>${esc(p.name)}</b><span>${mmss(p.final_duration||p.duration)} · ${dstr(p.updated||p.created)}</span>
+      <div class="mbtns"><a href="${p.final_url}" download="${esc(p.name.replace(/\.[^.]+$/,""))}_montaj.mp4"><button class="sm pri">⭳ Yuklab olish</button></a><button class="sm" data-open="${p.project}">Tahrirlash</button></div></div></div>`).join("")}</div>`
+     :`<div class="empty">Hali eksport qilingan video yo'q.<br>Loyihani ochib «Eksport» tugmasini bosing.</div>`);
+  }else if(PG==="styles"){
+    h+=`<div class="ph"><div><h1>Montaj uslublari</h1><p>Yoqqan videoni namuna qilib tashlang — AI uning subtitr, temp, rang va zoomini o'rganadi. Tanlangan uslub yangi loyihalarga qo'llanadi.</p></div><button class="pri" data-stup="1">＋ Namuna video yuklash</button></div>
+    <div class="sgrid">${scard(null)}${STYLES.map(scard).join("")}</div>`;
+  }else{const d=DEFS();
+    h+=`<div class="ph"><div><h1>Sozlamalar</h1><p>Akkaunt va yangi loyihalar uchun standart qiymatlar.</p></div></div><div class="setg">
+    <div class="pn"><h3>Akkaunt</h3><div class="frow"><label>Ism</label><span>${esc(ME.name||"—")}</span></div><div class="frow"><label>Email</label><span>${esc(ME.email||"—")}</span></div>
+      <div class="frow"><label>AI (Vertex)</label><span style="color:${VERTEX?"var(--green)":"var(--yellow)"}">${VERTEX?"ulangan ✓":"ulanmagan — transkripsiya va b-roll ishlamaydi"}</span></div>
+      <div class="mbtns"><button class="sm" id="logout2">Chiqish</button><a href="/classic" style="text-decoration:none"><button class="sm ghost">Eski interfeys</button></a></div></div>
+    <div class="pn"><h3>Yangi loyiha uchun standart</h3>
+      <div class="frow"><label>Til</label><select data-def="lang">${[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"]].map(o=>`<option value="${o[0]}" ${d.lang===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>
+      <div class="frow"><label>Format</label><select data-def="ratio">${Object.keys(RAT).map(o=>`<option ${d.ratio===o?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="frow"><label>Sifat</label><select data-def="quality">${["720","1080"].map(o=>`<option value="${o}" ${d.quality===o?"selected":""}>${o}p</option>`).join("")}</select></div>
+      <div class="frow"><label>Uslub</label><span>${cs?esc(cs.name):"Standart"} · <a data-pg="styles" style="color:var(--lime);cursor:pointer">almashtirish</a></span></div></div>
+    <div class="pn"><h3>Klaviatura yorliqlari (muharrirda)</h3><div class="kbd">${[["Space","O'ynatish / to'xtatish"],["S · Ctrl+B","Bo'lish"],["Q / W","Chapini / o'ngini o'chirish"],["Delete","Tanlanganni o'chirish"],["B / V","Oraliq kesish / tanlash"],["← →","Kadrma-kadr (Shift: 1 soniya)"],["Ctrl+Z","Bekor qilish"],["Ctrl+Shift+Z","Qaytarish"],["Ctrl + g'ildirak","Taymlayn zoomi"]].map(k=>`<kbd>${k[0]}</kbd><span>${k[1]}</span>`).join("")}</div></div></div>`;
+  }
+  $("page").innerHTML=h;
+}
+$("nav").onclick=e=>{const b=e.target.closest("[data-pg]");if(b)go(b.dataset.pg)};
+$("newB").onclick=()=>$("vidF").click();
+$("page").addEventListener("click",async e=>{const t=e.target;
+  const pg=t.closest("[data-pg]");if(pg){go(pg.dataset.pg);return}
+  if(t.closest(".dropz")||t.closest("[data-new]")){$("vidF").click();return}
+  if(t.id==="logout2"){$("logoutB").click();return}
+  const op=t.closest("[data-open]");if(op){location.href="/?p="+op.dataset.open;return}
+  const pd=t.closest("[data-pd]"),pr=t.closest("[data-pr]"),pc=t.closest("[data-pc]");
+  if(pd){e.stopPropagation();if(confirm("Loyiha butunlay o'chirilsinmi?")){try{await api("/api/history/"+pd.dataset.pd,null,"DELETE")}catch(x){toast(x.message)}await loadProjects();renderPage()}return}
+  if(pr){e.stopPropagation();const p=PL.find(x=>x.project===pr.dataset.pr),n=prompt("Loyiha nomi:",p?p.name:"");if(n&&n.trim()){try{await api("/api/studio/rename",{project:pr.dataset.pr,name:n.trim()});await loadProjects();renderPage()}catch(x){toast(x.message)}}return}
+  if(pc){e.stopPropagation();try{toast("Nusxa olinyapti…");await api("/api/studio/duplicate",{project:pc.dataset.pc});await loadProjects();renderPage();toast("Nusxa tayyor")}catch(x){toast(x.message)}return}
+  const pf=t.closest("[data-pf]");if(pf){PF=pf.dataset.pf;renderPage();return}
+  const c=t.closest(".pc");if(c&&c.dataset.p)location.href="/?p="+c.dataset.p});
+$("page").addEventListener("input",e=>{if(e.target.id==="pq"){PQ=e.target.value;renderPage();const q=$("pq");q.focus();q.setSelectionRange(PQ.length,PQ.length)}});
+$("page").addEventListener("change",e=>{const t=e.target;if(t.id==="psort"){PS=t.value;renderPage()}
+  else if(t.dataset.def){const d=DEFS();d[t.dataset.def]=t.value;localStorage.setItem("mdef",JSON.stringify(d));toast("Saqlandi")}});
+const pgw=$("pgwrap");
+pgw.addEventListener("dragover",e=>{e.preventDefault();const z=document.querySelector(".dropz");if(z)z.classList.add("over")});
+pgw.addEventListener("dragleave",()=>{const z=document.querySelector(".dropz");if(z)z.classList.remove("over")});
+pgw.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("video"))upload(f)});
 $("vidF").onchange=e=>{if(e.target.files[0])upload(e.target.files[0])};
 function upload(f){
-  $("upbar").style.display="block";$("upmsg").textContent="Yuklanyapti…";
+  $("upbar").style.display="block";$("upmsg").textContent="«"+f.name+"» yuklanyapti…";$("pgwrap").scrollTop=0;
   const fd=new FormData();fd.append("file",f);const x=new XMLHttpRequest();x.open("POST","/api/upload");x.setRequestHeader("X-Auth",TOKEN);
   x.upload.onprogress=e=>{if(e.lengthComputable){$("upbar").firstChild.style.width=(e.loaded/e.total*100)+"%";if(e.loaded===e.total)$("upmsg").textContent="Video tayyorlanyapti (bir oz kuting)…"}};
   x.onload=()=>{if(x.status===401){showAuth();return}if(x.status!==200){$("upmsg").textContent="Yuklashda xato ("+x.status+")";return}
@@ -489,7 +607,7 @@ async function openProject(pid,auto){
   const r=await api("/api/studio/load/"+pid);
   S=Object.assign(JSON.parse(JSON.stringify(DEF)),{project:pid,name:r.name,videoUrl:r.video_url,duration:+r.duration||0,music:r.music,analyzed:r.analyzed,lang:r.lang||"uz"});
   if(r.state){for(const k of SAVE_KEYS)if(r.state[k]!==undefined)S[k]=r.state[k];S.sub=Object.assign({},DEF.sub,S.sub);S.grade=Object.assign({},DEF.grade,S.grade);S.auto=Object.assign({},DEF.auto,S.auto);S.trans=Object.assign({},DEF.trans,S.trans);S.sfx=Object.assign({},DEF.sfx,S.sfx);S.frame=Object.assign({},DEF.frame,S.frame)}
-  else{S.words=r.words||[];S.removes=r.removes||[];S.brolls=(r.brolls||[]).map(b=>Object.assign({y:0.72,w:0.78},b))}
+  else{const df=DEFS();S.quality=df.quality;S.ratio=RAT[df.ratio]?df.ratio:"9:16";if(!r.lang)S.lang=df.lang;S.words=r.words||[];S.removes=r.removes||[];S.brolls=(r.brolls||[]).map(b=>Object.assign({y:0.72,w:0.78},b))}
   S.stickers=(S.stickers||[]).map(normStk);
   $("home").classList.remove("show");$("pname").textContent=S.name;document.title=S.name+" — Montaj AI Studio";
   vid.src=S.videoUrl;if(S.music)mus.src=S.music.url;
@@ -1096,7 +1214,7 @@ async function boot(){
   try{const f=await (await fetch("/api/fonts")).json();FONTS=f.items||[];
     const st=document.createElement("style");st.textContent=FONTS.map(x=>`@font-face{font-family:'${x.family}';src:url('/fonts/${encodeURIComponent(x.file)}');font-display:swap}`).join("\n");document.head.appendChild(st)}catch(_){}
   if(!TOKEN){showAuth();return}
-  try{const me=await api("/api/auth/me");$("whoN").textContent=(me.user&&(me.user.name||me.user.email))||""}catch(e){return}
+  try{const me=await api("/api/auth/me");ME=me.user||{};$("whoN").textContent=ME.name||ME.email||"";$("whoE").textContent=ME.name?(ME.email||""):"";$("ava").textContent=((ME.name||ME.email||"M")[0]||"M").toUpperCase()}catch(e){return}
   const q=new URLSearchParams(location.search),pid=q.get("p");
   if(pid){try{await openProject(pid,q.get("auto")==="1");if(q.get("auto"))history.replaceState(null,"","/?p="+pid)}catch(e){toast(e.message);showHome()}}else showHome();
 }

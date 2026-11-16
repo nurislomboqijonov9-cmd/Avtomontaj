@@ -10,6 +10,8 @@ Videongizni yuklaysiz → bot o'zbekcha subtitr qo'yadi, keraksiz joylarni (jiml
 4. **Namuna uslub** — yoqtirgan videongizni yuklang, bot uning subtitr tempi/kesish uslubini o'lchab sizga moslaydi.
 
 ## Studio (asosiy interfeys)
+**Bo'limlar:** yon menyuda *Bosh sahifa* (statistika, yangi loyiha, so'nggi loyihalar), *Loyihalar* (qidirish, filtr, nom o'zgartirish, nusxa olish, o'chirish), *Tayyor videolar* (ko'rish va yuklab olish), *Uslublar* (namuna videodan olingan montaj uslublari), *Sozlamalar* (akkaunt, yangi loyiha uchun standart til/format/sifat, klaviatura yorliqlari). Loyiha ochilganda muharrir chiqadi.
+
 Sayt ochilganda (`/`) yangi Studio chiqadi. Eski interfeys `/classic` manzilida o'zgarishsiz turadi.
 - **Avto montaj:** video tashlanadi -> transkripsiya, pauza va takrorlarni kesish, subtitr, stiker, hook, b-roll avtomatik qo'yiladi. Keyin hammasini taymlaynda qo'lda o'zgartirish mumkin.
 - **Namuna videodan uslub:** bosh sahifada yoki «AI uslub» bo'limida namuna video yuklanadi. Gemini (Vertex) uning subtitr turi, tempi, rangi, zoomi va b-roll zichligini o'rganadi, profil saqlanadi va yangi videolarga qo'llanadi. Vertex ulanmagan bo'lsa faqat temp (pauza, kadr almashish) o'lchanadi.
