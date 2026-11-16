@@ -49,6 +49,10 @@ app.mount_data = DATA  # eslatma
 
 # ---------- job menejeri ----------
 JOBS = {}   # job_id -> {status, progress, step, result, error}
+async def _peek(req):
+    """So'rov tanasidan loyiha ID sini o'qiydi (egalikni tekshirish uchun)."""
+    try: return str((await req.json()).get("project") or "")
+    except Exception: return ""
 def new_job():
     jid = uuid.uuid4().hex[:12]
     JOBS[jid] = {"status": "running", "progress": 0, "step": "", "result": None, "error": None}
@@ -66,6 +70,7 @@ def run_job(jid, fn):
 
 # ---------- yordamchi ----------
 def pdir(pid):
+    if not _re.match(r"^[a-f0-9]{12}$", str(pid or "")): raise HTTPException(404, "loyiha topilmadi")   # "../" kabi yo'llarga yo'l yo'q
     d = os.path.join(PROJ, pid)
     if not os.path.isdir(d): raise HTTPException(404, "loyiha topilmadi")
     return d
@@ -208,7 +213,7 @@ async def upload(file: UploadFile = File(...), x_auth: str = Header("")):
 # ---------- MUSIQA yuklash ----------
 @app.post("/api/music")
 async def music_upload(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own(project, check_auth(x_auth))
     d = pdir(project); meta = load_meta(project)
     ext = os.path.splitext(file.filename or "m.mp3")[1].lower() or ".mp3"
     if ext not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus"): ext = ".mp3"
@@ -224,7 +229,7 @@ async def music_upload(file: UploadFile = File(...), project: str = Form(...), x
 # ---------- 2) TAHLIL ----------
 @app.post("/api/analyze")
 async def analyze(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]
     d = pdir(pid); meta = load_meta(pid)
     inp = os.path.join(d, meta["input"])
@@ -247,7 +252,7 @@ async def analyze(req: Request, x_auth: str = Header("")):
 # ---------- 3) KESISH ----------
 @app.post("/api/cut")
 async def cut(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]
     d = pdir(pid); meta = load_meta(pid)
     inp = os.path.join(d, meta["input"])
@@ -268,7 +273,7 @@ async def cut(req: Request, x_auth: str = Header("")):
 # ---------- 4a) B-ROLL TAKLIF ----------
 @app.post("/api/broll_suggest")
 async def broll_suggest(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]; meta = load_meta(pid)
     n = int(body.get("n", 4))
     dur = meta.get("cut_duration") or meta.get("duration", 0)
@@ -283,7 +288,7 @@ async def broll_suggest(req: Request, x_auth: str = Header("")):
 # ---------- 4b) B-ROLL RASM (bitta) ----------
 @app.post("/api/broll_image")
 async def broll_image(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]; d = pdir(pid)
     prompt = (body.get("prompt") or "").strip()
     if not prompt: raise HTTPException(400, "prompt bo'sh")
@@ -300,7 +305,7 @@ async def broll_image(req: Request, x_auth: str = Header("")):
 # ---------- 5) RENDER ----------
 @app.post("/api/render")
 async def render(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]; d = pdir(pid); meta = load_meta(pid)
     cutname = meta.get("cut") or meta.get("input")
     cut = os.path.join(d, cutname)
@@ -505,7 +510,7 @@ async def filmstrip_ep(req: Request, x_auth: str = Header("")):
 # ---------- AVTOMATIK (hammasi bir tugmada) ----------
 @app.post("/api/auto")
 async def auto(req: Request, x_auth: str = Header("")):
-    check_auth(x_auth)
+    _own((await _peek(req)), check_auth(x_auth))
     body = await req.json(); pid = body["project"]
     d = pdir(pid); meta = load_meta(pid)
     inp = os.path.join(d, meta["input"])
@@ -667,7 +672,7 @@ def _own(pid, usr):
     if not _PID_RE.match(pid or ""): raise HTTPException(404, "loyiha topilmadi")
     m = load_meta(pid)
     if not m: raise HTTPException(404, "loyiha topilmadi")
-    if m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
+    if m.get("user_id") and m.get("user_id") != usr["id"]: raise HTTPException(403, "ruxsat yo'q")
     return m
 
 @app.get("/studio", response_class=HTMLResponse)
@@ -767,6 +772,34 @@ async def style_save(req: Request, x_auth: str = Header("")):
         allst = _load(STYLES_F, {}); lst = allst.get(usr["id"], [])
         lst.insert(0, pr); allst[usr["id"]] = lst[:30]; _save(STYLES_F, allst)
     return pr
+
+@app.post("/api/studio/reorder")
+async def studio_reorder(req: Request, x_auth: str = Header("")):
+    """Video bo'laklarini yangi tartibda qayta yig'adi (kliplar o'rnini almashtirish)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); meta = _own(pid, usr); d = os.path.join(PROJ, pid)
+    pieces = [(float(x[0]), float(x[1]), 1.0) for x in (b.get("pieces") or []) if float(x[1]) - float(x[0]) > 0.03][:200]
+    if len(pieces) < 2: raise HTTPException(400, "bo'laklar yetarli emas")
+    jid = new_job()
+    def fn(prog):
+        prog(20, "Kliplar qayta tartiblanmoqda...")
+        cur = os.path.join(d, meta.get("input")); outn = f"input_r{uuid.uuid4().hex[:6]}.mp4"; outp = os.path.join(d, outn)
+        if not montaj.cut_video_speed(cur, outp, pieces, d): raise RuntimeError("qayta tartiblab bo'lmadi")
+        m = load_meta(pid); m.update(input=outn, duration=round(montaj.ffdur(outp), 2)); m.pop("cut", None); m.pop("cut_duration", None); save_meta(pid, m)
+        try: os.remove(os.path.join(d, "thumb.jpg"))
+        except Exception: pass
+        return {"video_url": f"/media/{pid}/{outn}", "duration": m["duration"]}
+    run_job(jid, fn)
+    return {"job": jid}
+
+@app.post("/api/studio/beats")
+async def studio_beats(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); meta = _own(pid, usr)
+    if not meta.get("music"): raise HTTPException(400, "avval musiqa yuklang")
+    mp = os.path.join(PROJ, pid, meta["music"])
+    key = "beats_" + meta["music"] + str(int(os.path.getmtime(mp)))
+    if meta.get("beats_key") != key:
+        meta["beats"] = montaj.detect_beats(mp); meta["beats_key"] = key; save_meta(pid, meta)
+    return meta["beats"]
 
 @app.post("/api/studio/duplicate")
 async def studio_duplicate(req: Request, x_auth: str = Header("")):

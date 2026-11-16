@@ -1237,7 +1237,8 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     if size: tw,th=int(size[0]),int(size[1])
     frame=frame or {}
     fz=max(1.0,min(3.0,float(frame.get("zoom",1) or 1))); fpx=max(-1.0,min(1.0,float(frame.get("x",0) or 0))); fpy=max(-1.0,min(1.0,float(frame.get("y",0) or 0)))
-    fpre=("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")
+    frot=int(frame.get("rot",0) or 0)%360
+    fpre=("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")+({90:"transpose=1,",180:"hflip,vflip,",270:"transpose=2,"}.get(frot,""))
     def _fit(pw,ph):   # kadr: aks/ag'darish -> kattalashtirib to'ldirish -> kerakli joyini qirqish
         return (f"{fpre}scale={int(pw*fz)//2*2}:{int(ph*fz)//2*2}:force_original_aspect_ratio=increase,"
                 f"crop={pw}:{ph}:(iw-{pw})/2*{1+fpx:.3f}:(ih-{ph})/2*{1+fpy:.3f}")
@@ -1255,11 +1256,16 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
         if ty=="spin": zadd.append(f"0.45*max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
         if ty=="zoom": zadd.append(f"0.16*max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
         elif ty=="shake": zadd.append(f"0.07*max(0,1-abs({T}-{c:.3f})/{hh:.3f})"); shk.append(f"max(0,1-abs({T}-{c:.3f})/{hh:.3f})")
+    fxs=[]; fys=[]
     for z in zooms:
         a_=float(z.get("a",0)); b_=float(z.get("b",0)); sc=max(1.0,min(2.0,float(z.get("scale",1.15)))); rp=max(0.0,float(z.get("ramp",0.12)))
         if b_-a_<0.1 or sc<=1.001: continue
-        if rp<0.02: zadd.append(f"{sc-1:.3f}*between({T},{a_:.3f},{b_:.3f})")
-        else: zadd.append(f"{sc-1:.3f}*clip(({T}-{a_:.3f})/{rp:.3f},0,1)*clip(({b_:.3f}-{T})/{rp:.3f},0,1)")
+        w_=(f"between({T},{a_:.3f},{b_:.3f})" if rp<0.02 else f"clip(({T}-{a_:.3f})/{rp:.3f},0,1)*clip(({b_:.3f}-{T})/{rp:.3f},0,1)")
+        zadd.append(f"{sc-1:.3f}*{w_}")
+        zx=max(-1.0,min(1.0,float(z.get("x",0) or 0))); zy=max(-1.0,min(1.0,float(z.get("y",0) or 0)))   # fokus: zoom paytida kadr qayerga suriladi
+        if abs(zx)>0.01: fxs.append(f"{zx:.3f}*{w_}")
+        if abs(zy)>0.01: fys.append(f"{zy:.3f}*{w_}")
+    fcx=("*(1+clip("+"+".join(fxs)+",-1,1))") if fxs else ""; fcy=("*(1+clip("+"+".join(fys)+",-1,1))") if fys else ""
     zplus=("+"+"+".join(zadd)) if zadd else ""
     sx_=(f"+{int(tw*0.012)}*sin(in*2.3)*("+"+".join(shk)+")") if shk else ""
     sy_=(f"+{int(tw*0.010)}*cos(in*1.9)*("+"+".join(shk)+")") if shk else ""
@@ -1282,7 +1288,7 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     if lvl>0 or zadd:
         spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
         base0=(f"[0:v]{_fit(int(tw*1.14)//2*2,int(th*1.14)//2*2)},"
-               f"zoompan=z='min(1.0+{spd}*in,{zmx}){zplus}':d=1:x='iw/2-(iw/zoom/2){sx_}':y='ih/2-(ih/zoom/2){sy_}':s={tw}x{th}:fps=30"
+               f"zoompan=z='min(1.0+{spd}*in,{zmx}){zplus}':d=1:x='(iw-iw/zoom)/2{fcx}{sx_}':y='(ih-ih/zoom)/2{fcy}{sy_}':s={tw}x{th}:fps=30"
                f"{geq}{post},setsar=1[v0]")
     else:
         base0=f"[0:v]{_fit(tw,th)}{geq}{post},setsar=1[v0]"
@@ -1576,6 +1582,32 @@ def analyze_style(video_path, work):
     except Exception as e:
         prof["notes"]="AI tahlil ishlamadi (%s). Faqat temp o'lchandi."%str(e)[:120]
     return prof
+
+# ================= RITM (beat) ANIQLASH — musiqaga kesimlarni moslash uchun =================
+def detect_beats(path, limit=240):
+    """Musiqadagi zarbalar vaqtlari (soniya). Sof Python: energiya o'zgarishi + avtokorrelyatsiya bilan temp."""
+    import array, subprocess as sp
+    try:
+        raw=sp.run(["ffmpeg","-hide_banner","-loglevel","error","-t",str(limit),"-i",path,"-ac","1","-ar","8000","-f","s16le","-"],capture_output=True,timeout=120).stdout
+    except Exception: return {"bpm":0,"beats":[]}
+    a=array.array("h"); a.frombytes(raw[:len(raw)//2*2]); hop=160; n=len(a)//hop     # 20 ms qadam
+    if n<100: return {"bpm":0,"beats":[]}
+    en=[]
+    for i in range(n):
+        seg=a[i*hop:(i+1)*hop]; en.append(sum(v*v for v in seg)/hop)
+    flux=[0.0]+[max(0.0,en[i]-en[i-1]) for i in range(1,n)]
+    mx=max(flux) or 1.0; flux=[v/mx for v in flux]
+    m=sum(flux)/n; f=[v-m for v in flux]
+    best=(0,-1e9)
+    for lag in range(15,51):                 # 0.30..1.00 s -> 60..200 BPM
+        c=sum(f[i]*f[i+lag] for i in range(0,n-lag,2))
+        if c>best[1]: best=(lag,c)
+    lag=best[0] or 25
+    ph=max(range(lag),key=lambda o:sum(flux[i] for i in range(o,n,lag)))
+    beats=[]; i=ph
+    while i<n:
+        j=max(range(max(0,i-2),min(n,i+3)),key=lambda q:flux[q]); beats.append(round(j*hop/8000.0,3)); i+=lag
+    return {"bpm":round(60.0/(lag*hop/8000.0),1),"beats":beats}
 
 # ================= MATNLI BUYRUQ -> MONTAJ REJASI (Studio "prompt" va AI chat) =================
 _PLAN_PROMPT=("You convert a video editor's free-text request into editing settings. The request may be in Uzbek, Russian or English. "

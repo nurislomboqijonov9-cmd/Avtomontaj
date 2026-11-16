@@ -426,7 +426,7 @@ const EMAP={"🔥":["olov","zo'r","fire","dahshat"],"💰":["pul","daromad","biz
 const DEF={chat:[],words:[],removes:[],splits:[],speeds:[],sfxItems:[],brolls:[],stickers:[],texts:[],zooms:[],hook:"",lang:"uz",
   trans:{type:"none",dur:0.3},sfx:{trans:true,stk:true,vol:0.5},musicFade:true,
   sub:{on:true,layout:"stack3",font:"Anton",size:124,words:6,margin:560,active:"#39e75f",base:"#ffffff",c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",upper:true,anim:"pop",delay:0,border:5,outline:"#000000"},
-  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,zoom:1,x:0,y:0},audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,quality:"1080",pps:60,
+  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,quality:"1080",pps:60,
   auto:{pause:0.8,brolls:4,stickers:true,hook:true,zooms:true},styleId:""};
 const PRESETS=[
  {n:"3 pog'ona · Sariq",v:{layout:"stack3",words:6,size:124,c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",active:"#39e75f",upper:true,anim:"pop",border:5}},
@@ -443,6 +443,7 @@ const FILTERS=[["Asl",{},"#8a8f9f,#5c6170"],["Yorqin",{sat:1.18,con:1.06},"#ff7a
  ["Pastel",{sat:0.82,con:0.92,bri:0.05,shd:0.5,hil:-0.2},"#f6d5e5,#cfe3f7"],["Oltin soat",{sat:1.2,con:1.05,bri:0.02,temp:0.7,hil:-0.1,vig:0.3},"#ffcf6b,#e0723c"],
  ["Tungi",{sat:0.95,con:1.12,bri:-0.05,temp:-0.55,shd:-0.2,vig:0.55},"#2b3f7a,#0b1026"],["Retro",{sat:0.78,con:0.95,bri:0.02,temp:0.35,shd:0.45,vig:0.4},"#c9a27a,#6b4f3a"],
  ["Aniq",{sat:1.12,con:1.1,sharp:0.8},"#9be7ff,#3a7bd5"],["Noir",{sat:0,con:1.3,shd:-0.4,vig:0.7},"#bdbdbd,#111"]];
+const CURVES={montage:["Montaj",[0.6,2.2,0.6,2.2,0.6,2.2,0.6,1.6]],hero:["Qahramon",[1,1,0.4,0.4,0.4,1.7,1.7,1]],bullet:["O'q",[2.6,2.6,0.35,0.35,0.35,2.6,2.6,2.6]],fin:["Tez kirish",[3,2.2,1.5,1,1,1,1,1]],fout:["Tez chiqish",[1,1,1,1,1,1.5,2.2,3]]};
 const RAT={"9:16":[1080,1920],"1:1":[1080,1080],"16:9":[1920,1080],"4:5":[1080,1350]};
 const RW=()=>RAT[S.ratio]?RAT[S.ratio][0]:1080,RH=()=>RAT[S.ratio]?RAT[S.ratio][1]:1920;
 function fitPv(){const w=$("pvwrap"),pv=$("pv"),aw=w.clientWidth,ah=w.clientHeight-8,r=S?RW()/RH():9/16;let h=ah,ww=h*r;if(ww>aw){ww=aw;h=ww/r}pv.style.width=Math.max(60,ww)+"px";pv.style.height=Math.max(60,h)+"px"}
@@ -696,7 +697,7 @@ pgw.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[
 $("vidF").onchange=e=>{if(e.target.files[0]){HF.file=e.target.files[0];go("home")}e.target.value=""};
 
 /* ---------- loyiha holati ---------- */
-const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","quality","pps","auto","styleId"];
+const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","quality","pps","auto","styleId"];
 const snap=()=>JSON.stringify(SAVE_KEYS.reduce((o,k)=>(o[k]=S[k],o),{}));
 function hist(){HIST.push(snap());if(HIST.length>80)HIST.shift();REDO=[]}
 let _ek="",_et=0;
@@ -792,6 +793,22 @@ function keptPieces(){const D=S.duration,rm=merged(),pts=new Set([0,D]);rm.forEa
   const u=[...pts].filter(t=>t>=0&&t<=D).sort((a,b)=>a-b),o=[];
   for(let i=0;i<u.length-1;i++){const a=u[i],b=u[i+1];if(b-a<0.01)continue;const m=(a+b)/2;if(rm.some(r=>m>=r[0]&&m<r[1]))continue;const q=propAt(m);o.push([a,b,q?q.v:1,!!(q&&q.rev)])}return o}
 function mapT(t){let o=0;for(const p of keptPieces()){if(t<=p[0])break;o+=(Math.min(t,p[1])-p[0])/p[2]}return o}
+function invT(o){let acc=0;const P=keptPieces();for(const q of P){const len=(q[1]-q[0])/q[2];if(o<=acc+len)return q[0]+(o-acc)*q[2];acc+=len}return P.length?P[P.length-1][1]:0}
+async function findBeats(){try{toast("Ritm aniqlanmoqda…");S.beats=await api("/api/studio/beats",{project:S.project});renderAll();dirty();toast(S.beats.beats.length?S.beats.bpm+" BPM topildi":"Ritm topilmadi")}catch(x){toast(x.message)}}
+function snapBeats(){if(!S.beats||!S.beats.beats.length)return;hist();let n=0;const B=S.beats.beats,rs=S.removes.filter(r=>r.on!==false&&r.s>0.05&&r.e<S.duration-0.05).sort((a,b)=>a.s-b.s);
+  rs.forEach((r,i)=>{const c=mapT(r.s),b=B.reduce((m,x)=>Math.abs(x-c)<Math.abs(m-c)?x:m,B[0]),d=(b-c)*speedAt(Math.max(0,r.s-0.01));if(Math.abs(d)<0.02||Math.abs(d)>0.3)return;
+    const lo=(i?rs[i-1].e:0)+0.2,ns=clamp(r.s+d,lo,r.e-0.1);if(Math.abs(ns-r.s)>0.01){r.s=+ns.toFixed(2);n++}});
+  renderAll();dirty();toast(n?n+" ta kesim ritmga moslandi":"Mos keladigan kesim topilmadi (0.3 soniyadan uzoq)")}
+async function moveSeg(dir){if(BUSY||!SEL||SEL.k!=="seg")return;calcSegs();const g=SEGS[SEL.i],o=SEGS[SEL.i+dir];if(!g||!o){toast(dir<0?"Bu birinchi bo'lak":"Bu oxirgi bo'lak");return}
+  const D=S.duration,ed=[...new Set([0,D].concat(...SEGS.map(x=>[x[0],x[1]])).map(x=>+x.toFixed(3)))].sort((a,b)=>a-b),P=[];for(let i=0;i<ed.length-1;i++)if(ed[i+1]-ed[i]>0.03)P.push([ed[i],ed[i+1]]);
+  const ia=P.findIndex(x=>Math.abs(x[0]-g[0])<0.002),ib=P.findIndex(x=>Math.abs(x[0]-o[0])<0.002);if(ia<0||ib<0)return;const N=P.slice(),pc=N.splice(ia,1)[0];N.splice(ib,0,pc);
+  busy(true);try{ag("cut-01","Bo'laklar qayta tartiblanmoqda…","run");const {job}=await api("/api/studio/reorder",{project:S.project,pieces:N});const r=await waitJob(job);
+    let acc=0;const M=N.map(x=>{const m=[x[0],x[1],acc];acc+=x[1]-x[0];return m}),f=t=>{for(const m of M)if(t>=m[0]-0.0005&&t<m[1])return +(m[2]+t-m[0]).toFixed(3);return +Math.min(t,acc).toFixed(3)};
+    S.words.forEach(w=>{const d=w.e-w.s;w.s=f(w.s);w.e=+(w.s+d).toFixed(3)});S.removes.forEach(x=>{const d=x.e-x.s;x.s=f(x.s);x.e=+(x.s+d).toFixed(2)});S.speeds.forEach(x=>{const d=x.e-x.s;x.s=f(x.s);x.e=+(x.s+d).toFixed(3)});
+    [S.brolls,S.stickers,S.texts,S.zooms,S.sfxItems,S.audios].forEach(A=>A.forEach(x=>x.time=f(x.time)));
+    S.splits=[...new Set(M.map(m=>m[2]).filter(t=>t>0.03).map(t=>+t.toFixed(3)))];S.videoUrl=r.video_url;S.duration=+r.duration;HIST=[];REDO=[];SEL=null;vid.src=S.videoUrl;
+    await new Promise(res=>{vid.onloadedmetadata=res;setTimeout(res,4000)});FILM=null;reindex();renderAll();loadFilm();loadWave();seek(f(g[0])+0.01);await save();ag("cut-01","Bo'lak "+(dir<0?"oldinga":"keyinga")+" surildi")
+  }catch(x){ag("cut-01",x.message,"err");toast(x.message)}busy(false)}
 function setSegSpeed(v,rev){const g=SEGS[SEL.i];if(!g)return;const old=propAt((g[0]+g[1])/2);if(v==null)v=old?old.v:1;if(rev==null)rev=!!(old&&old.rev);
   S.speeds=S.speeds.filter(q=>q.e<=g[0]+0.001||q.s>=g[1]-0.001);if(Math.abs(v-1)>0.001||rev)S.speeds.push({s:g[0],e:g[1],v:+v,rev:!!rev})}
 function cutList(){const D=S.duration;return merged().filter(r=>r[0]>0.05&&r[1]<D-0.05).map(r=>{const m=S.removes.find(x=>x.on!==false&&Math.abs(x.s-r[0])<0.011);
@@ -835,7 +852,8 @@ function updPreview(force){
   drawLayers(t,W,k);
   // zoom zarbalari + kesimdagi o'tishlar (taxminiy preview; eksportda aniq)
   let z=1,fl=0,dp=0,bl=0,gl=0,sh=0;
-  S.zooms.forEach(q=>{if(t>=q.time&&t<q.time+q.dur){const rp=q.ramp||0;z+=(q.scale-1)*(rp<0.02?1:c01((t-q.time)/rp)*c01((q.time+q.dur-t)/rp))}});
+  let zfx=0,zfy=0;
+  S.zooms.forEach(q=>{if(t>=q.time&&t<q.time+q.dur){const rp=q.ramp||0,w=rp<0.02?1:c01((t-q.time)/rp)*c01((q.time+q.dur-t)/rp);z+=(q.scale-1)*w;zfx+=(q.x||0)*w;zfy+=(q.y||0)*w}});
   let tx=0,ty=0,rt=0;const hh=Math.max(0.08,S.trans.dur/2);
   for(const q of cutList()){const d=ot-q.c;if(Math.abs(d)>=hh)continue;const w=1-Math.abs(d)/hh,k2=q.type,pre=d<0,pp=pre?Math.pow((d+hh)/hh,2):Math.pow(1-d/hh,2),sg=pre?-1:1;
     if(k2==="zoom")z+=0.16*w;else if(k2==="flash")fl=0.85*w;else if(k2==="dip")dp=0.95*w;else if(k2==="blur")bl=w;else if(k2==="glitch")gl=w;else if(k2==="shake"){sh=w;z+=0.07*w}
@@ -843,7 +861,7 @@ function updPreview(force){
     else if(k2==="spin"){rt+=(pre?1:-1)*180*pp;z+=0.45*w}}
   const F=S.frame,fz=F.zoom||1,sgx=(F.mirror?-1:1)*(F.flip?-1:1),sgy=F.flip?-1:1;
   vid.style.objectPosition=`${50+sgx*F.x*50}% ${50+sgy*F.y*50}%`;
-  vid.style.transform=`translate(${tx}%,${ty}%) rotate(${rt}deg) scale(${z}) translate(${sh*6*Math.sin(t*70)}px,${sh*5*Math.cos(t*57)}px) scale(${fz}) translate(${-F.x*(fz-1)/(2*fz)*100}%,${-F.y*(fz-1)/(2*fz)*100}%)`+(F.mirror?" scaleX(-1)":"")+(F.flip?" rotate(180deg)":"");
+  vid.style.transform=`translate(${tx}%,${ty}%) rotate(${rt}deg) scale(${z}) translate(${sh*6*Math.sin(t*70)-clamp(zfx,-1,1)*(z-1)/(2*z)*100}%,${sh*5*Math.cos(t*57)-clamp(zfy,-1,1)*(z-1)/(2*z)*100}%) scale(${fz}) translate(${-F.x*(fz-1)/(2*fz)*100}%,${-F.y*(fz-1)/(2*fz)*100}%)`+(F.mirror?" scaleX(-1)":"")+(F.flip?" rotate(180deg)":"")+(F.rot?` rotate(${F.rot}deg)`+(F.rot%180?` scale(${Math.max(RW()/RH(),RH()/RW())})`:""):"");
   const fv=$("flashv");fv.style.background=dp?"#000":"#fff";fv.style.opacity=dp||fl;
   const g=S.grade;$("vigv").style.opacity=(g.vig||0)*0.9;
   vid.style.filter=`saturate(${g.sat}) contrast(${g.con*(1+0.08*((g.hil||0)-(g.shd||0)))}) brightness(${1+g.bri*1.6+0.07*((g.shd||0)+(g.hil||0))})`+(g.temp>0?` sepia(${g.temp*0.35})`:g.temp<0?` hue-rotate(${g.temp*-14}deg)`:"")+(bl?` blur(${6*bl}px)`:"")+(gl?` hue-rotate(${90*gl}deg) saturate(${1+2*gl})`:"");
@@ -942,6 +960,7 @@ function renderLib(){
     h+=`<div class="mbtns" style="margin-bottom:10px"><button class="sm" id="addMusB">＋ ${S.music?"Musiqani almashtirish":"Musiqa yuklash"}</button><button class="sm" id="addAudB">＋ Audio klip</button><button class="sm ${REC?"rec":""}" id="recB">${REC?"■ To'xtatish":"🎙 Ovoz yozish"}</button></div>`;
     S.audios.forEach((a,i)=>h+=`<div class="media ${SEL&&SEL.k==="aud"&&SEL.i===i?"on":""}" data-ak="${i}"><div class="th">🔊</div><div><b>${esc(a.name)}</b><span>audio · ${tc(a.time)} · ${a.dur.toFixed(1)}s</span></div></div>`);
     h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Ovozni tozalash","S.audioClean");
+    if(S.music)h+=`<div class="mbtns"><button class="sm" id="beatB">🥁 Ritmni aniqlash</button>${S.beats&&S.beats.beats.length?`<button class="sm ai" id="beatSnap">✂ Kesimlarni ritmga moslash</button>`:""}</div>${S.beats?`<p class="hint" style="margin-top:6px">${S.beats.bpm} BPM · ${S.beats.beats.length} ta zarba — musiqa trekida belgilar ko'rinadi.</p>`:""}`;
     h+=`<div class="sec lbl">Ovoz effektlari</div>`+sw("O'tishda whoosh","sfx.trans")+sw("Stiker/matnda pop","sfx.stk")+sld("Effekt ovozi","sfx.vol",0,1,0.01,"%");
     h+=`<div class="lbl" style="margin-top:8px">Qo'lda qo'shish (o'ynatgich turgan joyga)</div><div class="mbtns" style="margin-top:6px">${SFXT.map(x=>`<button class="sm" data-sfx="${x[0]}">＋ ${x[1]}</button>`).join("")}</div>`;
     h+=`<p class="hint" style="margin-top:8px">Tozalash shovqinni pasaytiradi va balandlikni −14 LUFS ga keltiradi. Ovoz effektlari eksport qilingan videoda eshitiladi.</p>`;
@@ -1001,7 +1020,7 @@ function renderInsp(){
     h+=`<div class="mbtns"><button class="sm" id="gReset">Asl holatga</button></div><p class="hint" style="margin-top:8px">Rang preview'da taxminan ko'rinadi, eksportda aniq qo'llanadi.</p>`;
   }else if(TAB==="proj"){
     h+=selc("Format","S.ratio",[["9:16","9:16 — Reels, TikTok, Shorts"],["1:1","1:1 — kvadrat post"],["4:5","4:5 — Instagram lenta"],["16:9","16:9 — YouTube"]])+selc("Sifat","S.quality",[["720","720p"],["1080","1080p"]])+selc("Til","S.lang",[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"]]);
-    h+=`<div class="sec lbl">Kadr (asosiy video)</div>`+sld("Kattalashtirish","frame.zoom",1,3,0.01,"%")+sld("Gorizontal","frame.x",-1,1,0.02,"±")+sld("Vertikal","frame.y",-1,1,0.02,"±")+sw("Oynadek aks","frame.mirror")+sw("Ag'darish (180°)","frame.flip")+`<div class="mbtns"><button class="sm" id="fReset">Kadrni tiklash</button></div>`;
+    h+=`<div class="sec lbl">Kadr (asosiy video)</div>`+sld("Kattalashtirish","frame.zoom",1,3,0.01,"%")+sld("Gorizontal","frame.x",-1,1,0.02,"±")+sld("Vertikal","frame.y",-1,1,0.02,"±")+selc("Burish","frame.rot",[[0,"0°"],[90,"90° (o'ngga)"],[180,"180°"],[270,"270° (chapga)"]])+sw("Oynadek aks","frame.mirror")+`<div class="mbtns"><button class="sm" id="fReset">Kadrni tiklash</button></div>`;
     h+=`<p class="hint" style="margin-top:10px"><b style="color:var(--txt)">Klavishlar</b><br>Space — o'ynatish<br>S yoki Ctrl+B — bo'lish<br>Q / W — chapini / o'ngini o'chirish<br>Delete — tanlanganni o'chirish<br>B — oraliq kesish · V — tanlash<br>← → — kadrma-kadr (Shift: 1s)<br>Ctrl+Z / Ctrl+Shift+Z — bekor / qaytarish<br>Ctrl + g'ildirak — taymlayn zoomi</p>`;
   }else h+=selInsp();
   $("insp").innerHTML=h;
@@ -1018,6 +1037,8 @@ function selInsp(){
   if(SEL.k==="seg"){const g=SEGS[SEL.i];if(!g)return"";const v=speedAt((g[0]+g[1])/2);return `<div class="lbl" style="margin-bottom:8px">Video bo'lagi</div><p class="hint">${tc(g[0])} – ${tc(g[1])} · ${(g[1]-g[0]).toFixed(2)}s → ${((g[1]-g[0])/v).toFixed(2)}s</p>
     <div class="srow"><label>Tezlik</label><input type="range" data-seg="1" data-f="x" min="0.25" max="4" step="0.05" value="${v}" style="--p:${(v-0.25)/3.75*100}%"><span class="val">${v.toFixed(2)}×</span></div>
     <div class="mbtns" style="margin-top:2px">${[0.5,1,1.5,2,3].map(x=>`<button class="sm" data-spd="${x}">${x}×</button>`).join("")}</div>
+    <div class="lbl" style="margin:8px 0 4px">Tezlik egri chizig'i</div><div class="mbtns" style="margin-top:0">${Object.keys(CURVES).map(k=>`<button class="sm" data-curve="${k}">${CURVES[k][0]}</button>`).join("")}</div>
+    <div class="lbl" style="margin:10px 0 4px">Klip tartibi</div><div class="mbtns" style="margin-top:0"><button class="sm" data-mv="-1">◀ Oldinga surish</button><button class="sm" data-mv="1">Keyinga surish ▶</button></div>
     <div class="frow" style="margin-top:6px"><label>Teskari o'ynatish</label><div><span class="sw"><input type="checkbox" data-rev="1" ${(propAt((g[0]+g[1])/2)||{}).rev?"checked":""}><i></i></span></div></div>
     <p class="hint" style="margin-top:8px">Tezlik faqat shu bo'lakka tegishli. Bo'lak ajratish uchun: o'ynatgichni qo'yib «Bo'lish» (S).</p><div class="mbtns"><button class="sm danger" id="cDel">Bo'lakni o'chirish</button></div>`}
   if(SEL.k==="cue"){const c=CUES[SEL.i];if(!c)return"";
@@ -1039,7 +1060,7 @@ function selInsp(){
     `<div class="lbl" style="margin:8px 0 2px">Animatsiya</div>`+animRows()+
     sld("Burilish","sel.rot",-180,180,1,"i")+sld("Shaffoflik","sel.op",0.1,1,0.01,"%")+sld("X","sel.x",0.02,0.98,0.01,"%")+sld("Y","sel.y",0.02,0.98,0.01,"%")+
     sld("Boshlanish","sel.time",0,Math.max(0.1,D-o.dur),0.05,"s")+sld("Davomiyligi","sel.dur",0.4,15,0.1,"s")+kfRows(o)+`<div class="mbtns"><button class="sm danger" id="cDel">O'chirish</button></div>`;
-  if(SEL.k==="zoom")return `<div class="lbl" style="margin-bottom:6px">Zoom zarbasi</div>`+sld("Kattalik","sel.scale",1.03,1.6,0.01,"%")+selc("Kirishi","sel.ramp",[[0,"Keskin (kesimda)"],[0.15,"Silliq"],[0.4,"Sekin"]])+
+  if(SEL.k==="zoom")return `<div class="lbl" style="margin-bottom:6px">Zoom zarbasi</div>`+sld("Kattalik","sel.scale",1.03,1.6,0.01,"%")+sld("Fokus ↔","sel.x",-1,1,0.02,"±")+sld("Fokus ↕","sel.y",-1,1,0.02,"±")+selc("Kirishi","sel.ramp",[[0,"Keskin (kesimda)"],[0.15,"Silliq"],[0.4,"Sekin"]])+
     sld("Boshlanish","sel.time",0,Math.max(0.1,D-o.dur),0.05,"s")+sld("Davomiyligi","sel.dur",0.3,20,0.1,"s")+`<div class="mbtns"><button class="sm danger" id="cDel">O'chirish</button></div>`;
   if(SEL.k==="remove")return `<div class="lbl" style="margin-bottom:8px">Kesilgan joy · ${esc(o.type||"qo'lda")}</div>`+sw("Kesilsin","sel.on2")+selc("O'tish","sel.tr",[["default","Umumiy sozlama"]].concat(TRANS.map(t=>[t[0],t[1]])))+
     sld("Boshi","sel.s",0,D,0.02,"s")+sld("Oxiri","sel.e",0,D,0.02,"s")+`<p class="hint" style="margin-top:6px">${(o.e-o.s).toFixed(2)} soniya olib tashlanadi.</p><div class="mbtns"><button class="sm" id="cDel">↺ Tiklash (kesmaslik)</button></div>`;
@@ -1052,7 +1073,7 @@ function onInput(e){const el=e.target;
   if(el.dataset.w!==undefined){editStart("w"+el.dataset.w);S.words[+el.dataset.w].w=el.value;updPreview(true);drawItems();dirty();return}
   const p=el.dataset.path;if(!p)return;editStart(p);
   let v=el.type==="checkbox"?el.checked:el.dataset.num?+el.value:el.value;
-  if(p==="S.zoomLevel"||p==="sel.ramp")v=+v;
+  if(p==="S.zoomLevel"||p==="sel.ramp"||p==="frame.rot")v=+v;
   if(p==="sel.on2"){selObj().on=v}else if(p==="sel.bgon"){selObj().bg=v?"#111111":""}else{const[o,k]=root(p);if(!o)return;o[k]=v}
   if(p==="sel.s"||p==="sel.e"){const o=selObj();if(o.e<o.s+0.1){if(p==="sel.s")o.s=o.e-0.1;else o.e=o.s+0.1}}
   if(el.type==="range"){el.style.setProperty("--p",(el.value-el.min)/(el.max-el.min)*100+"%");el.nextElementSibling.textContent=fmtv(el.value,el.dataset.f)}
@@ -1072,6 +1093,11 @@ function onClick(e){const b=e.target.closest("button,.media[data-mk],.media[data
   else if(d.addemo){addSticker(d.addemo)}
   else if(d.cat){EMO_CAT=d.cat;renderLib()}
   else if(d.spd){hist();setSegSpeed(+d.spd);renderAll();dirty()}
+  else if(d.curve){const g=SEGS[SEL.i],v=CURVES[d.curve][1];if(g){hist();S.speeds=S.speeds.filter(q=>q.e<=g[0]+0.001||q.s>=g[1]-0.001);const st=(g[1]-g[0])/v.length;
+      v.forEach((x,i)=>S.speeds.push({s:+(g[0]+i*st).toFixed(3),e:+(g[0]+(i+1)*st).toFixed(3),v:x,rev:false}));renderAll();dirty();toast("Egri chiziq qo'llandi: "+CURVES[d.curve][0])}}
+  else if(d.mv)moveSeg(+d.mv);
+  else if(b.id==="beatB")findBeats();
+  else if(b.id==="beatSnap")snapBeats();
   else if(d.sfx){hist();S.sfxItems.push({time:nowT(0.4),dur:0.4,type:d.sfx,_n:Date.now()});sfxPlay(d.sfx,S.sfx.vol);select("sfx",S.sfxItems.length-1);dirty()}
   else if(d.kf!==undefined){const o=selObj();seek(o.time+o.keys[+d.kf].t+0.001);renderInsp()}
   else if(b.id==="kfAdd"){const o=selObj();hist();kfUpsert(o,vid.currentTime-o.time);renderInsp();updPreview(true);dirty()}
@@ -1170,7 +1196,7 @@ function drawItems(){
   $("rems").innerHTML=h;h="";
   CUES.forEach((c,i)=>{const a=S.words[c[0]].s,b=S.words[c[c.length-1]].e;h+=`<div class="it cue${sl("cue",i)}" data-k="cue" data-i="${i}" style="left:${a*p}px;width:${Math.max(10,(b-a)*p-1)}px">${esc(c.map(x=>S.words[x].w).join(" "))}</div>`});
   $("laneSub").innerHTML=h;
-  if(S.music)$("laneMus").innerHTML=`<div class="it mus" style="left:0;width:${outDur()*p}px">🎵 ${esc(S.music.name)}</div>`;
+  if(S.music)$("laneMus").innerHTML=`<div class="it mus" style="left:0;width:${S.duration*p}px">🎵 ${esc(S.music.name)}</div>`+(S.beats?S.beats.beats.filter(b=>b<outDur()).map(b=>`<i style="position:absolute;top:0;bottom:0;width:1px;background:#fff9;left:${invT(b)*p}px"></i>`).join(""):"");
 }
 function renderAll(){fitPv();renderLib();renderInsp();drawTimeline();updPreview(true);updCounts();$("qchip").textContent=S.quality+"p";$("rchip").textContent=S.ratio}
 function select(k,i){SEL=k?{k,i}:null;if(k)TAB="sel";if(LTAB==="media")renderLib();renderInsp();drawItems()}
@@ -1313,7 +1339,7 @@ $("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();await save();busy(tru
       S.stickers.filter(o=>!remAt(o.time)).map(o=>({kind:o.image?"image":"emoji",emoji:o.emo,image:o.image,time:+mapT(o.time).toFixed(3),dur:o.dur,x:o.x,y:o.y,size:o.size,rot:o.rot||0,op:o.op==null?1:o.op,in:o.in,out:o.out,loop:o.loop,keys:o.keys||[]})),
       S.texts.filter(o=>!remAt(o.time)&&(o.text||"").trim()).map(o=>({kind:"text",text:o.text,font:o.font,size:o.size,color:o.color,outline:o.outline,border:o.border,bg:o.bg||"",upper:!!o.upper,fx:o.fx||"none",fxc:o.fxc||"#39e75f",time:+mapT(o.time).toFixed(3),dur:o.dur,x:o.x,y:o.y,rot:o.rot||0,op:o.op==null?1:o.op,in:o.in,out:o.out,loop:o.loop,keys:o.keys||[]}))),
     transitions:cutList().map(q=>({t:+q.c.toFixed(3),type:q.type,dur:S.trans.dur})),
-    zooms:S.zooms.map(z=>({a:+mapT(z.time).toFixed(3),b:+mapT(z.time+z.dur).toFixed(3),scale:z.scale,ramp:z.ramp||0})).filter(z=>z.b-z.a>0.1),
+    zooms:S.zooms.map(z=>({a:+mapT(z.time).toFixed(3),b:+mapT(z.time+z.dur).toFixed(3),scale:z.scale,ramp:z.ramp||0,x:z.x||0,y:z.y||0})).filter(z=>z.b-z.a>0.1),
     sfx:sfxList().map(x=>({t:+x.t.toFixed(3),type:x.type,vol:x.vol})),
     music_fade:!!S.musicFade,
     hook:true,hook_text:S.hook||"",zoom:S.zoomLevel>0,zoom_level:S.zoomLevel,grade:S.grade,fx:S.fx,
