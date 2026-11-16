@@ -325,11 +325,13 @@ input[type=range]{background:linear-gradient(90deg,var(--lime) var(--p,50%),#3a3
 .box{border-radius:6px}.lt.on{background:#232327}.tab.on{color:#0e0e10;background:var(--lime);border-color:var(--lime)}
 .tool.on{border-color:var(--lime);background:#16323a;color:#fff}.lane{background:#161619;border-bottom-color:#232327}
 .it.cue{background:#c9793a;color:#fff}.it.aud{background:#2f6fd6}.it.mus{background:linear-gradient(90deg,#1f8f96,#2f6fd6)}.it.sel{box-shadow:0 0 0 2px #fff}
+#crv{width:100%;height:150px;border:1px solid var(--line);border-radius:6px;cursor:ns-resize;display:block}
 .trs{line-height:2;max-height:240px;overflow:auto;background:#131316;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
 .trs i{font-style:normal;padding:2px 4px;border-radius:4px;cursor:pointer}.trs i:hover{background:#2e2e34}.trs i.cut{text-decoration:line-through;color:#ff6b6b;background:#3a1a1e}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute"><filter id="gradeF" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncR type="table" tableValues="0 1"/><feFuncG type="table" tableValues="0 1"/><feFuncB type="table" tableValues="0 1"/></feComponentTransfer></filter></svg>
 <div id="app">
   <header id="top">
     <a class="logo" href="/"><i></i>MONTAJ <b>AI</b></a>
@@ -467,7 +469,7 @@ const EMAP={"🔥":["olov","zo'r","fire","dahshat"],"💰":["pul","daromad","biz
 const DEF={chat:[],words:[],removes:[],splits:[],speeds:[],sfxItems:[],brolls:[],stickers:[],texts:[],zooms:[],hook:"",lang:"uz",
   trans:{type:"none",dur:0.3},sfx:{trans:true,stk:true,vol:0.5},musicFade:true,
   sub:{on:true,layout:"stack3",font:"Anton",size:124,words:6,margin:560,active:"#39e75f",base:"#ffffff",c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",upper:true,anim:"pop",delay:0,border:5,outline:"#000000"},
-  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:false,stab:false,voiceFx:"",quality:"1080",pps:60,
+  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:false,musicNoVocal:false,stab:false,voiceFx:"",quality:"1080",pps:60,
   auto:{pause:0.8,brolls:4,stickers:true,hook:true,zooms:true},styleId:""};
 const PRESETS=[
  {n:"3 pog'ona · Sariq",v:{layout:"stack3",words:6,size:124,c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",active:"#39e75f",upper:true,anim:"pop",border:5}},
@@ -648,8 +650,8 @@ function renderPage(){
     h+=`<div class="hero2"><h1>Bugun nima <b>montaj</b> qilamiz${ME.name?", "+esc(ME.name.split(" ")[0]):""}?</h1><p>Video qo'shing, xohishingizni yozing, uslub tanlang — qolganini AI qiladi. Keyin taymlaynda o'zingiz tuzatasiz.</p></div>
     <div class="comp" id="comp"><div class="comp-top">
         <div class="addm ${f?"has":""}" id="addm"><div class="pl">${f?"🎞":"＋"}</div><div style="min-width:0"><b>${f?esc(f.name):"Media qo'shish"}</b><span>${f?(f.size/1048576).toFixed(1)+" MB · almashtirish uchun bosing":"videoni tanlang yoki shu yerga tashlang · MP4, MOV"}</span></div></div>
-        <select class="pill" id="ptype" title="Loyiha turi">${[["ai","⚡ AI montaj"],["subs","💬 Faqat subtitr"],["0","✂ Bo'sh loyiha (qo'lda)"]].map(o=>`<option value="${o[0]}" ${HF.type===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>
-      <textarea id="pprompt" placeholder="${HF.type==="0"?"Bo'sh loyiha: video taymlaynga qo'yiladi, hammasini o'zingiz qilasiz.":"Videoni qanday montaj qilay? Masalan: zich temp, sariq subtitr, 3 ta b-roll, kino rang, stikersiz…"}" ${HF.type==="0"?"disabled":""}>${esc(HF.prompt)}</textarea>
+        <select class="pill" id="ptype" title="Loyiha turi">${[["ai","⚡ AI montaj"],["subs","💬 Faqat subtitr"],["0","✂ Bo'sh loyiha (qo'lda)"],["script","📝 Skriptdan video"]].map(o=>`<option value="${o[0]}" ${HF.type===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div>
+      <textarea id="pprompt" placeholder="${HF.type==="0"?"Bo'sh loyiha: video taymlaynga qo'yiladi, hammasini o'zingiz qilasiz.":HF.type==="script"?"Skript matnini yozing — AI uni ovozga aylantiradi, subtitr va b-roll rasmlar qo'yib video yasaydi. Video yuklash shart emas.":"Videoni qanday montaj qilay? Masalan: zich temp, sariq subtitr, 3 ta b-roll, kino rang, stikersiz…"}" ${HF.type==="0"?"disabled":""}>${esc(HF.prompt)}</textarea>
       <div class="comp-bot"><button class="pill" data-scroll="styles">✦ ${cs?esc(cs.name):"Standart"} uslubi</button>
         <select class="pill" data-def="ratio" title="Format">${Object.keys(RAT).map(o=>`<option ${d.ratio===o?"selected":""}>${o}</option>`).join("")}</select>
         <select class="pill" data-def="lang" title="Video tili">${[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"]].map(o=>`<option value="${o[0]}" ${d.lang===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select>
@@ -698,7 +700,11 @@ $("nav").onclick=e=>{const b=e.target.closest("[data-pg]");if(b){if(b.dataset.pg
 $("newB").onclick=()=>{go("home");$("vidF").click()};
 $("sq").oninput=e=>{PQ=e.target.value;PFOL=null;PG="projects";history.replaceState(null,"","/#projects");renderPage()};
 $("side").addEventListener("click",e=>{const f=e.target.closest("[data-fol]"),o=e.target.closest("[data-open]");if(f){PFOL=f.dataset.fol;go("projects")}else if(o)location.href="/?p="+o.dataset.open});
-async function createProject(){const f=HF.file;if(!f){toast("Avval video qo'shing");$("vidF").click();return}
+async function createProject(){
+  if(HF.type==="script"){const tx=(HF.prompt||"").trim();if(tx.length<10){toast("Skript matnini yozing");return}const m=$("cmsg"),bt=$("createB");bt.disabled=true;
+    try{const {job}=await api("/api/studio/script",{text:tx,ratio:DEFS().ratio,lang:DEFS().lang});const r=await waitJob(job,(p,st)=>{if(m)m.textContent=st||"Tayyorlanmoqda…"});location.href="/?p="+r.project+"&auto=1"}
+    catch(x){if(m)m.textContent=x.message;toast(x.message);bt.disabled=false}return}
+  const f=HF.file;if(!f){toast("Avval video qo'shing");$("vidF").click();return}
   const bar=$("cbar"),msg=m=>{const x=$("cmsg");if(x)x.textContent=m};$("createB").disabled=true;bar.style.display="block";bar.firstChild.style.width="3%";
   const pr=(HF.prompt||"").trim();sessionStorage.removeItem("mplan");
   if(pr&&HF.type!=="0"){msg("Buyruq tahlil qilinyapti…");try{const r=await api("/api/studio/plan",{prompt:pr,lang:DEFS().lang});sessionStorage.setItem("mplan",JSON.stringify({prompt:pr,plan:r.plan,source:r.source}))}catch(_){}}
@@ -738,7 +744,7 @@ pgw.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[
 $("vidF").onchange=e=>{if(e.target.files[0]){HF.file=e.target.files[0];go("home")}e.target.value=""};
 
 /* ---------- loyiha holati ---------- */
-const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","duck","stab","voiceFx","quality","pps","auto","styleId"];
+const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","duck","musicNoVocal","stab","voiceFx","quality","pps","auto","styleId"];
 const snap=()=>JSON.stringify(SAVE_KEYS.reduce((o,k)=>(o[k]=S[k],o),{}));
 function hist(){HIST.push(snap());if(HIST.length>80)HIST.shift();REDO=[]}
 let _ek="",_et=0;
@@ -805,8 +811,9 @@ function normStk(s){if(s.in===undefined){const a=s.anim||"pop",m={slidel:"slide_
   if(s.rot==null)s.rot=0;if(s.op==null)s.op=1;return s}
 const arrOf=k=>({broll:S.brolls,sticker:S.stickers,text:S.texts,zoom:S.zooms,remove:S.removes,sfx:S.sfxItems,aud:S.audios})[k];
 /* keyframe: qatlamning joyi/masshtabi/burilishi vaqt bo'yicha (server _kf_at bilan bir xil) */
+function kfEase(p,k){if(k==="linear")return p;if(k==="in")return p*p*p;if(k==="out")return 1-Math.pow(1-p,3);if(k==="back"){const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(p-1,3)+c1*Math.pow(p-1,2)}if(k==="hold")return p<1?0:1;return p*p*(3-2*p)}
 function kfAt(o,tau){const K=o.keys;if(!K||!K.length)return null;if(tau<=K[0].t)return K[0];if(tau>=K[K.length-1].t)return K[K.length-1];
-  for(let i=0;i<K.length-1;i++){const a=K[i],b=K[i+1];if(tau>=a.t&&tau<=b.t){const p=(tau-a.t)/Math.max(1e-6,b.t-a.t),e=p*p*(3-2*p),r={};for(const k of["x","y","s","rot","op"])r[k]=a[k]+(b[k]-a[k])*e;return r}}return K[K.length-1]}
+  for(let i=0;i<K.length-1;i++){const a=K[i],b=K[i+1];if(tau>=a.t&&tau<=b.t){const p=(tau-a.t)/Math.max(1e-6,b.t-a.t),e=kfEase(p,a.ease),r={};for(const k of["x","y","s","rot","op"])r[k]=a[k]+(b[k]-a[k])*e;return r}}return K[K.length-1]}
 function kfUpsert(o,tau,vals){o.keys=o.keys||[];tau=+clamp(tau,0,o.dur).toFixed(2);const cur=kfAt(o,tau)||{x:o.x,y:o.y,s:1,rot:0,op:1};
   let k=o.keys.find(q=>Math.abs(q.t-tau)<0.07);if(!k){k={t:tau,x:cur.x,y:cur.y,s:cur.s,rot:cur.rot,op:cur.op};o.keys.push(k);o.keys.sort((a,b)=>a.t-b.t)}Object.assign(k,vals||{});return k}
 function selKey(){const o=selObj();if(!o||!o.keys)return null;const tau=vid.currentTime-o.time;return o.keys.find(q=>Math.abs(q.t-tau)<0.07)||null}
@@ -905,7 +912,7 @@ function updPreview(force){
   vid.style.transform=`translate(${tx}%,${ty}%) rotate(${rt}deg) scale(${z}) translate(${sh*6*Math.sin(t*70)-clamp(zfx,-1,1)*(z-1)/(2*z)*100}%,${sh*5*Math.cos(t*57)-clamp(zfy,-1,1)*(z-1)/(2*z)*100}%) scale(${fz}) translate(${-F.x*(fz-1)/(2*fz)*100}%,${-F.y*(fz-1)/(2*fz)*100}%)`+(F.mirror?" scaleX(-1)":"")+(F.flip?" rotate(180deg)":"")+(F.rot?` rotate(${F.rot}deg)`+(F.rot%180?` scale(${Math.max(RW()/RH(),RH()/RW())})`:""):"");
   const fv=$("flashv");fv.style.background=dp?"#000":"#fff";fv.style.opacity=dp||fl;
   const g=S.grade;$("vigv").style.opacity=(g.vig||0)*0.9;
-  vid.style.filter=`saturate(${g.sat}) contrast(${g.con*(1+0.08*((g.hil||0)-(g.shd||0)))}) brightness(${1+g.bri*1.6+0.07*((g.shd||0)+(g.hil||0))+0.05*(g.fade||0)})`+(g.hue?` hue-rotate(${g.hue}deg)`:"")+(g.fade?` contrast(${1-0.16*g.fade})`:"")+(g.temp>0?` sepia(${g.temp*0.35})`:g.temp<0?` hue-rotate(${g.temp*-14}deg)`:"")+(bl?` blur(${6*bl}px)`:"")+(gl?` hue-rotate(${90*gl}deg) saturate(${1+2*gl})`:"");
+  vid.style.filter=(applyLut()?"url(#gradeF) ":"")+`saturate(${g.sat}) contrast(${g.con*(1+0.08*((g.hil||0)-(g.shd||0)))}) brightness(${1+g.bri*1.6+0.07*((g.shd||0)+(g.hil||0))+0.05*(g.fade||0)})`+(g.hue?` hue-rotate(${g.hue}deg)`:"")+(g.fade?` contrast(${1-0.16*g.fade})`:"")+(g.temp>0?` sepia(${g.temp*0.35})`:g.temp<0?` hue-rotate(${g.temp*-14}deg)`:"")+(bl?` blur(${6*bl}px)`:"")+(gl?` hue-rotate(${90*gl}deg) saturate(${1+2*gl})`:"");
   $("cutflag").style.display=remAt(t)?"block":"none";
   $("tc").innerHTML=`${tc(ot)} <small>/ ${tc(outDur())}</small>`;
   $("ph").style.left=(LAB+t*S.pps)+"px";
@@ -1042,7 +1049,7 @@ function renderLib(){
     h+=S.music?`<div class="media"><div class="th">🎵</div><div><b>${esc(S.music.name)}</b><span>fon musiqa</span></div></div>`:`<p class="hint">Fon musiqa hali qo'shilmagan.</p>`;
     h+=`<div class="mbtns" style="margin-bottom:10px"><button class="sm" id="addMusB">＋ ${S.music?"Musiqani almashtirish":"Musiqa yuklash"}</button><button class="sm" id="addAudB" title="Audio fayl yoki video — videodan faqat ovozi olinadi">＋ Audio / videodan ovoz</button><button class="sm ${REC?"rec":""}" id="recB">${REC?"■ To'xtatish":"🎙 Ovoz yozish"}</button></div>`;
     S.audios.forEach((a,i)=>h+=`<div class="media ${SEL&&SEL.k==="aud"&&SEL.i===i?"on":""}" data-ak="${i}"><div class="th">🔊</div><div><b>${esc(a.name)}</b><span>audio · ${tc(a.time)} · ${a.dur.toFixed(1)}s</span></div></div>`);
-    h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Gap paytida musiqani pasaytirish","S.duck")+sw("Ovozni tozalash","S.audioClean")+selc("Ovoz o'zgartirgich","S.voiceFx",VFX);
+    h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Gap paytida musiqani pasaytirish","S.duck")+sw("Musiqadan vokalni olib tashlash","S.musicNoVocal")+sw("Ovozni tozalash","S.audioClean")+selc("Ovoz o'zgartirgich","S.voiceFx",VFX);
     if(S.music)h+=`<div class="mbtns"><button class="sm" id="beatB">🥁 Ritmni aniqlash</button>${S.beats&&S.beats.beats.length?`<button class="sm ai" id="beatSnap">✂ Kesimlarni ritmga moslash</button>`:""}</div>${S.beats?`<p class="hint" style="margin-top:6px">${S.beats.bpm} BPM · ${S.beats.beats.length} ta zarba — musiqa trekida belgilar ko'rinadi.</p>`:""}`;
     h+=`<div class="sec lbl">AI ovoz (matndan nutq)</div><textarea id="ttsIn" rows="3" placeholder="Matnni yozing — AI o'qib beradi va audio klip qilib qo'yadi">${esc(UI.tts)}</textarea>
       <div class="frow" style="margin-top:6px"><label>Ovoz</label><select id="ttsV">${CFG.voices.map(v=>`<option ${v===UI.voice?"selected":""}>${v}</option>`).join("")}</select></div>
@@ -1104,6 +1111,22 @@ function renderLib(){
 $("ltabs").onclick=e=>{const b=e.target.closest(".lt");if(b){LTAB=b.dataset.lt;renderLib()}};
 
 /* ---------- o'ng inspektor ---------- */
+/* ---------- egri chiziq va rang g'ildiraklari: bitta jadval (LUT) — pleyer va eksportda bir xil ---------- */
+function crvY(c,x){const n=c.length-1,f=clamp(x,0,1)*n,i=Math.min(n-1,Math.floor(f)),t=f-i,p0=c[Math.max(0,i-1)],p1=c[i],p2=c[i+1],p3=c[Math.min(n,i+2)];
+  return clamp(0.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t),0,1)}
+function gradeLut(){const g=S.grade,c=g.curve||[0,0.25,0.5,0.75,1],idc=c.every((v,i)=>Math.abs(v-i/4)<0.004),A=[+g.sha||0,+g.mda||0,+g.hia||0];
+  if(idc&&A.every(a=>a<0.005))return null;
+  const T=[g.shc,g.mdc,g.hic].map((h,j)=>{h=h||"#808080";const v=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255),m=(v[0]+v[1]+v[2])/3;return v.map(q=>(q-m)*A[j]*0.5)});
+  const out={r:[],g:[],b:[]};for(let i=0;i<=16;i++){const x=i/16,y=crvY(c,x),ws=(1-x)*(1-x),wm=4*x*(1-x),wh=x*x;
+    ["r","g","b"].forEach((ch,k)=>out[ch].push(+clamp(y+T[0][k]*ws+T[1][k]*wm+T[2][k]*wh,0,1).toFixed(4)))}return out}
+function applyLut(){const l=S?gradeLut():null,f=$("gradeF");if(!f)return false;if(!l)return false;["R","G","B"].forEach(ch=>f.querySelector("feFunc"+ch).setAttribute("tableValues",l[ch.toLowerCase()].join(" ")));return true}
+function drawCurve(){const cv=$("crv");if(!cv)return;const g=cv.getContext("2d"),W=cv.width,H=cv.height,c=S.grade.curve;g.clearRect(0,0,W,H);g.fillStyle="#131316";g.fillRect(0,0,W,H);
+  g.strokeStyle="#2e2e34";g.lineWidth=1;for(let i=1;i<4;i++){g.beginPath();g.moveTo(i*W/4,0);g.lineTo(i*W/4,H);g.moveTo(0,i*H/4);g.lineTo(W,i*H/4);g.stroke()}
+  g.strokeStyle="#55555e";g.beginPath();g.moveTo(0,H);g.lineTo(W,0);g.stroke();
+  g.strokeStyle="#27d3dc";g.lineWidth=2;g.beginPath();for(let x=0;x<=W;x+=2){const y=H-crvY(c,x/W)*H;x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+  c.forEach((v,i)=>{g.fillStyle="#fff";g.beginPath();g.arc(clamp(i*W/4,5,W-5),clamp(H-v*H,5,H-5),5,0,7);g.fill()});
+  if(!cv._b){cv._b=1;cv.style.touchAction="none";cv.onpointerdown=e=>{const r=cv.getBoundingClientRect(),i=Math.round((e.clientX-r.left)/r.width*4);hist();cv.setPointerCapture(e.pointerId);
+    const mv=ev=>{S.grade.curve[i]=+clamp(1-(ev.clientY-r.top)/r.height,0,1).toFixed(3);drawCurve();updPreview(true)};mv(e);cv.onpointermove=mv;cv.onpointerup=()=>{cv.onpointermove=null;dirty()}}}}
 function renderInsp(){
   $("tabs").innerHTML=TABS.map(t=>`<button class="tab ${t[0]===TAB?"on":""}" data-t="${t[0]}">${t[1]}</button>`).join("");
   let h="";const su=S.sub;
@@ -1115,19 +1138,23 @@ function renderInsp(){
   }else if(TAB==="adj"){
     h+=sld("To'yinganlik","grade.sat",0,2,0.01,"%")+sld("Kontrast","grade.con",0.5,1.6,0.01,"%")+sld("Yorug'lik","grade.bri",-0.3,0.3,0.01,"±")+sld("Temperatura","grade.temp",-1,1,0.02,"±")+
       sld("Soyalar","grade.shd",-1,1,0.02,"±")+sld("Yorug' joylar","grade.hil",-1,1,0.02,"±")+sld("Vinyetka","grade.vig",0,1,0.01,"%")+sld("Aniqlik","grade.sharp",0,1,0.01,"%")+sld("Tus (HSL)","grade.hue",-180,180,1,"i")+sld("Xira (fade)","grade.fade",0,1,0.01,"%")+sld("Don (grain)","grade.grain",0,1,0.01,"%");
+    {const g=S.grade;if(!g.curve)g.curve=[0,0.25,0.5,0.75,1];["sh","md","hi"].forEach(k=>{if(!g[k+"c"])g[k+"c"]="#808080";if(g[k+"a"]==null)g[k+"a"]=0})}
+    h+=`<div class="sec lbl">Egri chiziq (curves)</div><canvas id="crv" width="260" height="150"></canvas><p class="hint" style="margin:4px 0 8px">Nuqtalarni yuqoriga-pastga suring: chap — soyalar, o'ng — yorug' joylar.</p>
+      <div class="lbl">Rang g'ildiraklari</div><div class="cols" style="margin-top:6px">${col("Soyalar","grade.shc")}${col("O'rta","grade.mdc")}${col("Yorug'","grade.hic")}</div>`+
+      sld("Soyalar kuchi","grade.sha",0,1,0.01,"%")+sld("O'rta kuchi","grade.mda",0,1,0.01,"%")+sld("Yorug' kuchi","grade.hia",0,1,0.01,"%");
     h+=`<div class="mbtns"><button class="sm" id="gReset">Asl holatga</button></div><p class="hint" style="margin-top:8px">Rang preview'da taxminan ko'rinadi, eksportda aniq qo'llanadi.</p>`;
   }else if(TAB==="proj"){
     h+=selc("Format","S.ratio",[["9:16","9:16 — Reels, TikTok, Shorts"],["1:1","1:1 — kvadrat post"],["4:5","4:5 — Instagram lenta"],["16:9","16:9 — YouTube"]])+selc("Sifat","S.quality",[["720","720p"],["1080","1080p"],["1440","1440p (2K)"],["2160","2160p (4K)"]])+selc("Til","S.lang",[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"]]);
-    h+=`<div class="sec lbl">Kadr (asosiy video)</div>`+sld("Kattalashtirish","frame.zoom",1,3,0.01,"%")+sld("Gorizontal","frame.x",-1,1,0.02,"±")+sld("Vertikal","frame.y",-1,1,0.02,"±")+selc("Burish","frame.rot",[[0,"0°"],[90,"90° (o'ngga)"],[180,"180°"],[270,"270° (chapga)"]])+sw("Oynadek aks","frame.mirror")+sw("Stabilizatsiya (qaltirashni kamaytirish)","S.stab")+`<div class="mbtns"><button class="sm" id="fReset">Kadrni tiklash</button></div>`;
+    h+=`<div class="sec lbl">Kadr (asosiy video)</div>`+sld("Kattalashtirish","frame.zoom",1,3,0.01,"%")+sld("Gorizontal","frame.x",-1,1,0.02,"±")+sld("Vertikal","frame.y",-1,1,0.02,"±")+selc("Burish","frame.rot",[[0,"0°"],[90,"90° (o'ngga)"],[180,"180°"],[270,"270° (chapga)"]])+sw("Oynadek aks","frame.mirror")+sw("Stabilizatsiya (qaltirashni kamaytirish)","S.stab")+`<div class="mbtns"><button class="sm ai" id="rfB">🎯 Avto kadrlash</button><button class="sm" id="fReset">Kadrni tiklash</button></div>`;
     h+=`<p class="hint" style="margin-top:10px"><b style="color:var(--txt)">Klavishlar</b><br>Space — o'ynatish<br>S yoki Ctrl+B — bo'lish<br>Q / W — chapini / o'ngini o'chirish<br>Delete — tanlanganni o'chirish<br>B — oraliq kesish · V — tanlash<br>← → — kadrma-kadr (Shift: 1s)<br>Ctrl+Z / Ctrl+Shift+Z — bekor / qaytarish<br>Ctrl + g'ildirak — taymlayn zoomi</p>`;
   }else h+=selInsp();
-  $("insp").innerHTML=h;
+  $("insp").innerHTML=h;if(TAB==="adj")drawCurve();
 }
 function selObj(){if(!SEL)return null;const a=arrOf(SEL.k);return a?a[SEL.i]||null:null}
 function animRows(){return selc("Kirish","sel.in",A_IN)+selc("Chiqish","sel.out",A_OUT)+selc("Takroriy","sel.loop",A_LOOP)}
-function kfRows(o){const K=o.keys||[],cur=selKey();return `<div class="lbl" style="margin:10px 0 4px">Keyframe (harakat yo'li)</div><div class="mbtns" style="margin-top:0"><button class="sm" id="kfAdd">◆ Shu joyga keyframe</button>${K.length?`<button class="sm danger" id="kfClr">Tozalash</button>`:""}</div>`+
+function kfRows(o){const K=o.keys||[],cur=selKey();return `<div class="lbl" style="margin:10px 0 4px">Keyframe (harakat yo'li)</div><div class="mbtns" style="margin-top:0"><button class="sm" id="kfAdd">◆ Shu joyga keyframe</button><button class="sm ai" id="trkB" title="Qatlam turgan joydagi ob'ektni kuzatadi va unga ergashadi">🎯 Ob'ektga bog'lash</button>${K.length?`<button class="sm danger" id="kfClr">Tozalash</button>`:""}</div>`+
   (K.length?`<div class="kfs">${K.map((q,i)=>`<button data-kf="${i}" class="${q===cur?"on":""}">◆ ${q.t.toFixed(2)}s</button>`).join("")}</div>`:"")+
-  (cur?sld("KF masshtab","key.s",0.2,3,0.01,"%")+sld("KF burilish","key.rot",-360,360,1,"i")+sld("KF shaffoflik","key.op",0,1,0.01,"%")+`<div class="mbtns" style="margin-top:2px"><button class="sm danger" id="kfDel">Shu keyframe'ni o'chirish</button></div>`
+  (cur?selc("Keyingisiga harakat","key.ease",[["","Silliq"],["linear","Bir tekis"],["in","Sekin boshlanadi"],["out","Sekin to'xtaydi"],["back","Oshib qaytadi"],["hold","Sakrab o'tadi"]])+sld("KF masshtab","key.s",0.2,3,0.01,"%")+sld("KF burilish","key.rot",-360,360,1,"i")+sld("KF shaffoflik","key.op",0,1,0.01,"%")+`<div class="mbtns" style="margin-top:2px"><button class="sm danger" id="kfDel">Shu keyframe'ni o'chirish</button></div>`
      :`<p class="hint">${K.length?"Keyframe'ni bosing — o'sha joyga o'tadi. Pleyerda qatlamni sursangiz, shu vaqtga yangi keyframe yoziladi.":"Qatlam vaqt davomida harakatlanishi uchun: o'ynatgichni qo'ying, keyframe qo'shing, keyin boshqa vaqtga o'tib pleyerda qatlamni suring."}</p>`)}
 function ckRows(o){return sw("Yashil fon (chroma key)","sel.ck")+(o.ck?`<div class="cols">${col("Olib tashlanadigan rang","sel.ckc")}</div>`+sld("Sezgirlik","sel.cks",0.05,0.7,0.01,"%")+(o.video?`<p class="hint" style="margin-bottom:6px">Video qatlamda rang olib tashlash eksport qilingan videoda ko'rinadi.</p>`:""):"")}
 function selInsp(){
@@ -1201,6 +1228,9 @@ function onClick(e){const wi=e.target.closest("i[data-wi]");if(wi){wordTap(+wi.d
   else if(d.mv)moveSeg(+d.mv);
   else if(b.id==="beatB")findBeats();
   else if(b.id==="ttsGo")doTTS();
+  else if(b.id==="rfB"){toast("Kadr tahlil qilinmoqda…");api("/api/studio/reframe",{project:S.project,ratio:S.ratio}).then(r=>{hist();S.frame.x=r.x;S.frame.y=r.y;renderAll();dirty();toast(r.x||r.y?"Kadr asosiy ob'ektga surildi":"Video shu formatga mos — surish kerak emas")}).catch(x=>toast(x.message))}
+  else if(b.id==="trkB"){const o=selObj();if(!o)return;(async()=>{const K=kfAt(o,0)||o;const r=await uiJob("trk","/api/studio/track",{project:S.project,t:o.time,dur:o.dur,x:K.x,y:K.y,frame:S.frame,ratio:S.ratio},"Ob'ekt kuzatilmoqda…");
+      if(r&&r.keys&&r.keys.length){hist();o.keys=r.keys.map(k=>({t:k.t,x:k.x,y:k.y,s:1,rot:0,op:1,ease:"linear"}));renderInsp();updPreview(true);dirty();toast("Qatlam ob'ektga bog'landi ("+r.keys.length+" keyframe)")}})()}
   else if(b.id==="reAn2")runAnalyze();
   else if(b.id==="fillB")cutFillers();
   else if(b.id==="wcutB"){UI.wcut=!UI.wcut;renderLib()}
@@ -1469,8 +1499,8 @@ $("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();await save();busy(tru
     transitions:cutList().map(q=>({t:+q.c.toFixed(3),type:q.type,dur:S.trans.dur})),
     zooms:S.zooms.map(z=>({a:+mapT(z.time).toFixed(3),b:+mapT(z.time+z.dur).toFixed(3),scale:z.scale,ramp:z.ramp||0,x:z.x||0,y:z.y||0})).filter(z=>z.b-z.a>0.1),
     sfx:sfxList().map(x=>({t:+x.t.toFixed(3),type:x.type,vol:x.vol})),
-    music_fade:!!S.musicFade,duck:!!S.duck,
-    hook:true,hook_text:S.hook||"",zoom:S.zoomLevel>0,zoom_level:S.zoomLevel,grade:S.grade,fx:S.fx,
+    music_fade:!!S.musicFade,duck:!!S.duck,music_novocal:!!S.musicNoVocal,
+    hook:true,hook_text:S.hook||"",zoom:S.zoomLevel>0,zoom_level:S.zoomLevel,grade:Object.assign({},S.grade,{lut:gradeLut()}),fx:S.fx,
     music:true,music_vol:S.musicVol,orig_vol:S.origVol,audio_clean:S.audioClean,quality:S.quality,stab:!!S.stab,voice_fx:S.voiceFx||""};
   try{ag("render-01","Eksport boshlandi…","run");
     const {job}=await api("/api/render",body);

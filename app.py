@@ -514,7 +514,7 @@ async def render(req: Request, x_auth: str = Header("")):
         zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12)), "x": float(z.get("x", 0) or 0), "y": float(z.get("y", 0) or 0)} for z in zooms_in if isinstance(z, dict)]
         ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol,
                                  anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade,
-                                 size=(out_w, out_h), frame=frame_in, stab=stab, voice_fx=voice_fx, duck=bool(body.get("duck")))
+                                 size=(out_w, out_h), frame=frame_in, stab=stab, voice_fx=voice_fx, duck=bool(body.get("duck")), music_novocal=bool(body.get("music_novocal")))
         shutil.rmtree(os.path.join(d, "layers"), ignore_errors=True)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
@@ -945,6 +945,46 @@ async def studio_clip(req: Request, x_auth: str = Header("")):
                  "lang": m.get("lang", "uz"), "words": ws, "full_text": " ".join(w["w"] for w in ws), "folder": m.get("folder", "")}
         save_meta(new, meta2)
         return {"project": new}
+    run_job(jid, fn, heavy=True); return {"job": jid}
+
+_RATIOS = {"9:16": (9, 16), "1:1": (1, 1), "16:9": (16, 9), "4:5": (4, 5)}
+@app.post("/api/studio/track")
+async def studio_track(req: Request, x_auth: str = Header("")):
+    """Qatlamni videodagi ob'ektga bog'lash: (x,y) nuqtani kuzatib, keyframe'lar qaytaradi."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    src = os.path.join(PROJ, pid, m.get("input")); jid = new_job()
+    def fn(prog):
+        prog(30, "Ob'ekt kuzatilmoqda...")
+        keys = montaj.track_point(src, float(b.get("t", 0)), float(b.get("dur", 2)), float(b.get("x", 0.5)), float(b.get("y", 0.5)),
+                                  frame=b.get("frame") if isinstance(b.get("frame"), dict) else {}, ratio=_RATIOS.get(str(b.get("ratio")), (9, 16)))
+        return {"keys": keys}
+    run_job(jid, fn, heavy=True); return {"job": jid}
+
+@app.post("/api/studio/reframe")
+async def studio_reframe(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    try: return montaj.smart_center(os.path.join(PROJ, pid, m.get("input")), _RATIOS.get(str(b.get("ratio")), (9, 16)))
+    except Exception as e: raise HTTPException(400, str(e)[:120])
+
+@app.post("/api/studio/script")
+async def studio_script(req: Request, x_auth: str = Header("")):
+    """Skriptdan video: matn -> AI ovoz -> asos video + subtitr so'zlari -> yangi loyiha."""
+    usr = check_auth(x_auth); b = await req.json(); text = " ".join(str(b.get("text") or "").split())[:2000]
+    if len(text) < 10: raise HTTPException(400, "Skript juda qisqa")
+    RAT = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080), "4:5": (1080, 1350)}
+    size = RAT.get(str(b.get("ratio")), (1080, 1920)); jid = new_job()
+    def fn(prog):
+        pid = uuid.uuid4().hex[:12]; d = os.path.join(PROJ, pid); os.makedirs(d, exist_ok=True)
+        try:
+            prog(25, "AI ovoz yaratilmoqda...")
+            wav = montaj.tts_gemini(text, os.path.join(d, "script.wav"), str(b.get("voice") or "Kore"))
+            prog(70, "Video tayyorlanmoqda...")
+            dur, words = montaj.script_video(text, wav, os.path.join(d, "input_cfr.mp4"), size)
+        except Exception:
+            shutil.rmtree(d, ignore_errors=True); raise
+        save_meta(pid, {"id": pid, "input": "input_cfr.mp4", "name": (text[:40] + "…"), "created": int(time.time()), "duration": round(dur, 2),
+                        "stage": "analyzed", "user_id": usr["id"], "lang": str(b.get("lang") or "uz"), "words": words, "full_text": text, "script": True})
+        return {"project": pid}
     run_job(jid, fn, heavy=True); return {"job": jid}
 
 @app.post("/api/studio/reorder")

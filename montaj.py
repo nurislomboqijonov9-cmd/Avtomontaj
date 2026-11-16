@@ -1008,6 +1008,14 @@ def anim_state(tau, d, a_in="pop", a_out="fade", a_loop="none", in_d=0.35, out_d
     elif a_loop=="jelly": j=0.07*_m.sin(T*2); sx*=1+j; sy*=1-j
     return sx,sy,rot,_clip01(al),dx,dy
 
+def kf_ease(p, kind=None):
+    """Keyframe orasidagi harakat egri chizig'i (JS kfEase bilan bir xil)."""
+    if kind=="linear": return p
+    if kind=="in": return p*p*p
+    if kind=="out": return 1-(1-p)**3
+    if kind=="back": c1=1.70158; c3=c1+1; return 1+c3*(p-1)**3+c1*(p-1)**2
+    if kind=="hold": return 0.0 if p<1 else 1.0
+    return p*p*(3-2*p)
 def _kf_at(keys, tau):
     """Keyframe'lar orasida silliq (smoothstep) interpolatsiya. -> dict yoki None."""
     if not keys: return None
@@ -1015,7 +1023,7 @@ def _kf_at(keys, tau):
     if tau>=keys[-1]["t"]: return keys[-1]
     for a,b in zip(keys,keys[1:]):
         if a["t"]<=tau<=b["t"]:
-            p=(tau-a["t"])/max(1e-6,b["t"]-a["t"]); e=p*p*(3-2*p)
+            p=(tau-a["t"])/max(1e-6,b["t"]-a["t"]); e=kf_ease(p, a.get("ease"))
             return {k:a[k]+(b[k]-a[k])*e for k in ("x","y","s","rot","op")}
     return keys[-1]
 
@@ -1028,7 +1036,7 @@ def layer_frames(img, outdir, dur, L, fps=30, frame=None):
     if srcs: img=srcs[0][0]; gtot=max(0.05,srcs[-1][1])
     keys=[]
     for kf in (L.get("keys") or []):
-        try: keys.append({"t":float(kf.get("t",0)),"x":float(kf.get("x",0.5)),"y":float(kf.get("y",0.5)),"s":float(kf.get("s",1)),"rot":float(kf.get("rot",0)),"op":float(kf.get("op",1))})
+        try: keys.append({"t":float(kf.get("t",0)),"x":float(kf.get("x",0.5)),"y":float(kf.get("y",0.5)),"s":float(kf.get("s",1)),"rot":float(kf.get("rot",0)),"op":float(kf.get("op",1)),"ease":str(kf.get("ease") or "")})
         except Exception: pass
     keys.sort(key=lambda z:z["t"])
     if not frame: keys=[]
@@ -1174,6 +1182,15 @@ def grade_filter(grade):
         hue=num("hue",0.0,-180.0,180.0); grn=num("grain",0.0,0.0,1.0); fde=num("fade",0.0,0.0,1.0)
         if abs(hue)>0.5: f+=",hue=h=%.1f"%hue
         if fde>0.01: f+=",curves=all='0/%.3f 1/%.3f'"%(0.12*fde,1-0.06*fde)
+        lut=grade.get("lut") if isinstance(grade.get("lut"),dict) else None      # egri chiziq + rang g'ildiraklari (mijoz hisoblagan jadval)
+        if lut:
+            try:
+                segs=[]
+                for ch in ("r","g","b"):
+                    v=[max(0.0,min(1.0,float(x))) for x in (lut.get(ch) or [])][:33]
+                    if len(v)>=3: segs.append(ch+"='"+" ".join("%.4f/%.4f"%(i/(len(v)-1),y) for i,y in enumerate(v))+"'")
+                if len(segs)==3: f+=",curves="+":".join(segs)
+            except Exception: pass
         if grn>0.01: f+=",noise=alls=%d:allf=t"%int(4+22*grn)
         return f
     return GRADES.get(grade, GRADES["vivid"])
@@ -1270,7 +1287,7 @@ FX_MAP={  # oila -> effekt
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
                  quality="1080", fast=False, fx="none", stickers=None,
                  music=None, music_vol=0.28, orig_vol=1.0,
-                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None, stab=False, voice_fx=None, duck=False):
+                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None, stab=False, voice_fx=None, duck=False, music_novocal=False):
     """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz.
     anim_layers=[{dir,time,dur,cx,cy,cw,ch}] (layer_frames kadrlari), transitions=[{t,type,dur}] (chiqish vaqtida),
     zooms=[{a,b,scale,ramp}], sfx=[{path,t,vol}]."""
@@ -1414,6 +1431,8 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     if music and os.path.exists(music):
         inputs+=["-stream_loop","-1","-i",music]; idx+=1
         mf=(f",afade=t=in:d=0.6,afade=t=out:st={max(0.1,dur-1.3):.2f}:d=1.2" if music_fade else "")
+        if music_novocal and achannels(music)>=2:      # markazdagi vokalni fazaviy ayirish bilan so'ndirish (karaoke)
+            mf=",pan=stereo|c0=c0-c1|c1=c1-c0,volume=1.6"+mf
         if duck:      # gap paytida musiqa o'zi pasayadi (sidechain)
             parts[-1]=parts[-1][:-len("[a0]")]+"[a0p]"; parts.append("[a0p]asplit[a0][a0k]")
             parts.append(f"[{idx}:a]atrim=0:{dur:.2f},volume={max(0.0,float(music_vol)):.2f}{mf},aresample=48000[mus0]")
@@ -1779,6 +1798,85 @@ def highlights(words, dur, n=4, target=35.0):
             out.append({"a":round(max(0,a-0.25),2),"b":round(min(dur,b+0.35),2),"title":" ".join(t.split()[:7])})
         if len(out)>=n: break
     return sorted(out,key=lambda o:o["a"])
+
+def achannels(path):
+    c,o=run(["ffprobe","-v","error","-select_streams","a:0","-show_entries","stream=channels","-of","default=noprint_wrappers=1:nokey=1",path],capture=True)
+    try: return int(o.strip().split()[0])
+    except Exception: return 0
+
+def fit_filter(frame, pw, ph):
+    """render_final dagi kadrlash bilan bir xil: aks/burish -> to'ldirish -> qirqish."""
+    frame=frame or {}
+    fz=max(1.0,min(3.0,float(frame.get("zoom",1) or 1))); fpx=max(-1.0,min(1.0,float(frame.get("x",0) or 0))); fpy=max(-1.0,min(1.0,float(frame.get("y",0) or 0)))
+    frot=int(frame.get("rot",0) or 0)%360
+    fpre=("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")+({90:"transpose=1,",180:"hflip,vflip,",270:"transpose=2,"}.get(frot,""))
+    return (f"{fpre}scale={int(pw*fz)//2*2}:{int(ph*fz)//2*2}:force_original_aspect_ratio=increase,"
+            f"crop={pw}:{ph}:(iw-{pw})/2*{1+fpx:.3f}:(ih-{ph})/2*{1+fpy:.3f}")
+
+def _gray_frames(video, t0, dur, vf, w, h, fps):
+    import numpy as np
+    p=subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-ss",f"{max(0.0,t0):.3f}","-t",f"{dur:.3f}","-i",video,"-an",
+                      "-vf",f"{vf},fps={fps},format=gray","-f","rawvideo","-"],stdout=subprocess.PIPE)
+    n=len(p.stdout)//(w*h)
+    return np.frombuffer(p.stdout[:n*w*h],dtype=np.uint8).reshape(n,h,w).astype(np.float32) if n else np.zeros((0,h,w),np.float32)
+
+def track_point(video, t0, dur, x, y, frame=None, ratio=(9,16), fps=10):
+    """Kadrning (x,y) nuqtasidagi ob'ektni kuzatadi (andoza taqqoslash). -> [{t,x,y}] (qatlam boshidan vaqt, 0..1 koordinata)."""
+    import numpy as np
+    w=144; h=int(round(w*ratio[1]/ratio[0]/2))*2; dur=max(0.3,min(20.0,float(dur)))
+    F=_gray_frames(video,t0,dur,fit_filter(frame,w,h),w,h,fps)
+    if len(F)<2: raise RuntimeError("kuzatish uchun kadrlar o'qilmadi")
+    r=max(7,w//9); sr=max(8,w//8)                        # andoza yarim o'lchami, qidiruv radiusi
+    cx=int(round(max(0,min(1,x))*w)); cy=int(round(max(0,min(1,y))*h))
+    cx=max(r,min(w-r-1,cx)); cy=max(r,min(h-r-1,cy))
+    tpl=F[0][cy-r:cy+r+1,cx-r:cx+r+1].copy(); out=[{"t":0.0,"x":round(cx/w,4),"y":round(cy/h,4)}]
+    for i in range(1,len(F)):
+        f=F[i]; best=None; bx,by=cx,cy; tm=tpl-tpl.mean()
+        for yy in range(max(r,cy-sr),min(h-r-1,cy+sr)+1):
+            for xx in range(max(r,cx-sr),min(w-r-1,cx+sr)+1):
+                pt=f[yy-r:yy+r+1,xx-r:xx+r+1]; d=pt-pt.mean()-tm
+                sc=float((d*d).sum())+0.6*((xx-cx)**2+(yy-cy)**2)        # uzoqqa sakrashga kichik jarima
+                if best is None or sc<best: best=sc; bx,by=xx,yy
+        cx,cy=bx,by
+        tpl=0.9*tpl+0.1*f[cy-r:cy+r+1,cx-r:cx+r+1]                      # andoza sekin yangilanadi
+        out.append({"t":round(i/fps,3),"x":round(cx/w,4),"y":round(cy/h,4)})
+    keep=[out[0]]                                         # siyraklashtirish: ~0.2s yoki sezilarli siljish
+    for k in out[1:-1]:
+        if k["t"]-keep[-1]["t"]>=0.2: keep.append(k)
+    keep.append(out[-1])
+    return keep
+
+def smart_center(video, ratio=(9,16)):
+    """Avto kadrlash: harakat va detal eng ko'p joyni topib, kadr siljishini qaytaradi. -> {x,y} (-1..1)."""
+    import numpy as np
+    sw,sh=ffsize(video); d=ffdur(video)
+    if not sw or not sh or d<=0: raise RuntimeError("video o'qilmadi")
+    w=96; h=max(2,int(round(w*sh/sw/2))*2); n=14
+    F=_gray_frames(video,0,d,f"scale={w}:{h}",w,h,max(0.2,min(4.0,n/d)))
+    if len(F)<2: raise RuntimeError("kadrlar yetarli emas")
+    mot=np.abs(np.diff(F,axis=0)).mean(axis=0)
+    det=np.abs(np.diff(F,axis=2)).mean(axis=0); det=np.pad(det,((0,0),(0,1)))
+    E=mot*2.0+det*0.5; E=E-np.percentile(E,40); E[E<0]=0
+    if E.sum()<=1e-6: return {"x":0.0,"y":0.0}
+    cx=float((E.sum(axis=0)*np.arange(w)).sum()/E.sum())/w; cy=float((E.sum(axis=1)*np.arange(h)).sum()/E.sum())/h
+    sar=sw/sh; tar=ratio[0]/ratio[1]; fx=fy=0.0
+    if sar>tar*1.02:                                      # manba kengroq: gorizontal siljish
+        vis=tar/sar; off=min(max(cx-vis/2,0),1-vis); fx=off/((1-vis)/2)-1
+    elif sar<tar/1.02:
+        vis=sar/tar; off=min(max(cy-vis/2,0),1-vis); fy=off/((1-vis)/2)-1
+    return {"x":round(max(-1,min(1,fx)),2),"y":round(max(-1,min(1,fy)),2)}
+
+def script_video(text, wav, outp, size=(1080,1920)):
+    """Skript ovozi (wav) uchun asos video va so'z vaqtlarini tayyorlaydi. -> (davomiylik, words)"""
+    d=ffdur(wav)
+    if d<=0: raise RuntimeError("ovoz fayli o'qilmadi")
+    run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","lavfi","-i",f"color=c=0x121218:s={size[0]}x{size[1]}:r=30:d={d+0.4:.2f}",
+         "-i",wav,"-c:v","libx264","-preset","veryfast","-crf","23","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-ar","48000","-shortest",outp])
+    if not os.path.exists(outp): raise RuntimeError("asos video yaratilmadi")
+    toks=text.split(); tot=sum(len(t)+1 for t in toks) or 1; t=0.12; span=max(0.3,d-0.3); words=[]
+    for tk in toks:
+        dd=span*(len(tk)+1)/tot; words.append({"w":tk,"s":round(t,3),"e":round(t+dd-0.02,3)}); t+=dd
+    return ffdur(outp), words
 
 # ================= RITM (beat) ANIQLASH — musiqaga kesimlarni moslash uchun =================
 def detect_beats(path, limit=240):
