@@ -608,10 +608,11 @@ def _atempo(v):
 def cut_video_speed(inp,outp,segs,work=None):
     """segs=[(a,b,tezlik)] — har bo'lak o'z tezligida (0.25x..4x) kesilib, ketma-ket ulanadi."""
     work=work or os.path.dirname(outp); parts=[]
-    for i,(a,b,v) in enumerate(segs):
+    for i,sg in enumerate(segs):
+        a,b,v=sg[0],sg[1],sg[2]; rev=len(sg)>3 and sg[3] and (b-a)<=30   # teskari o'ynatish (30s gacha bo'lak)
         v=max(0.25,min(4.0,float(v or 1))); pp=os.path.join(work,"seg_%03d.mp4"%i)
         c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-ss","%.3f"%a,"-to","%.3f"%b,"-i",inp,
-            "-vf","setpts=PTS/%.4f"%v,"-af",_atempo(v),"-r","30","-c:v","libx264","-preset","veryfast","-crf","18",
+            "-vf",("reverse," if rev else "")+"setpts=PTS/%.4f"%v,"-af",("areverse," if rev else "")+_atempo(v),"-r","30","-c:v","libx264","-preset","veryfast","-crf","18",
             "-pix_fmt","yuv420p","-c:a","aac","-ar","48000","-ac","2","-b:a","160k",pp])
         if c==0 and os.path.exists(pp) and os.path.getsize(pp)>500: parts.append(pp)
     if not parts: return False
@@ -685,7 +686,7 @@ def pick_font(fam, lang="uz"):
         return "Montserrat"   # rus uchun Cyrillic bo'lgan shriftga o'tamiz
     return fam
 
-def build_ass(words, sub, lang="uz", hook=None):
+def build_ass(words, sub, lang="uz", hook=None, res=None):
     """sub = dict: font, size, base, active, outline, border, upper, words, delay, margin_v. hook = boshidagi sarlavha matni."""
     base=hexass(sub.get("base","#FFFFFF")); acc=hexass(sub.get("active","#FFEA00"))
     outl=hexass(sub.get("outline","#000000")); upper=sub.get("upper",True)
@@ -704,17 +705,18 @@ def build_ass(words, sub, lang="uz", hook=None):
         "none":"",
     }
     aeff=ANIMS.get(anim, ANIMS["pop"])
+    Wr,Hr=res or (W,H)   # kadr formati (9:16, 1:1, 16:9, 4:5)
     head=f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: {W}
-PlayResY: {H}
+PlayResX: {Wr}
+PlayResY: {Hr}
 WrapStyle: 0
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Main,{font},{size},{base},{base},{outl},&H64000000,-1,0,0,0,100,100,0,0,1,{border},2,2,100,100,{mv},1
-Style: Hook,{font},{int(size*1.25)},{acc},{acc},{outl},&H64000000,-1,0,0,0,100,100,0,0,1,{max(5,border+2)},3,8,60,60,{int(H*0.30)},1
+Style: Hook,{font},{int(size*1.25)},{acc},{acc},{outl},&H64000000,-1,0,0,0,100,100,0,0,1,{max(5,border+2)},3,8,60,60,{int(Hr*0.30)},1
 
 [Events]
 Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
@@ -1098,13 +1100,13 @@ def _rgb(h, d=(255,255,255)):
     try: return (int(h[0:2],16),int(h[2:4],16),int(h[4:6],16)) if len(h)==6 else d
     except Exception: return d
 
-def text_png(L, th, lang="uz"):
+def text_png(L, k, lang="uz"):
     """Erkin matn qatlami -> shaffof PNG (PIL). o'lcham 1920 balandlik birligida (subtitr kabi)."""
     from PIL import Image, ImageDraw, ImageFont
     txt=str(L.get("text") or "").replace("\r","")[:300]
     if L.get("upper"): txt=txt.upper()
     if not txt.strip(): return None
-    k=th/1920.0; px=max(8,int(round(float(L.get("size",110))*k))); bw=max(0,int(round(float(L.get("border",5))*k)))
+    px=max(8,int(round(float(L.get("size",110))*k))); bw=max(0,int(round(float(L.get("border",5))*k)))
     ff=font_file(pick_font(L.get("font","Anton"), lang))
     font=ImageFont.truetype(ff, px) if ff else ImageFont.load_default()
     dr=ImageDraw.Draw(Image.new("RGBA",(8,8)))
@@ -1116,6 +1118,17 @@ def text_png(L, th, lang="uz"):
     if bg: d.rounded_rectangle((0,0,img.size[0]-1,img.size[1]-1), radius=int(px*0.22), fill=_rgb(bg,(0,0,0))+(235,))
     d.multiline_text((pad-x0,pad-y0),txt,font=font,fill=_rgb(L.get("color"))+(255,),stroke_width=bw,
                      stroke_fill=_rgb(L.get("outline"),(0,0,0))+(255,),align="center",spacing=sp)
+    fx=L.get("fx")
+    if fx in ("shadow","glow"):     # soya yoki porlash: matn ostiga xiralashtirilgan nusxa
+        from PIL import ImageFilter
+        m=int(px*0.45); big=Image.new("RGBA",(img.size[0]+2*m,img.size[1]+2*m),(0,0,0,0))
+        col=(0,0,0) if fx=="shadow" else _rgb(L.get("fxc"),(57,231,95))
+        under=Image.new("RGBA",big.size,col+(0,)); al=Image.new("L",big.size,0)
+        al.paste(img.getchannel("A"),(m,m+(int(px*0.07) if fx=="shadow" else 0)))
+        al=al.filter(ImageFilter.GaussianBlur(px*(0.07 if fx=="shadow" else 0.14)))
+        if fx=="glow": al=al.point(lambda v:min(255,int(v*1.8)))
+        else: al=al.point(lambda v:int(v*0.75))
+        under.putalpha(al); big.alpha_composite(under); big.alpha_composite(img,(m,m)); img=big
     return img
 
 # ---------- OVOZ EFFEKTLARI (sintez — litsenziya kerak emas) ----------
@@ -1154,6 +1167,10 @@ def grade_filter(grade):
         sat=num("sat",1.0,0.0,2.0); con=num("con",1.0,0.5,1.6); bri=num("bri",0.0,-0.3,0.3); temp=num("temp",0.0,-1.0,1.0)
         f="eq=contrast=%.3f:saturation=%.3f:brightness=%.3f"%(con,sat,bri)
         if abs(temp)>0.01: f="colorbalance=rs=%.3f:bs=%.3f:rm=%.3f:bm=%.3f,"%(0.14*temp,-0.14*temp,0.07*temp,-0.07*temp)+f
+        shd=num("shd",0.0,-1.0,1.0); hil=num("hil",0.0,-1.0,1.0); vig=num("vig",0.0,0.0,1.0); shp=num("sharp",0.0,0.0,1.0)
+        if abs(shd)>0.01 or abs(hil)>0.01: f+=",curves=all='0/0 0.25/%.3f 0.75/%.3f 1/1'"%(0.25+0.12*shd,0.75+0.12*hil)
+        if vig>0.01: f+=",vignette=a=%.3f"%(0.25+0.6*vig)
+        if shp>0.01: f+=",unsharp=5:5:%.2f"%(1.6*shp)
         return f
     return GRADES.get(grade, GRADES["vivid"])
 
@@ -1209,14 +1226,21 @@ FX_MAP={  # oila -> effekt
 def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade="vivid", zoom_level=1,
                  quality="1080", fast=False, fx="none", stickers=None,
                  music=None, music_vol=0.28, orig_vol=1.0,
-                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False):
+                 anim_layers=None, transitions=None, zooms=None, sfx=None, music_fade=False, size=None, frame=None):
     """brolls=[...] (Ken Burns), stickers=[{path,time,dur,x,y,size}], music=audio yo'li, orig_vol/music_vol=ovoz.
     anim_layers=[{dir,time,dur,cx,cy,cw,ch}] (layer_frames kadrlari), transitions=[{t,type,dur}] (chiqish vaqtida),
     zooms=[{a,b,scale,ramp}], sfx=[{path,t,vol}]."""
     stickers = stickers or []; anim_layers = anim_layers or []
     transitions = [x for x in (transitions or []) if x.get("type") not in (None,"","none")][:60]
-    zooms = (zooms or [])[:40]; sfx = (sfx or [])[:40]
+    zooms = (zooms or [])[:40]; sfx = (sfx or [])[:60]
     tw,th,crf = QMAP.get(str(quality).lower(), (W,H,20))
+    if size: tw,th=int(size[0]),int(size[1])
+    frame=frame or {}
+    fz=max(1.0,min(3.0,float(frame.get("zoom",1) or 1))); fpx=max(-1.0,min(1.0,float(frame.get("x",0) or 0))); fpy=max(-1.0,min(1.0,float(frame.get("y",0) or 0)))
+    fpre=("hflip," if frame.get("mirror") else "")+("hflip,vflip," if frame.get("flip") else "")
+    def _fit(pw,ph):   # kadr: aks/ag'darish -> kattalashtirib to'ldirish -> kerakli joyini qirqish
+        return (f"{fpre}scale={int(pw*fz)//2*2}:{int(ph*fz)//2*2}:force_original_aspect_ratio=increase,"
+                f"crop={pw}:{ph}:(iw-{pw})/2*{1+fpx:.3f}:(ih-{ph})/2*{1+fpy:.3f}")
     ae=ass_path.replace("\\","/").replace(":","\\:"); fd=FONTS_DIR.replace("\\","/").replace(":","\\:")
     sub=f"ass='{ae}':fontsdir='{fd}'"
     lvl=0 if not zoom else int(zoom_level if zoom_level in (0,1,2) else 1)
@@ -1257,11 +1281,11 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     # 1) asosiy oqim (scale/crop/zoom/grade) -> [v0]
     if lvl>0 or zadd:
         spd=_ZOOM[lvl]; zmx=_ZMAX[lvl]
-        base0=(f"[0:v]scale={int(tw*1.14)}:{int(th*1.14)}:force_original_aspect_ratio=increase,crop={int(tw*1.14)}:{int(th*1.14)},"
+        base0=(f"[0:v]{_fit(int(tw*1.14)//2*2,int(th*1.14)//2*2)},"
                f"zoompan=z='min(1.0+{spd}*in,{zmx}){zplus}':d=1:x='iw/2-(iw/zoom/2){sx_}':y='ih/2-(ih/zoom/2){sy_}':s={tw}x{th}:fps=30"
                f"{geq}{post},setsar=1[v0]")
     else:
-        base0=f"[0:v]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}{geq}{post},setsar=1[v0]"
+        base0=f"[0:v]{_fit(tw,th)}{geq}{post},setsar=1[v0]"
     whip=[]
     if wx or wy:   # surilish o'tishi: kadr xiralashgan nusxasi ustida tez surilib chiqadi/kiradi
         base0=base0[:-len("[v0]")]+"[vw]"
@@ -1339,7 +1363,8 @@ def render_final(cut, ass_path, outp, brolls, zoom=True, audio_clean=True, grade
     for k,x in enumerate(sfx):
         if not x.get("path") or not os.path.exists(x["path"]): continue
         inputs+=["-i",x["path"]]; idx+=1
-        parts.append(f"[{idx}:a]adelay={max(0,int(float(x.get('t',0))*1000))}:all=1,volume={max(0.0,min(2.0,float(x.get('vol',0.5)))):.2f},aresample=48000[sx{k}]"); mixin.append(f"[sx{k}]")
+        tr_=(f"atrim=0:{float(x['dur']):.3f},afade=t=out:st={max(0.0,float(x['dur'])-0.15):.3f}:d=0.15," if x.get("dur") else "")
+        parts.append(f"[{idx}:a]{tr_}adelay={max(0,int(float(x.get('t',0))*1000))}:all=1,volume={max(0.0,min(2.0,float(x.get('vol',0.5)))):.2f},aresample=48000[sx{k}]"); mixin.append(f"[sx{k}]")
     if len(mixin)>1:
         parts.append("".join(mixin)+f"amix=inputs={len(mixin)}:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]")
     else:

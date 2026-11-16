@@ -27,6 +27,11 @@ Sayt ochilganda (`/`) yangi Studio chiqadi. Eski interfeys `/classic` manzilida 
 - **Keyframe:** stiker va matn vaqt davomida harakatlanadi (joy, masshtab, burilish, shaffoflik). Harakatli GIF stikerlar.
 - **Ovoz effektlari:** qo'lda whoosh/pop/ding/boom/click qo'yish, pleyerda ham eshitiladi.
 - **Bir nechta klip:** «Klip qo'shish» yana bir videoni loyiha oxiriga ulaydi.
+- **Formatlar:** 9:16, 1:1, 4:5, 16:9. **Kadr:** kattalashtirish, joyini surish, oynadek aks, 180° ag'darish.
+- **Teskari o'ynatish:** tanlangan bo'lak uchun (eksportda).
+- **Rang:** soyalar, yorug' joylar, vinyetka, aniqlik; 16 ta tayyor filtr.
+- **Matn effektlari:** soya va porlash.
+- **Audio kliplar:** qo'shimcha audio fayl yuklash va mikrofondan ovoz yozish, alohida trekda.
 - Barcha o'zgarishlar avtomatik saqlanadi (`studio.json`).
 
 ---

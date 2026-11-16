@@ -319,6 +319,12 @@ async def render(req: Request, x_auth: str = Header("")):
     hook_override = body.get("hook_text")           # brauzerdan tahrirlangan hook matni
     use_music = bool(body.get("music", True)); music_vol = float(body.get("music_vol", 0.28))
     orig_vol = float(body.get("orig_vol", 1.0))
+    RAT = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080), "4:5": (1080, 1350)}
+    res_w, res_h = RAT.get(str(body.get("ratio") or "9:16"), (1080, 1920))
+    qs_ = {"480": 480, "540": 540, "720": 720}.get(quality.lower(), 1080) / 1080.0
+    out_w, out_h = int(res_w * qs_) // 2 * 2, int(res_h * qs_) // 2 * 2
+    frame_in = body.get("frame") if isinstance(body.get("frame"), dict) else {}
+    audios_in = body.get("audios") or []
     layers_in = body.get("layers")                  # Studio: animatsiyali stiker/rasm/matn qatlamlari
     transitions = body.get("transitions") or []; zooms_in = body.get("zooms") or []
     sfx_in = body.get("sfx") or []; music_fade = bool(body.get("music_fade", False))
@@ -331,7 +337,7 @@ async def render(req: Request, x_auth: str = Header("")):
         nonlocal cut, words
         if isinstance(segments, list) and segments:
             prog(10, "Bo'laklar kesilib, tezligi o'zgartirilyapti...")
-            segs = [(float(x["a"]), float(x["b"]), float(x.get("v", 1))) for x in segments if float(x["b"]) - float(x["a"]) > 0.05][:200]
+            segs = [(float(x["a"]), float(x["b"]), float(x.get("v", 1)), bool(x.get("rev"))) for x in segments if float(x["b"]) - float(x["a"]) > 0.05][:200]
             tmp = os.path.join(d, "render_src.mp4")
             if not montaj.cut_video_speed(cut, tmp, segs, d): raise RuntimeError("bo'laklarni kesishda xato")
             cut = tmp
@@ -353,14 +359,14 @@ async def render(req: Request, x_auth: str = Header("")):
         else:
             hooktext = montaj.hook_text(meta.get("full_text", ""), lang) if do_hook else None
         if subtitle_on and words:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang, hook=hooktext))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass(words, sub, lang, hook=hooktext, res=(res_w, res_h)))
         else:
-            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang, hook=hooktext))
+            open(ass, "w", encoding="utf-8").write(montaj.build_ass([], sub, lang, hook=hooktext, res=(res_w, res_h)))
         anim_layers = []
         if isinstance(layers_in, list):
             # STUDIO QATLAMLARI: har biri In/Out/Loop animatsiyali PNG kadrlarga aylanadi
             from PIL import Image
-            tw_, th_, _ = montaj.QMAP.get(quality.lower(), (1080, 1920, 20))
+            tw_, th_ = out_w, out_h
             ldir = os.path.join(d, "layers"); shutil.rmtree(ldir, ignore_errors=True); os.makedirs(ldir, exist_ok=True)
             for i, L in enumerate(layers_in[:40]):
                 try:
@@ -383,7 +389,7 @@ async def render(req: Request, x_auth: str = Header("")):
                             else:
                                 img = im0.convert("RGBA").resize((wpx, hpx), Image.LANCZOS)
                     elif kind == "text":
-                        img = montaj.text_png(L, th_, lang)
+                        img = montaj.text_png(L, min(tw_, th_) / 1080.0, lang)
                     if img is None: continue
                     fdir = os.path.join(ldir, f"L{i}")
                     haskf = bool(L.get("keys"))
@@ -426,9 +432,13 @@ async def render(req: Request, x_auth: str = Header("")):
         for x in sfx_in[:40]:
             sp = montaj.sfx_file(str(x.get("type")), os.path.join(DATA, "sfx"))
             if sp: sfx.append({"path": sp, "t": float(x.get("t", 0)), "vol": float(x.get("vol", 0.5))})
+        for x in audios_in[:20]:      # qo'shimcha audio kliplar (ovoz yozuvi, yuklangan fayl)
+            ap = os.path.join(d, os.path.basename(str(x.get("file") or "")))
+            if os.path.isfile(ap): sfx.append({"path": ap, "t": float(x.get("t", 0)), "vol": float(x.get("vol", 1)), "dur": float(x.get("dur") or 0) or None})
         zooms = [{"a": float(z.get("a", 0)), "b": float(z.get("b", 0)), "scale": float(z.get("scale", 1.15)), "ramp": float(z.get("ramp", 0.12))} for z in zooms_in if isinstance(z, dict)]
         ok = montaj.render_final(cut, ass, out, brolls, zoom=zoom, audio_clean=audio, grade=grade, zoom_level=zoom_level, quality=quality, fx=fx, stickers=stickers, music=music_path, music_vol=music_vol, orig_vol=orig_vol,
-                                 anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade)
+                                 anim_layers=anim_layers, transitions=[t for t in transitions if isinstance(t, dict)], zooms=zooms, sfx=sfx, music_fade=music_fade,
+                                 size=(out_w, out_h), frame=frame_in)
         shutil.rmtree(os.path.join(d, "layers"), ignore_errors=True)
         if not ok: raise RuntimeError("render xatosi")
         meta.update(final="final.mp4", stage="done", finished=int(time.time()),
@@ -802,6 +812,26 @@ async def studio_image(file: UploadFile = File(...), project: str = Form(...), x
                 f.close(); os.remove(dest); raise HTTPException(400, "fayl juda katta")
             f.write(chunk)
     return {"image": name, "image_url": f"/media/{project}/{name}", "prompt": (file.filename or "fayl")[:80], "video": isvid}
+
+@app.post("/api/studio/audio")
+async def studio_audio(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
+    """Qo'shimcha audio klip: yuklangan fayl yoki mikrofondan yozilgan ovoz."""
+    usr = check_auth(x_auth); _own(project, usr)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".webm", ".mp4"): raise HTTPException(400, "audio fayl emas")
+    name = f"aud_{uuid.uuid4().hex[:8]}{ext}"; dest = os.path.join(PROJ, project, name); size = 0
+    with open(dest, "wb") as f:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk: break
+            size += len(chunk)
+            if size > 60 * 1024 * 1024:
+                f.close(); os.remove(dest); raise HTTPException(400, "fayl juda katta")
+            f.write(chunk)
+    dur = montaj.ffdur(dest)
+    if not dur or dur <= 0:
+        os.remove(dest); raise HTTPException(400, "audio o'qilmadi")
+    return {"file": name, "url": f"/media/{project}/{name}", "name": (file.filename or "audio")[:60], "duration": round(dur, 2)}
 
 @app.post("/api/studio/append")
 async def studio_append(file: UploadFile = File(...), project: str = Form(...), x_auth: str = Header("")):
