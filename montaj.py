@@ -875,12 +875,12 @@ def broll_suggest(full_text, dur, n=4):
         if q: out.append({"prompt":q,"at":max(0.0,min(1.0,at))*dur})
     return out
 
-def gemini_image_vertex(prompt, dest):
+def gemini_image_vertex(prompt, dest, raw=False):
     token=_vertex_token()
     # rasm modellari REGIONAL — us-central1 da bo'ladi (global emas)
     host="us-central1-aiplatform.googleapis.com"; loc="us-central1"
     headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
-    full=("Generate a single photorealistic, cinematic 16:9 image. "
+    full=prompt if raw else ("Generate a single photorealistic, cinematic 16:9 image. "
           "NO text, NO letters, NO captions, NO watermark. Subject: "+prompt)
     body={"contents":[{"role":"user","parts":[{"text":full}]}],
           "generationConfig":{"responseModalities":["TEXT","IMAGE"]}}
@@ -1582,6 +1582,149 @@ def analyze_style(video_path, work):
     except Exception as e:
         prof["notes"]="AI tahlil ishlamadi (%s). Faqat temp o'lchandi."%str(e)[:120]
     return prof
+
+# ================= AI: OVOZ, TARJIMA, STIKER, STOK, ENG YAXSHI JOYLAR =================
+TTS_VOICES=("Kore","Puck","Charon","Aoede","Fenrir","Leda","Orus","Zephyr")
+def tts_gemini(text, dest_wav, voice="Kore"):
+    """Matnni ovozga aylantiradi (Gemini TTS). Vertex yoki GEMINI_API_KEY kerak. -> dest_wav"""
+    text=(text or "").strip()[:2000]
+    if not text: raise RuntimeError("matn bo'sh")
+    voice=voice if voice in TTS_VOICES else "Kore"
+    body={"contents":[{"role":"user","parts":[{"text":text}]}],
+          "generationConfig":{"responseModalities":["AUDIO"],"speechConfig":{"voiceConfig":{"prebuiltVoiceConfig":{"voiceName":voice}}}}}
+    errs=[]; tries=[]
+    models=["gemini-2.5-flash-tts","gemini-2.5-flash-preview-tts","gemini-3.1-flash-tts-preview"]
+    if have_vertex():
+        token=_vertex_token(); H={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
+        for loc in ("global","us-central1"):
+            host="aiplatform.googleapis.com" if loc=="global" else f"{loc}-aiplatform.googleapis.com"
+            for m in models: tries.append((f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{m}:generateContent",H,m))
+    if GEMINI_KEY:
+        for m in models: tries.append((f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={GEMINI_KEY}",{"Content-Type":"application/json"},m))
+    if not tries: raise RuntimeError("AI ulanmagan (Vertex yoki GEMINI_API_KEY kerak)")
+    for url,H,m in tries:
+        try:
+            r=requests.post(url,headers=H,json=body,timeout=120)
+            if r.status_code>=400: errs.append(f"{m}:{r.status_code}"); continue
+            for cand in r.json().get("candidates",[]):
+                for part in cand.get("content",{}).get("parts",[]):
+                    inl=part.get("inlineData") or part.get("inline_data")
+                    if inl and inl.get("data"):
+                        mime=str(inl.get("mimeType") or inl.get("mime_type") or ""); raw=base64.b64decode(inl["data"])
+                        if "wav" in mime or raw[:4]==b"RIFF":
+                            open(dest_wav,"wb").write(raw); return dest_wav
+                        mr=re.search(r"rate=(\d+)",mime); rate=mr.group(1) if mr else "24000"
+                        pcm=dest_wav+".pcm"; open(pcm,"wb").write(raw)
+                        run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","s16le","-ar",rate,"-ac","1","-i",pcm,"-ar","48000",dest_wav])
+                        try: os.remove(pcm)
+                        except Exception: pass
+                        if os.path.exists(dest_wav): return dest_wav
+            errs.append(f"{m}:audio yo'q")
+        except Exception as e:
+            errs.append(f"{m}:{str(e)[:40]}")
+    raise RuntimeError("ovoz yaratilmadi: "+" | ".join(errs[:3]))
+
+LANG_NAMES={"uz":"Uzbek (Latin script)","ru":"Russian","en":"English","tr":"Turkish","kk":"Kazakh","ar":"Arabic","es":"Spanish","de":"German","fr":"French"}
+def translate_words(words, target):
+    """So'zma-so'z subtitrni boshqa tilga o'giradi: gaplar tarjima qilinadi, vaqt gap ichida teng taqsimlanadi."""
+    if not words: return []
+    if not (have_vertex() or GEMINI_KEY): raise RuntimeError("AI ulanmagan (Vertex yoki GEMINI_API_KEY kerak)")
+    groups=[]; cur=[]
+    for w in words:
+        if cur and (w["s"]-cur[-1]["e"]>0.6 or len(cur)>=14): groups.append(cur); cur=[]
+        cur.append(w)
+    if cur: groups.append(cur)
+    src=[" ".join(x["w"] for x in g) for g in groups]
+    prompt=("Translate each of these subtitle lines into "+LANG_NAMES.get(target,target)+". Keep them short and natural for on-screen captions. "
+            "Return ONLY a JSON array of strings with EXACTLY "+str(len(src))+" items, same order, no notes.\n"+json.dumps(src,ensure_ascii=False))
+    out=json.loads(_ai_json(prompt))
+    if isinstance(out,dict): out=next((v for v in out.values() if isinstance(v,list)),[])
+    if not isinstance(out,list) or len(out)!=len(src): raise RuntimeError("tarjima javobi mos kelmadi")
+    res=[]
+    for g,t in zip(groups,out):
+        toks=str(t).split() or [str(t)]
+        a=g[0]["s"]; b=g[-1]["e"]; step=(b-a)/len(toks)
+        for i,tk in enumerate(toks): res.append({"w":tk,"s":round(a+i*step,3),"e":round(a+(i+1)*step-0.02,3)})
+    return res
+
+def cutout_plain_bg(src, dest, tol=38):
+    """Bir xil rangli fonni (burchaklardan boshlab) shaffof qiladi — AI stiker va oddiy fonli rasmlar uchun."""
+    from PIL import Image, ImageDraw, ImageFilter
+    im=Image.open(src).convert("RGB"); w,h=im.size
+    mask=Image.new("L",(w,h),255); rgb=im.copy()
+    for xy in ((0,0),(w-1,0),(0,h-1),(w-1,h-1),(w//2,0),(w//2,h-1),(0,h//2),(w-1,h//2)):
+        if rgb.getpixel(xy)!=(1,254,1): ImageDraw.floodfill(rgb,xy,(1,254,1),thresh=tol)
+    px=rgb.load(); mp=mask.load()
+    for y in range(h):
+        for x in range(w):
+            if px[x,y]==(1,254,1): mp[x,y]=0
+    mask=mask.filter(ImageFilter.GaussianBlur(1.2)).point(lambda v:0 if v<90 else min(255,int((v-90)*1.6)))
+    out=im.convert("RGBA"); out.putalpha(mask); bb=out.getbbox()
+    if bb: out=out.crop(bb)
+    out.save(dest); return dest
+
+def ai_sticker(prompt, dest):
+    """Tavsif bo'yicha stiker: rasm generatsiya qilinadi, oq fon olib tashlanadi."""
+    tmp=dest+".src.png"
+    full=("A single sticker illustration of: "+prompt+". Bold flat cartoon style, thick white outline around the subject, vivid colors, "
+          "centered, isolated on a pure solid white background, no text, no shadow, no other objects.")
+    if have_vertex(): gemini_image_vertex(full,tmp,raw=True)
+    else: raise RuntimeError("AI ulanmagan (Vertex kerak)")
+    from PIL import Image
+    im=Image.open(tmp); im.thumbnail((640,640)); im.save(tmp)
+    cutout_plain_bg(tmp,dest,tol=30)
+    try: os.remove(tmp)
+    except Exception: pass
+    return dest
+
+def stock_search(q, kind="photo", n=12):
+    """Pexels'dan tayyor rasm/video qidirish. -> [{thumb,url,dur,by}]"""
+    if not PEXELS_KEY: raise RuntimeError("Stok kutubxona ulanmagan (PEXELS_API_KEY kerak)")
+    H={"Authorization":PEXELS_KEY}; out=[]
+    if kind=="video":
+        r=requests.get("https://api.pexels.com/videos/search",headers=H,params={"query":q,"per_page":n,"orientation":"portrait"},timeout=30); r.raise_for_status()
+        for v in r.json().get("videos",[]):
+            fs=sorted([f for f in v.get("video_files",[]) if f.get("link") and (f.get("height") or 0)<=1920],key=lambda f:-(f.get("height") or 0))
+            if fs: out.append({"thumb":v.get("image"),"url":fs[0]["link"],"dur":v.get("duration"),"by":(v.get("user") or {}).get("name","")})
+    else:
+        r=requests.get("https://api.pexels.com/v1/search",headers=H,params={"query":q,"per_page":n},timeout=30); r.raise_for_status()
+        for ph in r.json().get("photos",[]):
+            out.append({"thumb":ph["src"].get("medium"),"url":ph["src"].get("large2x") or ph["src"].get("large"),"dur":None,"by":ph.get("photographer","")})
+    return out
+
+def highlights(words, dur, n=4, target=35.0):
+    """Uzun videodan eng yaxshi qisqa bo'laklar. AI bo'lsa mazmun bo'yicha, bo'lmasa gap zichligi bo'yicha. -> [{a,b,title}]"""
+    sents=sentences_from_words(words)
+    if not sents: return []
+    if have_vertex() or GEMINI_KEY:
+        try:
+            lines=[{"i":i,"t":round(x["start"],1),"e":round(x["end"],1),"text":x["text"]} for i,x in enumerate(sents)][:400]
+            prompt=("These are timed transcript lines of a long video. Pick the "+str(n)+" best self-contained moments for short vertical clips "
+                    "(strong hook, complete thought), each about "+str(int(target))+" seconds (20-60s), not overlapping. "
+                    "Return ONLY a JSON array of objects {\"start_i\":int,\"end_i\":int,\"title\":\"short catchy title in the transcript language\"}.\n"+json.dumps(lines,ensure_ascii=False))
+            arr=json.loads(_ai_json(prompt)); out=[]
+            if isinstance(arr,dict): arr=next((v for v in arr.values() if isinstance(v,list)),[])
+            for x in arr:
+                i0=max(0,min(len(sents)-1,int(x.get("start_i",0)))); i1=max(i0,min(len(sents)-1,int(x.get("end_i",i0))))
+                a=max(0.0,sents[i0]["start"]-0.25); b=min(dur,sents[i1]["end"]+0.35)
+                if b-a>=6: out.append({"a":round(a,2),"b":round(b,2),"title":str(x.get("title") or sents[i0]["text"])[:70]})
+            if out: return out[:n]
+        except Exception:
+            pass
+    cands=[]                                    # zaxira: so'z zichligi eng yuqori oynalar
+    for i in range(len(sents)):
+        j=i
+        while j+1<len(sents) and sents[j+1]["end"]-sents[i]["start"]<=target: j+=1
+        a=sents[i]["start"]; b=sents[j]["end"]
+        if b-a<min(12.0,target*0.4): continue
+        nw=sum(len(sents[k]["text"].split()) for k in range(i,j+1))
+        cands.append((nw/(b-a),a,b,sents[i]["text"]))
+    cands.sort(reverse=True); out=[]
+    for sc,a,b,t in cands:
+        if all(b<=o["a"] or a>=o["b"] for o in out):
+            out.append({"a":round(max(0,a-0.25),2),"b":round(min(dur,b+0.35),2),"title":" ".join(t.split()[:7])})
+        if len(out)>=n: break
+    return sorted(out,key=lambda o:o["a"])
 
 # ================= RITM (beat) ANIQLASH — musiqaga kesimlarni moslash uchun =================
 def detect_beats(path, limit=240):

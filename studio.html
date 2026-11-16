@@ -291,6 +291,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radiu
   #libbox{max-height:60vh}#right{grid-template-rows:auto 190px}
   .proj h1{max-width:26vw}.hidem{display:none}
 }
+.stockg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.stockg button{aspect-ratio:9/12;border-radius:8px;border:1px solid var(--line);background:#111 center/cover;position:relative;cursor:pointer;padding:0}
+.stockg button:hover{outline:2px solid var(--acc,#7c5cff)}.stockg i{position:absolute;right:4px;bottom:4px;font:600 10px/1 inherit;background:rgba(0,0,0,.65);color:#fff;padding:2px 4px;border-radius:4px;font-style:normal}
+.hlrow{align-items:center}.hlrow>div:nth-child(2){flex:1;min-width:0}.hlrow a.sm{text-decoration:none}#lib textarea{width:100%}
 </style>
 </head>
 <body>
@@ -947,6 +950,29 @@ function col(label,path){return `<label><input type="color" data-path="${path}" 
 const sameG=(a,b)=>{b=Object.assign({},G0,b);return GK.every(k=>Math.abs((a[k]==null?G0[k]:+a[k])-b[k])<0.005)};
 
 /* ---------- chap kutubxona ---------- */
+const UI={tts:"",voice:"Kore",tr:"en",stq:"",stKind:"photo",stItems:null,hl:null,aist:"",busy:""};let CFG={voices:["Kore","Puck","Charon","Aoede"],ai:false,stock:false};
+const LANGS=[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"],["tr","Turkcha"],["kk","Qozoqcha"],["ar","Arabcha"],["es","Ispancha"],["de","Nemischa"],["fr","Fransuzcha"]];
+async function uiJob(key,path,body,label){if(UI.busy){toast("Oldingi amal tugashini kuting");return null}UI.busy=key;renderLib();
+  try{const {job}=await api(path,body);const r=await waitJob(job,(p,st)=>agLive("cut-01",st||label));return r}
+  catch(x){toast(x.message);ag("cut-01",x.message,"err");return null}finally{UI.busy="";renderLib()}}
+async function doTTS(){const t=($("ttsIn")||{}).value||UI.tts;UI.tts=t;if(!t.trim()){toast("Avval matn yozing");return}
+  const r=await uiJob("tts","/api/studio/tts",{project:S.project,text:t,voice:UI.voice},"Ovoz yaratilmoqda…");if(!r)return;hist();
+  S.audios.push({file:r.file,url:r.url,name:r.name,time:nowT(Math.min(r.duration,2)),dur:r.duration,vol:1,_n:Date.now()});select("aud",S.audios.length-1);renderAll();dirty();toast("AI ovoz qo'shildi")}
+async function doTranslate(){if(!S.words.length){toast("Avval subtitr kerak (transkripsiya)");return}
+  const r=await uiJob("tr","/api/studio/translate",{words:S.words,target:UI.tr},"Tarjima qilinmoqda…");if(!r||!r.words||!r.words.length)return;hist();
+  S.words=r.words;S.lang=UI.tr;reindex();renderAll();dirty();toast("Subtitr tarjima qilindi — Ctrl+Z bilan qaytarish mumkin")}
+async function doAiSticker(){const t=($("aistIn")||{}).value||UI.aist;UI.aist=t;if(!t.trim()){toast("Stikerni tasvirlab yozing");return}
+  const r=await uiJob("aist","/api/studio/ai_sticker",{project:S.project,prompt:t},"Stiker chizilmoqda…");if(r)addSticker(null,r)}
+async function doStock(){const q=($("stqIn")||{}).value||UI.stq;UI.stq=q;if(!q.trim()){toast("Nima qidiramiz?");return}UI.busy="stock";renderLib();
+  try{UI.stItems=(await api("/api/studio/stock",{q,kind:UI.stKind})).items}catch(x){toast(x.message);UI.stItems=null}UI.busy="";renderLib()}
+async function addStock(i){const it=UI.stItems[i];if(!it||UI.busy)return;UI.busy="stadd";toast("Yuklab olinmoqda…");
+  try{const d=await api("/api/studio/stock_add",{project:S.project,url:it.url,kind:UI.stKind,q:UI.stq});hist();
+    S.brolls.push({image:d.image,image_url:d.image_url,prompt:d.prompt,video:!!d.video,full:true,time:nowT(2.5),dur:d.video?Math.min(4,it.dur||3):2.5,y:0.72,w:0.78,_n:Date.now()});
+    select("broll",S.brolls.length-1);renderAll();dirty();toast("Stok qo'shildi")}catch(x){toast(x.message)}UI.busy=""}
+async function doHighlights(){if(!S.words.length){toast("Avval transkripsiya kerak");return}
+  const r=await uiJob("hl","/api/studio/highlights",{project:S.project,words:S.words,n:5,len:35},"Eng yaxshi joylar izlanmoqda…");if(r){UI.hl=r.items||[];if(!UI.hl.length)toast("Mos bo'lak topilmadi");renderLib()}}
+async function makeClip(i){const h=UI.hl[i];if(!h)return;const r=await uiJob("clip","/api/studio/clip",{project:S.project,a:h.a,b:h.b,name:h.title,words:S.words},"Klip ajratilmoqda…");
+  if(r&&r.project){h.pid=r.project;renderLib();toast("Klip alohida loyiha bo'ldi")}}
 function renderLib(){
   $("ltabs").innerHTML=LT.map(t=>`<button class="lt ${t[0]===LTAB?"on":""}" data-lt="${t[0]}"><b>${t[2]}</b>${t[1]}</button>`).join("");
   let h="";const su=S.sub;
@@ -954,6 +980,9 @@ function renderLib(){
     h+=`<div class="media"><div class="th">🎞</div><div><b>${esc(S.name)}</b><span>asosiy video · ${tc(S.duration)}</span></div></div>`;
     S.brolls.forEach((b,i)=>h+=`<div class="media ${SEL&&SEL.k==="broll"&&SEL.i===i?"on":""}" data-mk="${i}"><div class="th" ${b.video?"":`style="background-image:url('${b.image_url}')"`}>${b.video?"🎞":""}</div><div><b>${esc(b.prompt||"rasm")}</b><span>${b.video?"video":"rasm"}${b.full?" · to'liq ekran":""} · ${tc(b.time)}</span></div></div>`);
     h+=`<div class="mbtns"><button class="sm" id="addImgB">＋ Rasm / video qatlam</button><button class="sm ai" id="brollB">✦ AI b-roll</button><button class="sm" id="appB">＋ Klip qo'shish (oxiriga)</button></div>
+      <div class="sec lbl">Stok kutubxona (Pexels)</div><div class="frow"><input type="text" id="stqIn" value="${esc(UI.stq)}" placeholder="masalan: city night, coffee, money"><div class="seg"><button data-stk="photo" class="${UI.stKind==="photo"?"on":""}">Rasm</button><button data-stk="video" class="${UI.stKind==="video"?"on":""}">Video</button></div></div>
+      <div class="mbtns"><button class="sm" id="stGo">${UI.busy==="stock"?"Qidirilmoqda…":"🔎 Qidirish"}</button></div>${CFG.stock?"":`<p class="hint" style="margin-top:6px">Stok ishlashi uchun serverga PEXELS_API_KEY qo'yilishi kerak.</p>`}
+      ${UI.stItems?(UI.stItems.length?`<div class="stockg">${UI.stItems.map((x,i)=>`<button data-stadd="${i}" title="${esc(x.by||"")}" style="background-image:url('${esc(x.thumb||"")}')">${x.dur?`<i>${x.dur}s</i>`:""}</button>`).join("")}</div><p class="hint">Bosing — to'liq ekran b-roll sifatida o'ynatgich turgan joyga qo'yiladi. Manba: Pexels.</p>`:`<p class="hint">Hech narsa topilmadi.</p>`):""}
       <p class="hint" style="margin-top:10px">Rasm yoki video qatlam o'ynatgich turgan joyga qo'yiladi; «To'liq ekran» yoqilsa asosiy video o'rnini egallaydi (b-roll kesim). «Klip qo'shish» yana bir videoni loyiha oxiriga ulaydi.</p>`;
   }else if(LTAB==="audio"){
     h+=S.music?`<div class="media"><div class="th">🎵</div><div><b>${esc(S.music.name)}</b><span>fon musiqa</span></div></div>`:`<p class="hint">Fon musiqa hali qo'shilmagan.</p>`;
@@ -961,6 +990,9 @@ function renderLib(){
     S.audios.forEach((a,i)=>h+=`<div class="media ${SEL&&SEL.k==="aud"&&SEL.i===i?"on":""}" data-ak="${i}"><div class="th">🔊</div><div><b>${esc(a.name)}</b><span>audio · ${tc(a.time)} · ${a.dur.toFixed(1)}s</span></div></div>`);
     h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Ovozni tozalash","S.audioClean");
     if(S.music)h+=`<div class="mbtns"><button class="sm" id="beatB">🥁 Ritmni aniqlash</button>${S.beats&&S.beats.beats.length?`<button class="sm ai" id="beatSnap">✂ Kesimlarni ritmga moslash</button>`:""}</div>${S.beats?`<p class="hint" style="margin-top:6px">${S.beats.bpm} BPM · ${S.beats.beats.length} ta zarba — musiqa trekida belgilar ko'rinadi.</p>`:""}`;
+    h+=`<div class="sec lbl">AI ovoz (matndan nutq)</div><textarea id="ttsIn" rows="3" placeholder="Matnni yozing — AI o'qib beradi va audio klip qilib qo'yadi">${esc(UI.tts)}</textarea>
+      <div class="frow" style="margin-top:6px"><label>Ovoz</label><select id="ttsV">${CFG.voices.map(v=>`<option ${v===UI.voice?"selected":""}>${v}</option>`).join("")}</select></div>
+      <div class="mbtns"><button class="sm ai" id="ttsGo">${UI.busy==="tts"?"Yaratilmoqda…":"🗣 Ovoz yaratish"}</button>${SEL&&SEL.k==="cue"&&CUES[SEL.i]?`<button class="sm" id="ttsCue">Tanlangan subtitr matni</button>`:""}</div>`;
     h+=`<div class="sec lbl">Ovoz effektlari</div>`+sw("O'tishda whoosh","sfx.trans")+sw("Stiker/matnda pop","sfx.stk")+sld("Effekt ovozi","sfx.vol",0,1,0.01,"%");
     h+=`<div class="lbl" style="margin-top:8px">Qo'lda qo'shish (o'ynatgich turgan joyga)</div><div class="mbtns" style="margin-top:6px">${SFXT.map(x=>`<button class="sm" data-sfx="${x[0]}">＋ ${x[1]}</button>`).join("")}</div>`;
     h+=`<p class="hint" style="margin-top:8px">Tozalash shovqinni pasaytiradi va balandlikni −14 LUFS ga keltiradi. Ovoz effektlari eksport qilingan videoda eshitiladi.</p>`;
@@ -971,12 +1003,16 @@ function renderLib(){
         :`<div style="font-size:12px;color:${v.base}">${v.words===1?"":U("tayyor")+" "}<span style="color:${v.active}">${U("video")}</span></div>`;
       return `<button class="card2" data-pre="${i}"><div class="sw2" style="font-family:'Anton',Impact,sans-serif">${sm}</div><span>${p.n}</span></button>`}).join("")+`</div>`;
     h+=`<div class="lbl" style="margin-top:6px">Matn qo'shish (o'ynatgich turgan joyga)</div><div class="grid2">`+TPL.map((t,i)=>`<button class="card2" data-tpl="${i}"><div class="sw2" style="height:40px;font-family:'Anton',Impact,sans-serif"><span style="padding:2px 7px;border-radius:4px;font-size:12px;color:${t.v.color};background:${t.v.bg||"transparent"};-webkit-text-stroke:${t.v.border?"0.6px "+t.v.outline:"0"}">${t.v.upper?"MATN":"Matn"}</span></div><span>${t.n}</span></button>`).join("")+`</div>`;
+    h+=`<div class="sec lbl">Subtitrni tarjima qilish</div><div class="frow"><label>Tilga</label><select id="trL">${LANGS.map(l=>`<option value="${l[0]}" ${l[0]===UI.tr?"selected":""}>${l[1]}</option>`).join("")}</select></div>
+      <div class="mbtns"><button class="sm ai" id="trGo">${UI.busy==="tr"?"Tarjima qilinmoqda…":"🌐 Tarjima qilish"}</button></div>`;
     h+=`<div class="frow"><label>Hook sarlavha</label><input type="text" data-path="S.hook" value="${esc(S.hook)}" placeholder="bo'sh = sarlavhasiz"></div>`;
     h+=`<div class="mbtns"><button class="sm ai" id="reAn">↻ Avto subtitr (transkripsiya)</button></div><p class="hint" style="margin-top:8px">Shrift, o'lcham va ranglar o'ng paneldagi «Subtitr» bo'limida. Matnni tuzatish uchun taymlayndagi yashil blokni bosing.</p>`;
   }else if(LTAB==="stk"){
     h+=`<div class="cats">${Object.keys(EMO_CATS).map(c=>`<button data-cat="${esc(c)}" class="${c===EMO_CAT?"on":""}">${esc(c)}</button>`).join("")}</div>
       <div class="emo">${EMO_CATS[EMO_CAT].map(e=>`<button data-addemo="${e}">${e}</button>`).join("")}</div>
       <div class="mbtns"><button class="sm" id="addStkImg">＋ Rasm / logo stiker</button><button class="sm ai" id="autoStk">✦ Avto stikerlar</button></div>
+      <div class="sec lbl">AI stiker</div><div class="frow"><input type="text" id="aistIn" value="${esc(UI.aist)}" placeholder="masalan: kulayotgan raketa, oltin kubok"></div>
+      <div class="mbtns"><button class="sm ai" id="aistGo">${UI.busy==="aist"?"Chizilmoqda…":"✦ Stiker yaratish"}</button></div>
       <p class="hint" style="margin-top:8px">Bosing — stiker o'ynatgich turgan joyga qo'yiladi. Pleyerda sichqoncha bilan suring; kirish, chiqish va takroriy animatsiyalar o'ng panelda.</p>`;
   }else if(LTAB==="fx"){
     h+=`<div class="lbl">Video effekti</div><div class="grid2">`+FXS.map(f=>`<button class="card2 ${S.fx===f[0]?"on":""}" data-fx="${f[0]}"><span>${f[1]}</span></button>`).join("")+`</div>`;
@@ -996,6 +1032,9 @@ function renderLib(){
       <div class="sec lbl">Montaj uslubi</div>`;
     h+=`<div class="lbl" style="display:none">Uslub profili</div><div class="chips2 stylebar">${styleChips()}</div><div class="note" id="stnote">${styleNote()}</div><p class="hint" id="stmsg2"></p>
       <div class="mbtns" style="margin-bottom:6px"><button class="sm" id="stApply">Tanlangan uslubni qo'llash</button></div>
+      <div class="sec lbl">Uzun videodan qisqa kliplar</div><div class="mbtns"><button class="sm ai" id="hlGo">${UI.busy==="hl"?"Izlanmoqda…":"✂ Eng yaxshi joylarni topish"}</button></div>
+      ${UI.hl&&UI.hl.length?UI.hl.map((x,i)=>`<div class="media hlrow"><div class="th">🎬</div><div><b>${esc(x.title)}</b><span>${tc(x.a)} – ${tc(x.b)} · ${(x.b-x.a).toFixed(0)}s</span></div><button class="sm" data-hlsee="${i}">▶</button>${x.pid?`<a class="sm" href="/?p=${x.pid}&auto=1" target="_blank">Ochish ↗</a>`:`<button class="sm pri" data-hlmk="${i}">${UI.busy==="clip"?"…":"Klip qilish"}</button>`}</div>`).join(""):""}
+      <p class="hint" style="margin:6px 0 2px">Uzun videodan (podkast, intervyu) 20–60 soniyali tugallangan bo'laklarni topadi; har biri alohida loyiha bo'lib ochiladi.</p>
       <div class="sec lbl">Avto montaj sozlamalari</div>`+sld("Pauza chegarasi","auto.pause",0.25,1.5,0.05,"s")+sld("B-roll soni","auto.brolls",0,8,1,"i")+sw("Avto stiker","auto.stickers")+sw("Avto zoom","auto.zooms")+sw("Hook sarlavha","auto.hook")+
       `<div class="mbtns"><button class="sm" id="reCut">✂ Pauzalarni qayta hisoblash</button></div>
       <button class="ai wide" id="autoB2" style="margin-top:10px">⚡ Avto montaj</button>
@@ -1082,7 +1121,8 @@ function onInput(e){const el=e.target;
   if(p==="S.quality")$("qchip").textContent=S.quality+"p";
   if(p==="S.ratio"){S.sub.margin=Math.min(S.sub.margin,RH()-300);fitPv()}
   updPreview(true);drawItems();dirty()}
-function onChange(e){const d=e.target.dataset;if(d.seg){renderInsp();return}if(d.re||d.w!==undefined||d.path==="sel.prompt"||d.path==="sel.text"||(d.path||"").startsWith("grade.")||(d.path||"").startsWith("trans."))renderAll()}
+function onChange(e){const d=e.target.dataset;if(e.target.id==="ttsV"){UI.voice=e.target.value;return}if(e.target.id==="trL"){UI.tr=e.target.value;return}
+  if(e.target.id==="ttsIn"){UI.tts=e.target.value;return}if(e.target.id==="stqIn"){UI.stq=e.target.value;return}if(e.target.id==="aistIn"){UI.aist=e.target.value;return}if(d.seg){renderInsp();return}if(d.re||d.w!==undefined||d.path==="sel.prompt"||d.path==="sel.text"||(d.path||"").startsWith("grade.")||(d.path||"").startsWith("trans."))renderAll()}
 function onClick(e){const b=e.target.closest("button,.media[data-mk],.media[data-ak]");if(!b)return;const d=b.dataset;
   if(d.ak!==undefined){select("aud",+d.ak);seek(S.audios[+d.ak].time);return}
   if(d.mk!==undefined){select("broll",+d.mk);seek(S.brolls[+d.mk].time)}
@@ -1097,6 +1137,16 @@ function onClick(e){const b=e.target.closest("button,.media[data-mk],.media[data
       v.forEach((x,i)=>S.speeds.push({s:+(g[0]+i*st).toFixed(3),e:+(g[0]+(i+1)*st).toFixed(3),v:x,rev:false}));renderAll();dirty();toast("Egri chiziq qo'llandi: "+CURVES[d.curve][0])}}
   else if(d.mv)moveSeg(+d.mv);
   else if(b.id==="beatB")findBeats();
+  else if(b.id==="ttsGo")doTTS();
+  else if(b.id==="ttsCue"){UI.tts=CUES[SEL.i].map(j=>S.words[j].w).join(" ");renderLib()}
+  else if(b.id==="trGo")doTranslate();
+  else if(b.id==="aistGo")doAiSticker();
+  else if(b.id==="stGo")doStock();
+  else if(d.stk){UI.stKind=d.stk;UI.stItems=null;UI.stq=($("stqIn")||{}).value||UI.stq;renderLib()}
+  else if(d.stadd!==undefined)addStock(+d.stadd);
+  else if(b.id==="hlGo")doHighlights();
+  else if(d.hlsee!==undefined){seek(UI.hl[+d.hlsee].a);if(vid.paused)play()}
+  else if(d.hlmk!==undefined)makeClip(+d.hlmk);
   else if(b.id==="beatSnap")snapBeats();
   else if(d.sfx){hist();S.sfxItems.push({time:nowT(0.4),dur:0.4,type:d.sfx,_n:Date.now()});sfxPlay(d.sfx,S.sfx.vol);select("sfx",S.sfxItems.length-1);dirty()}
   else if(d.kf!==undefined){const o=selObj();seek(o.time+o.keys[+d.kf].t+0.001);renderInsp()}
@@ -1356,7 +1406,7 @@ $("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();await save();busy(tru
 /* ---------- ishga tushirish ---------- */
 async function boot(){
   agInit();
-  try{const c=await (await fetch("/api/config")).json();VERTEX=!!c.vertex;$("vx").textContent=VERTEX?"Vertex ✓":"Vertex ✕";$("vx").style.color=VERTEX?"var(--green)":"var(--yellow)"}catch(_){}
+  try{const c=await (await fetch("/api/config")).json();VERTEX=!!c.vertex;CFG=Object.assign(CFG,c);$("vx").textContent=VERTEX?"Vertex ✓":"Vertex ✕";$("vx").style.color=VERTEX?"var(--green)":"var(--yellow)"}catch(_){}
   try{const f=await (await fetch("/api/fonts")).json();FONTS=f.items||[];
     const st=document.createElement("style");st.textContent=FONTS.map(x=>`@font-face{font-family:'${x.family}';src:url('/fonts/${encodeURIComponent(x.file)}');font-display:swap}`).join("\n");document.head.appendChild(st)}catch(_){}
   if(!TOKEN){showAuth();return}

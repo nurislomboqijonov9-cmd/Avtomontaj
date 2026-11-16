@@ -57,6 +57,15 @@ def new_job():
     jid = uuid.uuid4().hex[:12]
     JOBS[jid] = {"status": "running", "progress": 0, "step": "", "result": None, "error": None}
     return jid
+def _clean_err(e):
+    """Foydalanuvchiga ko'rsatiladigan xato: kalit va ichki manzillar yashiriladi."""
+    import re
+    raw = str(e)
+    if "generativelanguage" in raw or "aiplatform" in raw:
+        m = re.search(r"\b(4\d\d|5\d\d)\b", raw)
+        return "AI xizmati javob bermadi" + (f" ({m.group(1)})" if m else "") + " — kalit yoki ruxsatni tekshiring"
+    t = re.sub(r"(key|token|access_token)=[^&\s'\"]+", r"\1=***", raw)
+    return re.sub(r"https?://\S+", "[manzil]", t)[:400]
 def run_job(jid, fn):
     def worker():
         try:
@@ -64,7 +73,7 @@ def run_job(jid, fn):
             JOBS[jid]["status"] = "done"; JOBS[jid]["progress"] = 100
         except Exception as e:
             JOBS[jid]["status"] = "error"
-            JOBS[jid]["error"] = str(e)[:400]
+            JOBS[jid]["error"] = _clean_err(e)
             traceback.print_exc()
     threading.Thread(target=worker, daemon=True).start()
 
@@ -136,7 +145,7 @@ def index():
 
 @app.get("/api/config")
 def config():
-    return {"vertex": montaj.have_vertex()}
+    return {"vertex": montaj.have_vertex(), "ai": bool(montaj.have_vertex() or montaj.GEMINI_KEY), "stock": bool(montaj.PEXELS_KEY), "voices": list(montaj.TTS_VOICES)}
 
 # ---------- AUTH ----------
 def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 120
@@ -772,6 +781,109 @@ async def style_save(req: Request, x_auth: str = Header("")):
         allst = _load(STYLES_F, {}); lst = allst.get(usr["id"], [])
         lst.insert(0, pr); allst[usr["id"]] = lst[:30]; _save(STYLES_F, allst)
     return pr
+
+@app.post("/api/studio/tts")
+async def studio_tts(req: Request, x_auth: str = Header("")):
+    """Matnni ovozga aylantirib, audio klip sifatida loyihaga qo'shadi."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); _own(pid, usr)
+    text = str(b.get("text") or ""); voice = str(b.get("voice") or "Kore"); jid = new_job()
+    def fn(prog):
+        prog(30, "Ovoz yaratilmoqda...")
+        name = f"aud_tts{uuid.uuid4().hex[:8]}.wav"; dest = os.path.join(PROJ, pid, name)
+        montaj.tts_gemini(text, dest, voice)
+        return {"file": name, "url": f"/media/{pid}/{name}", "name": "AI ovoz: " + text[:24], "duration": round(montaj.ffdur(dest), 2)}
+    run_job(jid, fn); return {"job": jid}
+
+@app.post("/api/studio/translate")
+async def studio_translate(req: Request, x_auth: str = Header("")):
+    check_auth(x_auth); b = await req.json(); words = b.get("words") or []; target = str(b.get("target") or "en")
+    if len(words) > 4000: raise HTTPException(400, "matn juda uzun")
+    jid = new_job()
+    def fn(prog):
+        prog(30, "Tarjima qilinmoqda...")
+        return {"words": montaj.translate_words(words, target)}
+    run_job(jid, fn); return {"job": jid}
+
+@app.post("/api/studio/ai_sticker")
+async def studio_ai_sticker(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); _own(pid, usr)
+    prompt = str(b.get("prompt") or "").strip()[:200]
+    if not prompt: raise HTTPException(400, "tavsif bo'sh")
+    jid = new_job()
+    def fn(prog):
+        prog(30, "Stiker chizilmoqda...")
+        name = f"broll_s{uuid.uuid4().hex[:8]}.png"
+        montaj.ai_sticker(prompt, os.path.join(PROJ, pid, name))
+        return {"image": name, "image_url": f"/media/{pid}/{name}", "prompt": prompt}
+    run_job(jid, fn); return {"job": jid}
+
+@app.post("/api/studio/cutout")
+async def studio_cutout(req: Request, x_auth: str = Header("")):
+    """Yuklangan rasmning bir xil rangli fonini olib tashlaydi."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); _own(pid, usr)
+    src = os.path.join(PROJ, pid, os.path.basename(str(b.get("image") or "")))
+    if not os.path.isfile(src): raise HTTPException(404, "rasm topilmadi")
+    name = f"broll_c{uuid.uuid4().hex[:8]}.png"
+    try: montaj.cutout_plain_bg(src, os.path.join(PROJ, pid, name), tol=int(b.get("tol", 38)))
+    except Exception as e: raise HTTPException(400, "fonni olib bo'lmadi: " + str(e)[:80])
+    return {"image": name, "image_url": f"/media/{pid}/{name}"}
+
+@app.post("/api/studio/stock")
+async def studio_stock(req: Request, x_auth: str = Header("")):
+    check_auth(x_auth); b = await req.json(); q = str(b.get("q") or "").strip()[:80]
+    if not q: raise HTTPException(400, "so'rov bo'sh")
+    try: return {"items": montaj.stock_search(q, "video" if b.get("kind") == "video" else "photo")}
+    except Exception as e: raise HTTPException(400, str(e)[:160])
+
+@app.post("/api/studio/stock_add")
+async def studio_stock_add(req: Request, x_auth: str = Header("")):
+    """Tanlangan stok faylni loyihaga yuklab oladi (faqat pexels.com manzillaridan)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); _own(pid, usr)
+    url = str(b.get("url") or ""); isvid = b.get("kind") == "video"
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower()
+    if urlparse(url).scheme != "https" or not (host == "pexels.com" or host.endswith(".pexels.com")): raise HTTPException(400, "manzil ruxsat etilmagan")
+    name = f"broll_{'v' if isvid else 'u'}{uuid.uuid4().hex[:8]}{'.mp4' if isvid else '.jpg'}"; dest = os.path.join(PROJ, pid, name)
+    import requests as _rq
+    size = 0
+    with _rq.get(url, stream=True, timeout=60, allow_redirects=True) as r:
+        r.raise_for_status()
+        with open(dest, "wb") as f:
+            for ch in r.iter_content(1024 * 256):
+                size += len(ch)
+                if size > 120 * 1024 * 1024:
+                    f.close(); os.remove(dest); raise HTTPException(400, "fayl juda katta")
+                f.write(ch)
+    return {"image": name, "image_url": f"/media/{pid}/{name}", "prompt": str(b.get("q") or "stok")[:60], "video": isvid}
+
+@app.post("/api/studio/highlights")
+async def studio_highlights(req: Request, x_auth: str = Header("")):
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    words = b.get("words") or []; jid = new_job()
+    def fn(prog):
+        prog(30, "Eng yaxshi joylar izlanmoqda...")
+        return {"items": montaj.highlights(words, float(m.get("duration") or 0), n=int(b.get("n", 4)), target=float(b.get("len", 35)))}
+    run_job(jid, fn); return {"job": jid}
+
+@app.post("/api/studio/clip")
+async def studio_clip(req: Request, x_auth: str = Header("")):
+    """Loyihaning [a,b] oralig'idan yangi alohida loyiha yaratadi (uzun videodan qisqa klip)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    a = max(0.0, float(b.get("a", 0))); e = float(b.get("b", 0)); words = b.get("words") or []
+    if e - a < 2: raise HTTPException(400, "oraliq juda qisqa")
+    jid = new_job()
+    def fn(prog):
+        prog(20, "Klip ajratilmoqda...")
+        new = uuid.uuid4().hex[:12]; nd = os.path.join(PROJ, new); os.makedirs(nd, exist_ok=True)
+        src = os.path.join(PROJ, pid, m.get("input")); outp = os.path.join(nd, "input_cfr.mp4")
+        if not montaj.cut_video_speed(src, outp, [(a, e, 1.0)], nd): raise RuntimeError("klipni ajratib bo'lmadi")
+        ws = [{"w": w["w"], "s": round(max(0.0, w["s"] - a), 3), "e": round(w["e"] - a, 3)} for w in words if w["s"] >= a - 0.05 and w["e"] <= e + 0.05]
+        meta2 = {"id": new, "input": "input_cfr.mp4", "name": str(b.get("name") or "Klip")[:80], "created": int(time.time()),
+                 "duration": round(montaj.ffdur(outp), 2), "stage": "analyzed" if ws else "uploaded", "user_id": usr["id"],
+                 "lang": m.get("lang", "uz"), "words": ws, "full_text": " ".join(w["w"] for w in ws), "folder": m.get("folder", "")}
+        save_meta(new, meta2)
+        return {"project": new}
+    run_job(jid, fn); return {"job": jid}
 
 @app.post("/api/studio/reorder")
 async def studio_reorder(req: Request, x_auth: str = Header("")):
