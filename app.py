@@ -260,16 +260,13 @@ async def signup(req: Request):
         ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
     return {"token": token, "user": user_public(u)}
 
-@app.post("/api/auth/google")
-async def auth_google(req: Request):
-    """Google akkaunt bilan kirish: brauzer bergan ID tokenni Google kaliti bilan tekshiramiz."""
+def _google_session(cred):
+    """Google ID tokenni tekshiradi, akkauntni topadi yoki ochadi, sessiya yaratadi. -> (token, user)"""
     if not GOOGLE_CLIENT_ID: raise HTTPException(400, "Google bilan kirish sozlanmagan")
-    _rate("gl:" + _ip(req), 20, 600)
-    b = await req.json(); cred = str(b.get("credential") or "")
     try:
         from google.oauth2 import id_token
         from google.auth.transport import requests as g_requests
-        info = id_token.verify_oauth2_token(cred, g_requests.Request(), GOOGLE_CLIENT_ID)
+        info = id_token.verify_oauth2_token(cred, g_requests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=10)
     except Exception:
         raise HTTPException(401, "Google tasdig'i o'tmadi — qayta urinib ko'ring")
     email = str(info.get("email") or "").strip().lower()
@@ -283,7 +280,28 @@ async def auth_google(req: Request):
             us[email] = u; _save(USERS_F, us)
         token = secrets.token_urlsafe(24)
         ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
+    return token, u
+
+@app.post("/api/auth/google")
+async def auth_google(req: Request):
+    """Google bilan kirish (qalqib chiquvchi oyna usuli)."""
+    _rate("gl:" + _ip(req), 20, 600)
+    b = await req.json(); token, u = _google_session(str(b.get("credential") or ""))
     return {"token": token, "user": user_public(u)}
+
+@app.post("/api/auth/google/callback")
+async def auth_google_callback(req: Request):
+    """Google bilan kirish (sahifa orqali o'tish usuli) — qalqib oyna ishlamaydigan brauzerlar uchun."""
+    _rate("gl:" + _ip(req), 20, 600)
+    form = await req.form(); cred = str(form.get("credential") or ""); csrf = str(form.get("g_csrf_token") or "")
+    def page(js, msg=""):
+        return HTMLResponse(f"<!DOCTYPE html><meta charset='utf-8'><title>VIZEN</title><body style='background:#0f0c1d;color:#ecebf5;font:16px system-ui;padding:40px'>{msg}<script>{js}</script>")
+    if not csrf or csrf != req.cookies.get("g_csrf_token", ""):
+        return page("setTimeout(()=>location.replace('/'),2500)", "Xavfsizlik tekshiruvi o'tmadi — qayta urinib ko'ring…")
+    try: token, u = _google_session(cred)
+    except HTTPException as e:
+        return page("setTimeout(()=>location.replace('/'),3000)", str(e.detail))
+    return page(f"try{{localStorage.setItem('mtoken',{json.dumps(token)})}}catch(e){{}}location.replace('/')", "Kirilmoqda…")
 
 @app.post("/api/auth/login")
 async def auth_login(req: Request):
