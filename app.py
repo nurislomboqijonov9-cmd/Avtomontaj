@@ -200,6 +200,8 @@ def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 1
 
 @app.post("/api/auth/signup")
 async def signup(req: Request):
+    if GOOGLE_CLIENT_ID:      # haqiqiy email kafolati: yangi akkaunt faqat Google orqali ochiladi
+        raise HTTPException(403, "Ro'yxatdan o'tish faqat Google akkaunt orqali — «Google bilan davom etish» ni bosing")
     _rate("su:" + _ip(req), 6, 3600)
     b = await req.json()
     email = (b.get("email") or "").strip().lower()
