@@ -858,22 +858,48 @@ def hook_text(full_text, lang="uz"):
     if len(t)>=3: return " ".join(t[:4])
     return {"uz":"KO'RIB CHIQING","ru":"СМОТРИ ДО КОНЦА","en":"WATCH THIS"}.get(lang,"WATCH THIS")
 
-def broll_suggest(full_text, dur, n=4):
-    prompt=(f"Video transkripti (o'zbekcha): \"{full_text[:1500]}\"\n"
-            f"Video uzunligi: {int(dur)} soniya.\n"
-            f"Shu gap mazmuniga mos {n} ta B-ROLL rasm g'oyasini ber. "
-            f"Har biri uchun: 'prompt' = INGLIZCHA, aniq, tasviriy rasm generatsiya prompti "
-            f"(fotorealistik, kinematik, ichida MATN/YOZUV bo'lmasin), "
-            f"va 'at' = videodagi joyi 0.0 dan 1.0 gacha. Butun video bo'ylab tarqat. "
-            f"JSON qaytar: [{{\"prompt\":\"...\",\"at\":0.0}}].")
+# Diniy va nozik mavzular: bunday joylarga rasm/stiker QO'YILMAYDI (tasvirlash mumkin emas yoki o'rinsiz)
+_SENS=re.compile(r"(payg.?ambar|пайғамбар|пророк|prophet|rasul|расул|muhammad|мухаммад|муҳаммад|alloh|аллоҳ|аллах|\ballah|xudo\b|худо|парвардигор|parvardigor|"
+                 r"qur.?on|қуръон|коран|quran|oyat|оят|hadis|ҳадис|хадис|sahoba|саҳоба|сахаб|farishta|фаришта|ангел|jannat|жаннат|do.?zax|дўзах|"
+                 r"namoz|намоз|намаз|masjid|масжид|мечет|\biso\b|\bmuso\b|ibrohim|\bnabi|наби[йя]|s\.?a\.?v|\(sav\)|vafot|вафот|\bo.?lim\b|ўлим|janoza|жаноза|qabr|қабр)",re.I)
+_SENS_EN=re.compile(r"(prophet|muhammad|allah|\bgod\b|deity|angel|quran|koran|mosque interior with people praying|jesus|moses|saint|holy figure|religious figure|heaven|hell|funeral|corpse|grave)",re.I)
+def is_sensitive(text): return bool(_SENS.search(text or ""))
+
+def broll_suggest(full_text, dur, n=4, words=None):
+    """B-roll g'oyalari. words berilsa, har bir g'oya aniq gapga bog'lanadi va diniy/nozik gaplar tashlab ketiladi."""
+    rules=("QOIDALAR: uslub jiddiy va hujjatli — fotorealistik, kinematik; multfilm, bolalarcha yoki hazil rasm EMAS. Rasm ichida MATN/YOZUV bo'lmasin. "
+           "Faqat aniq narsa, joy yoki harakat tilga olingan gaplarga rasm ber; umumiy, mavhum yoki his-tuyg'u haqidagi gaplarga berma. "
+           "HECH QACHON Alloh, payg'ambarlar, farishtalar, sahobalar yoki boshqa muqaddas shaxslarni tasvirlama; diniy shaxs yoki muqaddas matn tilga olingan gapni BUTUNLAY tashlab ket. "
+           "O'lim, kasallik, fojia haqidagi gaplarga ham rasm berma. Mos gap kam bo'lsa, kamroq g'oya qaytar (0 ta ham bo'lishi mumkin).")
+    sents=sentences_from_words(words) if words else []
+    if sents:
+        lines=[{"i":i,"t":round(x["start"],1),"text":x["text"]} for i,x in enumerate(sents) if not is_sensitive(x["text"])][:200]
+        if not lines: return []
+        prompt=("Bu videoning vaqt belgili gaplari:\n"+json.dumps(lines,ensure_ascii=False)+"\n"
+                f"Shu gaplardan ko'pi bilan {n} tasini tanlab, har biriga B-ROLL rasm g'oyasini ber. {rules} "
+                "Har biri uchun 'i' = gap raqami, 'prompt' = INGLIZCHA aniq tasviriy rasm prompti. Butun video bo'ylab tarqat. "
+                "JSON qaytar: [{\"i\":0,\"prompt\":\"...\"}].")
+    else:
+        prompt=(f"Video transkripti: \"{full_text[:1500]}\"\nVideo uzunligi: {int(dur)} soniya.\n"
+                f"Mazmunga mos ko'pi bilan {n} ta B-ROLL rasm g'oyasini ber. {rules} "
+                "Har biri uchun 'prompt' = INGLIZCHA aniq tasviriy rasm prompti va 'at' = videodagi joyi 0.0 dan 1.0 gacha. "
+                "JSON qaytar: [{\"prompt\":\"...\",\"at\":0.0}].")
     txt=_ai_json(prompt); arr=json.loads(txt)
     if isinstance(arr,dict): arr=arr.get("brolls") or arr.get("data") or arr.get("items") or []
     out=[]
     for it in arr:
         q=str(it.get("prompt") or it.get("keyword") or "").strip()
-        at=float(it.get("at",0) or 0)
-        if q: out.append({"prompt":q,"at":max(0.0,min(1.0,at))*dur})
-    return out
+        if not q or _SENS_EN.search(q) or is_sensitive(q): continue
+        if sents and it.get("i") is not None:
+            try: x=sents[int(it["i"])]
+            except Exception: continue
+            if is_sensitive(x["text"]): continue
+            at=(x["start"]+x["end"])/2
+        else:
+            at=max(0.0,min(1.0,float(it.get("at",0) or 0)))*dur
+            if words and is_sensitive(" ".join(w["w"] for w in words if at-3<=w["s"]<=at+3)): continue
+        out.append({"prompt":q,"at":round(at,2)})
+    return out[:n]
 
 def gemini_image_vertex(prompt, dest, raw=False):
     token=_vertex_token()

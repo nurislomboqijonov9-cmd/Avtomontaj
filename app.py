@@ -348,7 +348,7 @@ async def broll_suggest(req: Request, x_auth: str = Header("")):
     jid = new_job()
     def fn(prog):
         prog(30, "G'oyalar tuzilyapti...")
-        return {"items": montaj.broll_suggest(full, dur, n)}
+        return {"items": montaj.broll_suggest(full, dur, n, words=body.get("words") or meta.get("words") or [])}
     run_job(jid, fn)
     return {"job": jid}
 
