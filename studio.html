@@ -551,8 +551,8 @@ const EMAP={"🔥":["olov","zo'r","fire","dahshat"],"💰":["pul","daromad","biz
 const DEF={chat:[],words:[],removes:[],splits:[],speeds:[],sfxItems:[],brolls:[],stickers:[],texts:[],zooms:[],hook:"",lang:"uz",
   trans:{type:"none",dur:0.3},sfx:{trans:true,stk:true,vol:0.5},musicFade:true,
   sub:{on:true,layout:"stack3",font:"Anton",size:124,words:6,margin:560,active:"#39e75f",base:"#ffffff",c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",upper:true,anim:"pop",delay:0,border:5,outline:"#000000"},
-  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:false,musicNoVocal:false,stab:false,voiceFx:"",quality:"1080",pps:60,
-  auto:{pause:0.8,brolls:3,stickers:false,hook:true,zooms:true},styleId:""};
+  grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:true,musicNoVocal:false,stab:false,voiceFx:"",quality:"1080",pps:60,
+  sil:[],emph:[],auto:{pause:0.45,brolls:3,stickers:false,hook:true,zooms:true,smart:true,fillers:true},styleId:""};
 const PRESETS=[
  {n:"3 pog'ona · Sariq",v:{layout:"stack3",words:6,size:124,c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",active:"#39e75f",upper:true,anim:"pop",border:5}},
  {n:"3 pog'ona · Neon",v:{layout:"stack3",words:6,size:130,c1:"#7df9ff",c2:"#ffffff",c3:"#ff4fa3",active:"#d7f24a",upper:true,anim:"bounce",border:6}},
@@ -855,7 +855,7 @@ pgw.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[
 $("vidF").onchange=e=>{if(e.target.files[0]){HF.file=e.target.files[0];go("home")}e.target.value=""};
 
 /* ---------- loyiha holati ---------- */
-const SAVE_KEYS=["words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","duck","musicNoVocal","stab","voiceFx","quality","pps","auto","styleId"];
+const SAVE_KEYS=["sil","emph","words","removes","splits","brolls","stickers","texts","zooms","speeds","sfxItems","audios","ratio","frame","chat","beats","trans","sfx","musicFade","hook","lang","sub","grade","zoomLevel","fx","origVol","musicVol","audioClean","duck","musicNoVocal","stab","voiceFx","quality","pps","auto","styleId"];
 const snap=()=>JSON.stringify(SAVE_KEYS.reduce((o,k)=>(o[k]=S[k],o),{}));
 function hist(){HIST.push(snap());if(HIST.length>80)HIST.shift();REDO=[]}
 let _ek="",_et=0;
@@ -937,10 +937,16 @@ function slices(){const flat=[];CUES.forEach((c,ci)=>c.forEach((wi,k)=>flat.push
   SL=flat.map((f,x)=>{const w=S.words[f[2]],nx=flat[x+1]?S.words[flat[x+1][2]].s:null;let st=w.s,en=nx===null?w.e+0.3:nx-w.e<=0.35?nx:w.e+0.2;
     st=Math.max(st,prev);if(en<=st)en=st+0.2;prev=en;return{s:st,e:en,ci:f[0],k:f[1]}})}
 function reindex(){
-  S.words.sort((a,b)=>a.s-b.s);const n=Math.max(1,S.sub.words|0);CUES=[];let cur=[];
-  S.words.forEach((w,i)=>{if(cur.length&&(cur.length>=n||w.s-S.words[cur[cur.length-1]].e>0.7)){CUES.push(cur);cur=[]}cur.push(i)});
-  if(cur.length)CUES.push(cur);slices();
+  S.words.sort((a,b)=>a.s-b.s);const n=Math.max(1,S.sub.words|0),W=S.words;CUES=[];let cur=[];
+  const RM=W.map(w=>!!remAt((w.s+w.e)/2));
+  W.forEach((w,i)=>{if(cur.length){const j=cur[cur.length-1],pv=W[j],gap=w.s-pv.e,endS=/[.!?…]$/.test(pv.w),endC=/[,;:—]$/.test(pv.w);
+      if(cur.length>=n||RM[i]!==RM[j]||(!RM[i]&&(gap>0.45||(endS&&cur.length>=2)||(endC&&cur.length>=Math.max(2,n-1))||remBetween(pv.e,w.s)))){CUES.push(cur);cur=[]}}cur.push(i)});
+  if(cur.length)CUES.push(cur);
+  if(n>=3)for(let k=CUES.length-1;k>0;k--){const c=CUES[k],p=CUES[k-1];              // yolg'iz qolgan bitta so'zni oldingi blokka qo'shamiz
+    if(c.length===1&&p.length<=n&&RM[c[0]]===RM[p[p.length-1]]&&W[c[0]].s-W[p[p.length-1]].e<0.3&&!remBetween(W[p[p.length-1]].e,W[c[0]].s)&&!/[.!?…]$/.test(W[p[p.length-1]].w)){p.push(c[0]);CUES.splice(k,1)}}
+  slices();
 }
+function remBetween(a,b){return S.removes.some(r=>r.on!==false&&r.s<b&&r.e>a&&(r.e-r.s)>0.12)}
 function sliceAt(t){t-=(S.sub.delay||0);for(const x of SL){if(t<x.s)return null;if(t<x.e)return x}return null}
 
 /* ---------- kesishlar, bo'laklar, vaqt xaritasi ---------- */
@@ -1541,10 +1547,15 @@ mBar();
 /* ---------- avtomatik montaj ---------- */
 let BUSY=false;
 function busy(b){BUSY=b;["autoB","expB"].forEach(i=>$(i).disabled=b)}
-function gapCuts(pmax){const w=S.words,pad=0.1,now=Date.now(),D=S.duration,out=[];
-  const add=(a,b)=>{if(b-a>=0.2)out.push({s:+a.toFixed(2),e:+b.toFixed(2),type:"pauza",_n:now})};
-  if(w.length){if(w[0].s>pmax)add(0,w[0].s-0.15);
-    for(let i=0;i<w.length-1;i++){const g=w[i+1].s-w[i].e;if(g>pmax)add(w[i].e+pad,w[i+1].s-pad)}
+function gapCuts(pmax){const w=S.words,now=Date.now(),D=S.duration,out=[],padA=0.07,padB=0.11;
+  const add=(a,b)=>{a=Math.max(0,a);b=Math.min(D,b);if(b-a>=0.14)out.push({s:+a.toFixed(2),e:+b.toFixed(2),type:"pauza",_n:now})};
+  const sil=(S.sil||[]).filter(x=>x[1]-x[0]>=0.2);
+  if(sil.length){                                   // ovoz to'lqini bo'yicha: jimlik pmax dan uzun bo'lsa, o'rtasi kesiladi (nafas uchun joy qoladi)
+    for(const x of sil){const a=x[0],b=x[1],first=a<=0.05,last=b>=D-0.05;
+      if(first){if(b>0.25)add(0,b-padB);continue}if(last){if(b-a>0.35)add(a+0.22,D);continue}
+      if(b-a>pmax)add(a+padA,b-padB)}
+  }else if(w.length){if(w[0].s>pmax)add(0,w[0].s-0.15);
+    for(let i=0;i<w.length-1;i++){const g=w[i+1].s-w[i].e;if(g>pmax)add(w[i].e+0.1,w[i+1].s-0.1)}
     if(D-w[w.length-1].e>Math.max(pmax,0.5))add(w[w.length-1].e+0.3,D)}
   S.removes=S.removes.filter(r=>r.type!=="pauza").concat(out);return out.length}
 const SENS=/(payg.?ambar|пайғамбар|пророк|rasul|расул|muhammad|мухаммад|муҳаммад|alloh|аллоҳ|аллах|xudo|худо|qur.?on|қуръон|коран|oyat|оят|hadis|ҳадис|sahoba|саҳоба|farishta|jannat|жаннат|namoz|намоз|masjid|масжид|vafot|вафот|\bo.?lim\b|ўлим|janoza|qabr)/i;
@@ -1554,20 +1565,22 @@ function autoStickers(n){const pos=[[0.22,0.3],[0.78,0.32],[0.24,0.62],[0.8,0.6]
     for(const emo in EMAP){if(EMAP[emo].some(k=>kw===k||(k.length>=4&&kw.includes(k)))){const p=pos[c%pos.length];
       S.stickers.push({emo,time:+w.s.toFixed(2),dur:1.5,x:p[0],y:p[1],size:0.16,rot:0,op:1,in:["pop","bounce","spin","drop"][c%4],out:"shrink",loop:c%2?"wobble":"none",_n:Date.now()});last=w.s;c++;break}}}
   return c}
-function autoZooms(){calcSegs();let n=0;const now=Date.now(),add=(a,b)=>{S.zooms.push({time:+a.toFixed(2),dur:+(b-a).toFixed(2),scale:1.14,ramp:0,_n:now});n++};
-  if(SEGS.length>=3){SEGS.forEach((g,i)=>{if(i%2===1&&g[1]-g[0]>=0.8)add(g[0],g[1])})}
-  else{CUES.forEach((c,i)=>{if(i%2===1){const a=S.words[c[0]].s,b=S.words[c[c.length-1]].e;if(b-a>=0.6&&!remAt(a))add(a,b+0.15)}})}
+function autoZooms(){calcSegs();let n=0;const now=Date.now(),add=(a,b,sc,rp)=>{if(remAt(a)||b-a<0.5)return;S.zooms.push({time:+a.toFixed(2),dur:+(b-a).toFixed(2),scale:sc,ramp:rp,_n:now});n++};
+  if((S.emph||[]).length){S.emph.forEach((e,i)=>add(e[0]-0.05,Math.min(e[1]+0.25,e[0]+3.2),i%2?1.16:1.12,i%2?0:0.35))}      // urg'u joylariga: navbat bilan zarba va sekin yaqinlashish
+  else if(SEGS.length>=3){SEGS.forEach((g,i)=>{if(i%2===1&&g[1]-g[0]>=0.8)add(g[0],Math.min(g[1],g[0]+4),i%4===1?1.14:1.1,i%4===1?0:0.4)})}
+  else{CUES.forEach((c,i)=>{if(i%3===1){const a=S.words[c[0]].s,b=S.words[c[c.length-1]].e;add(a,b+0.15,1.13,0)}})}
   return n}
 function autoApply(quiet){const a=S.auto;
+  if(a.fillers!==false&&S.words.length){let k=0;const now=Date.now();S.words.forEach(w=>{const q=(w.w||"").toLowerCase().replace(/[^\p{L}]/gu,"");if(q&&FILL.has(q)&&!remAt((w.s+w.e)/2)){S.removes.push({s:+Math.max(0,w.s-0.03).toFixed(2),e:+(w.e+0.03).toFixed(2),type:"so'z",_n:now});k++}});if(k&&!quiet)ag("cut-01",k+" ta «eee/hmm» kesildi")}
   if(a.pause<0.78){const n=gapCuts(a.pause);if(!quiet)ag("cut-01",`Zich montaj: ${n} ta pauza kesildi (chegara ${a.pause}s)`)}
   if(a.stickers&&!S.stickers.length){const n=autoStickers(8);if(n&&!quiet)ag("sub-01",n+" ta stiker qo'yildi")}
-  if(a.hook&&!S.hook&&S.words.length>=3)S.hook=S.words.slice(0,4).map(w=>w.w).join(" ");
+  if(a.hook&&!S.hook&&S.words.length>=3)S.hook=S.words.filter(w=>!remAt((w.s+w.e)/2)).slice(0,4).map(w=>w.w.replace(/[.,!?;:]+$/,"")).join(" ");
   if(a.zooms&&!S.zooms.length){const n=autoZooms();if(n&&!quiet)ag("cut-01",n+" ta zoom zarbasi qo'yildi")}}
 async function runAnalyze(){if(BUSY)return false;busy(true);let ok=false;
   try{ag("asr-01","Transkripsiya boshlandi…","run");
     const {job}=await api("/api/analyze",{project:S.project,lang:S.lang});
     const r=await waitJob(job,(p,s)=>agLive("asr-01",(s||"Ishlayapti…")+" "+p+"%"));
-    hist();S.words=r.words||[];S.analyzed=true;
+    hist();S.words=r.words||[];S.sil=r.silences||[];S.analyzed=true;
     const man=S.removes.filter(x=>x.type!=="pauza"&&x.type!=="takror"),now=Date.now();
     S.removes=man.concat((r.silence_removes||[]).map(x=>({s:x[0],e:x[1],type:"pauza",_n:now})),(r.dup_removes||[]).map(x=>({s:x[0],e:x[1],type:"takror",_n:now})));
     reindex();SEL=null;renderAll();dirty();
@@ -1577,24 +1590,29 @@ async function runAnalyze(){if(BUSY)return false;busy(true);let ok=false;
     ag("sub-01",`${CUES.length} ta subtitr bloki tayyor`);ok=true;
   }catch(e){ag("asr-01",e.message,"err");toast("Tahlil xatosi: "+e.message)}
   busy(false);return ok}
-async function genImage(prompt){const {job}=await api("/api/broll_image",{project:S.project,prompt});return waitJob(job)}
+async function genImage(prompt,full){const r=(RAT[S.ratio]||[9,16]),asp=full===false?"16:9":r[0]<r[1]?"9:16":r[0]===r[1]?"1:1":"16:9";const {job}=await api("/api/broll_image",{project:S.project,prompt,aspect:asp});return waitJob(job)}
 async function runBroll(n){if(BUSY)return;if(!S.analyzed){toast("Avval transkripsiya kerak (⚡ Avto montaj)");return}busy(true);
   try{ag("broll-01","G'oyalar tuzilyapti…","run");
     const {job}=await api("/api/broll_suggest",{project:S.project,n:n||4,words:S.words});const r=await waitJob(job);const items=r.items||[];let done=0;hist();
     for(const it of items){agLive("broll-01",`Rasm chizilyapti ${done+1}/${items.length}…`);
-      try{const im=await genImage(it.prompt);S.brolls.push({image:im.image,image_url:im.image_url,prompt:it.prompt,time:+clamp(it.at-1.25,0,Math.max(0,S.duration-2.5)).toFixed(2),dur:2.5,y:0.72,w:0.78,_n:Date.now()});done++;renderAll()}
+      try{const im=await genImage(it.prompt);S.brolls.push({image:im.image,image_url:im.image_url,prompt:it.prompt,full:true,time:+clamp(it.at-1.3,0,Math.max(0,S.duration-2.6)).toFixed(2),dur:2.6,y:0.72,w:0.78,_n:Date.now()});done++;renderAll()}
       catch(e){ag("broll-01",e.message,"err");break}}
     if(done){ag("broll-01",`${done} ta rasm qo'yildi`);dirty()}else if(!items.length)ag("broll-01","G'oya topilmadi","err");
   }catch(e){ag("broll-01",e.message,"err")}
   busy(false)}
 async function regenBroll(i){if(BUSY)return;const b=S.brolls[i];if(!b||!(b.prompt||"").trim()){toast("Avval tavsif yozing");return}busy(true);
-  try{ag("broll-01","Qayta chizilyapti…","run");const im=await genImage(b.prompt);hist();b.image=im.image;b.image_url=im.image_url;b._n=Date.now();ag("broll-01","Rasm yangilandi");renderAll();dirty()}
+  try{ag("broll-01","Qayta chizilyapti…","run");const im=await genImage(b.prompt,b.full);hist();b.image=im.image;b.image_url=im.image_url;b._n=Date.now();ag("broll-01","Rasm yangilandi");renderAll();dirty()}
   catch(e){ag("broll-01",e.message,"err")}busy(false)}
 async function autoMontage(first){if(BUSY)return;
   if(!first&&S.analyzed&&S.words.length&&!confirm("Avto montaj qayta ishga tushsinmi? Subtitr matni va avtomatik kesishlar yangilanadi, qo'lda qilgan kesishlaringiz saqlanadi."))return;
   const sp=allStyles().find(s=>s.id===S.styleId);ag("style-01","Uslub: "+(sp?sp.name:"Standart"));
   if(!(await runAnalyze()))return;
   if(first==="subs"){S.removes=S.removes.filter(x=>x.type!=="pauza"&&x.type!=="takror");reindex();renderAll();dirty();toast("Subtitr tayyor — qolganini o'zingiz montaj qilasiz");return}
+  if(S.auto.smart!==false&&S.words.length>8){try{agLive("cut-01","AI montajchi takror va adashgan joylarni qidiryapti…");
+      const {job}=await api("/api/studio/smartcut",{project:S.project,words:S.words});const r=await waitJob(job);const now=Date.now();
+      S.removes=S.removes.filter(x=>x.type!=="ai");(r.removes||[]).forEach(x=>S.removes.push({s:x[0],e:x[1],type:"ai",why:x[2]||"",_n:now}));
+      S.emph=r.emph||[];if(r.hook&&S.auto.hook)S.hook=r.hook;
+      ag("cut-01",(r.removes||[]).length?`AI ${(r.removes||[]).length} ta takror/adashgan joyni kesdi`:"AI: ortiqcha takror topilmadi")}catch(e){ag("cut-01","AI kesish o'tkazib yuborildi: "+e.message,"err")}}
   autoApply();reindex();renderAll();dirty();
   if(VERTEX&&S.auto.brolls>0&&!S.brolls.length)await runBroll(S.auto.brolls);
   toast("Avto montaj tayyor — endi xohlagan joyingizni o'zgartiring va Eksport bosing")}

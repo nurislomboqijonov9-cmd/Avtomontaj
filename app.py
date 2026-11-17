@@ -401,7 +401,7 @@ async def analyze(req: Request, x_auth: str = Header("")):
         prog(90, "Kesish takliflari...")
         meta.update(words=res["words"], full_text=res["full_text"],
                     engine=res["engine"], duration=res["duration"],
-                    silence_removes=res["silence_removes"], dup_removes=res["dup_removes"],
+                    silence_removes=res["silence_removes"], dup_removes=res["dup_removes"], silences=res.get("silences", []),
                     stage="analyzed")
         save_meta(pid, meta)
         return res
@@ -456,7 +456,7 @@ async def broll_image(req: Request, x_auth: str = Header("")):
     jid = new_job()
     def fn(prog):
         prog(20, "Rasm chizilyapti (Gemini)...")
-        montaj.gen_image(prompt, dest)
+        montaj.gen_image(prompt, dest, str(body.get("aspect") or "16:9"))
         return {"image": fn_name, "image_url": f"/media/{pid}/{fn_name}", "prompt": prompt}
     run_job(jid, fn)
     return {"job": jid}
@@ -1078,6 +1078,16 @@ async def studio_script(req: Request, x_auth: str = Header("")):
                         "stage": "analyzed", "user_id": usr["id"], "lang": str(b.get("lang") or "uz"), "words": words, "full_text": text, "script": True})
         return {"project": pid}
     run_job(jid, fn, heavy=True); return {"job": jid}
+
+@app.post("/api/studio/smartcut")
+async def studio_smartcut(req: Request, x_auth: str = Header("")):
+    """AI montajchi: qayta boshlangan gaplar va dubllarni topadi, sarlavha va urg'u joylarini taklif qiladi."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); m = _own(pid, usr)
+    words = b.get("words") or m.get("words") or []; jid = new_job()
+    def fn(prog):
+        prog(40, "AI montajchi ko'rib chiqyapti...")
+        return montaj.smart_cut(words, m.get("lang", "uz"))
+    run_job(jid, fn); return {"job": jid}
 
 @app.post("/api/studio/reorder")
 async def studio_reorder(req: Request, x_auth: str = Header("")):

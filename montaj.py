@@ -865,6 +865,59 @@ _SENS=re.compile(r"(payg.?ambar|пайғамбар|пророк|prophet|rasul|р
 _SENS_EN=re.compile(r"(prophet|muhammad|allah|\bgod\b|deity|angel|quran|koran|mosque interior with people praying|jesus|moses|saint|holy figure|religious figure|heaven|hell|funeral|corpse|grave)",re.I)
 def is_sensitive(text): return bool(_SENS.search(text or ""))
 
+def _repeat_rules(words):
+    """AIsiz zaxira: ketma-ket takrorlangan 2-5 so'zli bo'laklarning birinchisini topadi. -> [(i0,i1)] (so'z indekslari, i1 kiradi)"""
+    nw=[_norm(w["w"]) for w in words]; out=[]; i=0
+    while i<len(nw):
+        hit=0
+        for L in (5,4,3,2):
+            if i+2*L<=len(nw) and all(nw[i+k] and nw[i+k]==nw[i+L+k] for k in range(L)) and words[i+L]["s"]-words[i+L-1]["e"]<2.5:
+                hit=L; break
+        if hit: out.append((i,i+hit-1)); i+=hit
+        else: i+=1
+    return out
+
+def smart_cut(words, lang="uz"):
+    """Montajchi ko'zi bilan: qayta boshlangan gaplar, takror dubl, to'ldiruvchi iboralarni topadi; sarlavha va urg'u joylarini beradi.
+    -> {"removes":[[s,e,sabab]], "hook":str, "emph":[[s,e]], "source":"ai"|"rules"}"""
+    if not words: return {"removes":[],"hook":"","emph":[],"source":"rules"}
+    def rng(i0,i1):
+        i0=max(0,min(len(words)-1,int(i0))); i1=max(i0,min(len(words)-1,int(i1)))
+        return i0,i1
+    if have_vertex() or GEMINI_KEY:
+        try:
+            toks=[{"i":i,"w":w["w"],"t":round(w["s"],1)} for i,w in enumerate(words)][:1500]
+            prompt=("Sen professional video montajchisan (Reels/Shorts). Quyida gapirilgan videoning so'zlari tartib raqami (i) va vaqti (t) bilan berilgan.\n"
+                    +json.dumps(toks,ensure_ascii=False)+"\n"
+                    "VAZIFA: videoni zich va ravon qilish uchun OLIB TASHLANADIGAN joylarni top:\n"
+                    "1) qayta boshlangan gap (so'zlovchi adashib, gapni boshidan aytgan) — BIRINCHI, chala urinishni olib tashla, oxirgi to'liq variantni qoldir;\n"
+                    "2) ikki marta aytilgan dubl — birinchisini olib tashla;\n"
+                    "3) ma'nosiz to'ldiruvchilar: eee, hmm, xo'sh, demak-demak, 'nima desam ekan' kabi;\n"
+                    "4) mavzuga aloqasi yo'q chetga chiqishlar (faqat aniq bo'lsa).\n"
+                    "MUHIM: mazmunni buzma, gap ma'nosi uzilmasin, shubha bo'lsa OLIB TASHLAMA. Diniy iboralar, duolar va ismlarga tegma.\n"
+                    "Shuningdek: 'hook' = video boshiga qo'yiladigan 3-6 so'zli qiziqtiruvchi sarlavha (video tilida, mazmunga mos, clickbait yolg'onisiz); "
+                    "'emph' = eng muhim 3-6 ta ibora (urg'u/zoom uchun) — har biri [boshlanish_i, tugash_i].\n"
+                    "FAQAT JSON qaytar: {\"remove\":[{\"from\":i,\"to\":i,\"why\":\"qisqa sabab\"}],\"hook\":\"...\",\"emph\":[[i,i]]}")
+            d=json.loads(_ai_json(prompt)); rem=[]; total=words[-1]["e"]-words[0]["s"]; cut=0.0
+            for x in (d.get("remove") or []):
+                i0,i1=rng(x.get("from",0),x.get("to",0))
+                if is_sensitive(" ".join(w["w"] for w in words[i0:i1+1])): continue
+                a=max(0.0,words[i0]["s"]-0.04); b=words[i1]["e"]+0.04
+                if b-a<0.12 or b-a>25: continue
+                cut+=b-a
+                if cut>total*0.45: break                         # xavfsizlik: videoning yarmidan ko'pini kesmaymiz
+                rem.append([round(a,2),round(b,2),str(x.get("why") or "takror")[:60]])
+            em=[]
+            for x in (d.get("emph") or [])[:8]:
+                try: i0,i1=rng(x[0],x[1])
+                except Exception: continue
+                em.append([round(words[i0]["s"],2),round(words[i1]["e"],2)])
+            return {"removes":rem,"hook":str(d.get("hook") or "").strip()[:60],"emph":em,"source":"ai"}
+        except Exception:
+            pass
+    rem=[[round(max(0.0,words[a]["s"]-0.04),2),round(words[b]["e"]+0.04,2),"takror"] for a,b in _repeat_rules(words)]
+    return {"removes":rem,"hook":"","emph":[],"source":"rules"}
+
 def broll_suggest(full_text, dur, n=4, words=None):
     """B-roll g'oyalari. words berilsa, har bir g'oya aniq gapga bog'lanadi va diniy/nozik gaplar tashlab ketiladi."""
     rules=("QOIDALAR: uslub jiddiy va hujjatli — fotorealistik, kinematik; multfilm, bolalarcha yoki hazil rasm EMAS. Rasm ichida MATN/YOZUV bo'lmasin. "
@@ -929,12 +982,12 @@ def gemini_image_vertex(prompt, dest, raw=False):
             errs.append(f"{model}:{str(e)[:40]}")
     raise RuntimeError(" || ".join(errs[:2]) or "gemini-image ishlamadi")
 
-def imagen_vertex(prompt, dest):
+def imagen_vertex(prompt, dest, aspect="16:9"):
     token=_vertex_token()
     if GCP_LOCATION=="global": host="us-central1-aiplatform.googleapis.com"; loc="us-central1"
     else: host=f"{GCP_LOCATION}-aiplatform.googleapis.com"; loc=GCP_LOCATION
     headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"}
-    body={"instances":[{"prompt":prompt}],"parameters":{"sampleCount":1,"aspectRatio":"16:9"}}
+    body={"instances":[{"prompt":prompt}],"parameters":{"sampleCount":1,"aspectRatio":aspect if aspect in ("16:9","9:16","1:1","4:3","3:4") else "16:9"}}
     errs=[]
     for model in ["imagen-4.0-fast-generate-001","imagen-4.0-generate-001","imagen-3.0-generate-002","imagen-3.0-generate-001","imagegeneration@006"]:
         url=f"https://{host}/v1/projects/{GCP_PROJECT}/locations/{loc}/publishers/google/models/{model}:predict"
@@ -962,13 +1015,17 @@ def pexels_image(query, dest):
     if im.status_code>=400: return None
     open(dest,"wb").write(im.content); return dest
 
-def gen_image(prompt, dest):
-    """Vertex bo'lsa: gemini-image -> imagen. Aks holda Pexels. Xatoni ko'taradi."""
+def gen_image(prompt, dest, aspect="16:9"):
+    """Vertex bo'lsa: gemini-image -> imagen. Aks holda Pexels. Xatoni ko'taradi. aspect: 16:9 | 9:16 | 1:1"""
     if have_vertex():
         e1=""
-        try: return gemini_image_vertex(prompt,dest)
+        try:
+            if aspect=="16:9": return gemini_image_vertex(prompt,dest)
+            ori="VERTICAL portrait 9:16 (taller than wide)" if aspect=="9:16" else "square 1:1"
+            return gemini_image_vertex("Generate a single photorealistic, cinematic, documentary-style photograph in "+ori+" format, subject centered with room around it. "
+                                       "NO text, NO letters, NO captions, NO watermark, NO cartoon. Subject: "+prompt,dest,raw=True)
         except Exception as ex: e1=str(ex)[:80]
-        try: return imagen_vertex(prompt,dest)
+        try: return imagen_vertex(prompt,dest,aspect)
         except Exception as ex: raise RuntimeError(f"gem-img[{e1}] / imagen[{str(ex)[:80]}]")
     got=pexels_image(prompt,dest)
     if not got: raise RuntimeError("Pexels bo'sh (yoki kalit yo'q)")
@@ -1576,7 +1633,9 @@ def analyze(video_path, work, lang="uz"):
     # SO'Z ustidan kesmaslik uchun filtr (gapни kesmaydi)
     silence_removes=safe_silence_removes(raw_sil, words, margin=0.12)
     dup_removes=[[round(a,2),round(b,2)] for a,b in duplicate_ranges(sents)]
-    return {"duration":round(dur,2),"words":words,"full_text":full,"engine":eng,
+    try: fine=[[round(a,2),round(b if b else dur,2)] for a,b in detect_silences(video_path, dB=-33, mind=0.22)]
+    except Exception: fine=[]
+    return {"duration":round(dur,2),"words":words,"full_text":full,"engine":eng,"silences":fine,
             "silence_removes":silence_removes,"dup_removes":dup_removes,
             "sentences":[{"text":s["text"],"start":s["start"],"end":s["end"]} for s in sents]}
 
