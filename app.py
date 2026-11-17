@@ -190,6 +190,46 @@ def index():
         "<p style='font-family:sans-serif'>index.html faylini GitHub repo'ga yuklang "
         "(static/ papkasiga yoki asosiy papkaga). Server ishlayapti, faqat interfeys fayli yetishmayapti.</p>")
 
+def _doc(title, body):
+    return HTMLResponse(f"""<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — VIZEN</title><link rel="icon" href="/assets/logo.png"><style>body{{margin:0;background:#0f0c1d;color:#ecebf5;font:16px/1.65 Inter,system-ui,Arial,sans-serif}}
+main{{max-width:760px;margin:0 auto;padding:40px 22px 80px}}h1{{font-size:28px}}h2{{font-size:18px;margin-top:28px}}a{{color:#a78bfa}}p,li{{color:#c9c6dc}}
+.b{{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.06em;margin-bottom:26px;text-decoration:none;color:#fff}}.b img{{width:34px;height:34px;border-radius:26%}}</style></head>
+<body><main><a class="b" href="/"><img src="/assets/logo.png" alt="">VIZEN</a><h1>{title}</h1>{body}
+<p style="margin-top:36px;font-size:13px">Oxirgi yangilanish: 2026-yil 17-noyabr · <a href="/">Bosh sahifa</a> · <a href="/privacy">Maxfiylik</a> · <a href="/terms">Shartlar</a></p></main></body></html>""")
+
+@app.get("/privacy")
+def privacy():
+    return _doc("Maxfiylik siyosati", """
+<p>VIZEN — sun'iy intellekt yordamida video montaj qiluvchi veb-xizmat. Bu sahifa qanday ma'lumot yig'ishimiz va undan qanday foydalanishimizni tushuntiradi.</p>
+<h2>Qanday ma'lumot yig'iladi</h2><ul>
+<li><b>Akkaunt:</b> Google orqali kirganingizda ismingiz va email manzilingizni olamiz. Google parolingiz bizga berilmaydi va biz uni ko'rmaymiz.</li>
+<li><b>Kontent:</b> siz yuklagan video, audio, rasm fayllar va ulardan yaratilgan loyihalar.</li>
+<li><b>Texnik ma'lumot:</b> xizmatni himoya qilish uchun IP manzil va kirish vaqti.</li></ul>
+<h2>Ma'lumotdan qanday foydalaniladi</h2><ul>
+<li>Akkauntingizga kirishingizni ta'minlash va loyihalaringizni faqat sizga ko'rsatish uchun.</li>
+<li>Montaj qilish uchun: videongizning ovozi va kadrlari transkripsiya, subtitr va rasm yaratish maqsadida Google Cloud (Vertex AI / Gemini) xizmatlariga yuboriladi.</li>
+<li>Biz ma'lumotlaringizni sotmaymiz va reklama maqsadida uchinchi shaxslarga bermaymiz.</li></ul>
+<h2>Saqlash va o'chirish</h2>
+<p>Fayllar va loyihalar xizmat serverida saqlanadi. Loyihani istalgan payt o'zingiz o'chirishingiz mumkin — u bilan birga fayllari ham o'chadi. Akkauntni va barcha ma'lumotlarni butunlay o'chirish uchun quyidagi manzilga yozing.</p>
+<h2>Google foydalanuvchi ma'lumotlari</h2>
+<p>Google orqali kirishda faqat asosiy profil ma'lumoti (ism, email) so'raladi va u faqat akkauntni aniqlash uchun ishlatiladi. Boshqa Google ma'lumotlaringizga (pochta, disk, kontaktlar) kirish so'ralmaydi.</p>
+<h2>Aloqa</h2><p>Savollar va o'chirish so'rovlari uchun: <a href="mailto:nurislomboqijonov9@gmail.com">nurislomboqijonov9@gmail.com</a></p>""")
+
+@app.get("/terms")
+def terms():
+    return _doc("Foydalanish shartlari", """
+<p>VIZEN xizmatidan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz.</p>
+<h2>Xizmat</h2><p>VIZEN videolarni sun'iy intellekt yordamida montaj qilish va qo'lda tahrirlash imkonini beradi. Xizmat «boricha» taqdim etiladi; uzluksiz ishlashi yoki AI natijalarining xatosiz bo'lishi kafolatlanmaydi.</p>
+<h2>Sizning kontentingiz</h2><ul>
+<li>Yuklagan fayllaringiz va tayyor videolar sizga tegishli.</li>
+<li>Siz faqat o'zingiz foydalanish huquqiga ega bo'lgan materiallarni yuklashingiz kerak.</li>
+<li>Qonunga zid, boshqalarning huquqini buzadigan yoki zararli kontent yuklash taqiqlanadi.</li></ul>
+<h2>Akkaunt</h2><p>Akkauntingiz xavfsizligi uchun o'zingiz javobgarsiz. Shartlar buzilganda akkaunt cheklanishi yoki o'chirilishi mumkin.</p>
+<h2>Cheklovlar</h2><p>Xizmatni buzishga, ortiqcha yuklashga yoki boshqa foydalanuvchilar ma'lumotiga ruxsatsiz kirishga urinish taqiqlanadi.</p>
+<h2>O'zgarishlar</h2><p>Shartlar yangilanishi mumkin; yangi tahrir shu sahifada e'lon qilinadi.</p>
+<h2>Aloqa</h2><p><a href="mailto:nurislomboqijonov9@gmail.com">nurislomboqijonov9@gmail.com</a></p>""")
+
 @app.get("/api/config")
 def config():
     return {"vertex": montaj.have_vertex(), "ai": bool(montaj.have_vertex() or montaj.GEMINI_KEY), "stock": bool(montaj.PEXELS_KEY), "voices": list(montaj.TTS_VOICES),
