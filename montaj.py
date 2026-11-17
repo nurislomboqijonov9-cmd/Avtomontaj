@@ -880,7 +880,7 @@ def _repeat_rules(words):
 def smart_cut(words, lang="uz"):
     """Montajchi ko'zi bilan: qayta boshlangan gaplar, takror dubl, to'ldiruvchi iboralarni topadi; sarlavha va urg'u joylarini beradi.
     -> {"removes":[[s,e,sabab]], "hook":str, "emph":[[s,e]], "source":"ai"|"rules"}"""
-    if not words: return {"removes":[],"hook":"","emph":[],"source":"rules"}
+    if not words: return {"removes":[],"hook":"","emph":[],"cards":[],"source":"rules"}
     def rng(i0,i1):
         i0=max(0,min(len(words)-1,int(i0))); i1=max(i0,min(len(words)-1,int(i1)))
         return i0,i1
@@ -896,8 +896,10 @@ def smart_cut(words, lang="uz"):
                     "4) mavzuga aloqasi yo'q chetga chiqishlar (faqat aniq bo'lsa).\n"
                     "MUHIM: mazmunni buzma, gap ma'nosi uzilmasin, shubha bo'lsa OLIB TASHLAMA. Diniy iboralar, duolar va ismlarga tegma.\n"
                     "Shuningdek: 'hook' = video boshiga qo'yiladigan 3-6 so'zli qiziqtiruvchi sarlavha (video tilida, mazmunga mos, clickbait yolg'onisiz); "
-                    "'emph' = eng muhim 3-6 ta ibora (urg'u/zoom uchun) — har biri [boshlanish_i, tugash_i].\n"
-                    "FAQAT JSON qaytar: {\"remove\":[{\"from\":i,\"to\":i,\"why\":\"qisqa sabab\"}],\"hook\":\"...\",\"emph\":[[i,i]]}")
+                    "'emph' = eng muhim 3-6 ta ibora (urg'u/zoom uchun) — har biri [boshlanish_i, tugash_i]; "
+                    "'cards' = ekranga animatsiyali kartochka bo'lib chiqadigan 4-7 ta KALIT SO'Z: har biri {\"from\":i,\"to\":i,\"text\":\"1-3 so'zli qisqa ibora (video tilida, aytilgan gapdan)\",\"emoji\":\"mos bitta emoji yoki bo'sh\"}. "
+                    "Raqamlar, sanab o'tilgan bandlar, asosiy tushunchalar va natijalarni tanla; diniy shaxs yoki muqaddas iboralarga kartochka qo'yma. Video bo'ylab tarqat.\n"
+                    "FAQAT JSON qaytar: {\"remove\":[{\"from\":i,\"to\":i,\"why\":\"qisqa sabab\"}],\"hook\":\"...\",\"emph\":[[i,i]],\"cards\":[{\"from\":i,\"to\":i,\"text\":\"...\",\"emoji\":\"...\"}]}")
             d=json.loads(_ai_json(prompt)); rem=[]; total=words[-1]["e"]-words[0]["s"]; cut=0.0
             for x in (d.get("remove") or []):
                 i0,i1=rng(x.get("from",0),x.get("to",0))
@@ -912,11 +914,18 @@ def smart_cut(words, lang="uz"):
                 try: i0,i1=rng(x[0],x[1])
                 except Exception: continue
                 em.append([round(words[i0]["s"],2),round(words[i1]["e"],2)])
-            return {"removes":rem,"hook":str(d.get("hook") or "").strip()[:60],"emph":em,"source":"ai"}
+            cards=[]
+            for x in (d.get("cards") or [])[:8]:
+                try: i0,i1=rng(x.get("from",0),x.get("to",0))
+                except Exception: continue
+                tx=" ".join(str(x.get("text") or "").split())[:40]
+                if not tx or is_sensitive(tx) or is_sensitive(" ".join(w["w"] for w in words[max(0,i0-4):i1+5])): continue
+                cards.append({"s":round(words[i0]["s"],2),"e":round(words[i1]["e"],2),"text":tx,"emoji":str(x.get("emoji") or "")[:4]})
+            return {"removes":rem,"hook":str(d.get("hook") or "").strip()[:60],"emph":em,"cards":cards,"source":"ai"}
         except Exception:
             pass
     rem=[[round(max(0.0,words[a]["s"]-0.04),2),round(words[b]["e"]+0.04,2),"takror"] for a,b in _repeat_rules(words)]
-    return {"removes":rem,"hook":"","emph":[],"source":"rules"}
+    return {"removes":rem,"hook":"","emph":[],"cards":[],"source":"rules"}
 
 def broll_suggest(full_text, dur, n=4, words=None):
     """B-roll g'oyalari. words berilsa, har bir g'oya aniq gapga bog'lanadi va diniy/nozik gaplar tashlab ketiladi."""
