@@ -395,6 +395,11 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
 #side{background:color-mix(in srgb,var(--panel) 70%,var(--bg))}#newB{border-radius:12px;padding:12px;font-size:13.5px}
 .logo img{width:26px;height:26px;border-radius:26%;display:block;box-shadow:0 4px 14px color-mix(in srgb,var(--lime) 40%,transparent)}.logo{letter-spacing:.06em;font-weight:800}#side .logo{font-size:18px;gap:10px}
 #auth{background:radial-gradient(900px 500px at 50% 0%,color-mix(in srgb,var(--lime) 22%,var(--bg)),var(--bg) 70%)}#auth .modal{box-shadow:var(--shadow);border-radius:20px}
+#app{grid-template-rows:48px minmax(0,1fr) var(--tlh,clamp(210px,30vh,340px))}
+#tl{position:relative}#tlgrip{position:absolute;left:0;right:0;top:-5px;height:10px;cursor:ns-resize;z-index:5;touch-action:none}#tlgrip:hover:after,#tlgrip.on:after{content:"";position:absolute;left:35%;right:35%;top:3px;height:3px;border-radius:3px;background:var(--lime)}
+#center:fullscreen{background:#000;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) 44px}#center:fullscreen #pvwrap{height:100%}
+@media (max-width:760px){#tlgrip{display:none}}
+.refbtn{width:100%;margin:2px 0 8px;padding:9px;border-style:dashed}
 </style>
 </head>
 <body>
@@ -426,6 +431,7 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
         <button class="sm" id="playB" style="min-width:44px">▶</button>
         <div id="tc">00:00.0 <small>/ 00:00.0</small></div>
         <button class="sm ghost" id="muteB" title="Ovoz">🔊</button>
+        <button class="sm ghost" id="fsB" title="Katta ekranda ko'rish (F)">⛶</button>
       </div>
     </div>
 
@@ -539,7 +545,7 @@ const DEF={chat:[],words:[],removes:[],splits:[],speeds:[],sfxItems:[],brolls:[]
   trans:{type:"none",dur:0.3},sfx:{trans:true,stk:true,vol:0.5},musicFade:true,
   sub:{on:true,layout:"stack3",font:"Anton",size:124,words:6,margin:560,active:"#39e75f",base:"#ffffff",c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",upper:true,anim:"pop",delay:0,border:5,outline:"#000000"},
   grade:{sat:1.1,con:1.04,bri:0,temp:0,shd:0,hil:0,vig:0,sharp:0},ratio:"9:16",frame:{mirror:false,flip:false,rot:0,zoom:1,x:0,y:0},beats:null,audios:[],zoomLevel:1,fx:"none",origVol:1,musicVol:0.28,audioClean:true,duck:false,musicNoVocal:false,stab:false,voiceFx:"",quality:"1080",pps:60,
-  auto:{pause:0.8,brolls:4,stickers:true,hook:true,zooms:true},styleId:""};
+  auto:{pause:0.8,brolls:3,stickers:false,hook:true,zooms:true},styleId:""};
 const PRESETS=[
  {n:"3 pog'ona · Sariq",v:{layout:"stack3",words:6,size:124,c1:"#ffffff",c2:"#ffe14a",c3:"#ffffff",active:"#39e75f",upper:true,anim:"pop",border:5}},
  {n:"3 pog'ona · Neon",v:{layout:"stack3",words:6,size:130,c1:"#7df9ff",c2:"#ffffff",c3:"#ff4fa3",active:"#d7f24a",upper:true,anim:"bounce",border:6}},
@@ -618,7 +624,7 @@ const BUILTIN=[
  {id:"b:hype",name:"Hype",notes:"Bittalab chiqadigan katta so'zlar, juda zich, silkinish.",subtitle:BS("line",1,true,"center","large","#ffffff","#ffffff","#ffffff","zoomin"),pace:{pause_max:0.28},look:{sat:1.22,con:1.12},zoom:2,fx:"flash",broll:2,stickers:true,hook:false,trans:"shake"}];
 const allStyles=()=>BUILTIN.concat(STYLES);
 const curStyle=()=>allStyles().find(s=>s.id===STYLE_ID)||null;
-function styleChips(){return `<button class="chip ${!curStyle()?"on":""}" data-st="">Standart</button>`+BUILTIN.map(s=>`<button class="chip ${s.id===STYLE_ID?"on":""}" data-st="${s.id}">${esc(s.name)}</button>`).join("")+STYLES.map(s=>`<button class="chip ${s.id===STYLE_ID?"on":""}" data-st="${s.id}">${esc(s.name)} <i data-sd="${s.id}" title="O'chirish">✕</i></button>`).join("")+`<button class="chip add" data-stup="1">＋ Namuna video</button>`}
+function styleChips(){return `<button class="refbtn ai" data-stup="1">🎬 Namuna video yuklash — shu uslubda montaj qilinadi</button>`+`<button class="chip ${!curStyle()?"on":""}" data-st="">Standart</button>`+BUILTIN.map(s=>`<button class="chip ${s.id===STYLE_ID?"on":""}" data-st="${s.id}">${esc(s.name)}</button>`).join("")+STYLES.map(s=>`<button class="chip ${s.id===STYLE_ID?"on":""}" data-st="${s.id}">${esc(s.name)} <i data-sd="${s.id}" title="O'chirish">✕</i></button>`).join("")}
 function renderStyles(){document.querySelectorAll(".stylebar").forEach(e=>e.innerHTML=styleChips());const n=$("stnote");if(n)n.innerHTML=styleNote();
   if($("home").classList.contains("show")&&typeof renderPage==="function")renderPage()}
 function styleNote(){const p=curStyle();if(!p)return "Standart uslub: 3 pog'onali sariq subtitr, yorqin rang, yengil zoom.";
@@ -726,7 +732,7 @@ function renderPage(){
         <div class="seg2">${TY.map(o=>`<button data-ptype="${o[0]}" class="${HF.type===o[0]?"on":""}">${o[1]}</button>`).join("")}</div>
         <div class="cbox"><div class="comp-top">${HF.type==="script"?"":`<div class="addm ${f?"has":""}" id="addm"><div class="pl">${f?"🎞":"⇪"}</div><b>${f?esc(f.name):"Video qo'shish"}</b><span>${f?(f.size/1048576).toFixed(1)+" MB":"MP4, MOV"}</span></div>`}
           <textarea id="pprompt" placeholder="${HF.type==="0"?"Bo'sh loyiha: video taymlaynga qo'yiladi, hammasini o'zingiz qilasiz.":HF.type==="script"?"Skript matnini yozing — AI uni ovozga aylantiradi, subtitr va rasmlar qo'yib video yasaydi. Video yuklash shart emas.":"Masalan: 45 soniyalik Reels qil, eng qiziq joylarini qoldir, sariq subtitr, yengil musiqa va 3 ta b-roll qo'sh"}" ${HF.type==="0"?"disabled":""}>${esc(HF.prompt)}</textarea></div>
-        <div class="comp-bot"><button class="pill" data-scroll="styles">✦ ${cs?esc(cs.name):"Standart"}</button>
+        <div class="comp-bot"><button class="pill" data-scroll="styles">✦ ${cs?esc(cs.name):"Standart"}</button><button class="pill" data-stup="1" title="Yoqqan videoni yuklang — AI shu uslubda montaj qiladi">🎬 Namuna video</button>
           <select class="pill" data-def="ratio" title="Format">${Object.keys(RAT).map(o=>`<option ${d.ratio===o?"selected":""}>${o}</option>`).join("")}</select>
           <select class="pill" data-def="lang" title="Video tili">${[["uz","O'zbekcha"],["ru","Ruscha"],["en","Inglizcha"]].map(o=>`<option value="${o[0]}" ${d.lang===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select>
           <button class="pri" id="createB">✦ ${HF.type==="0"?"Loyihani ochish":HF.type==="script"?"Video yaratish":"Montajni boshlash"}</button></div></div>
@@ -1491,6 +1497,12 @@ document.addEventListener("keydown",e=>{if(e.target.id==="chatIn"&&e.key==="Ente
   else if(k==="home")seek(0);else if(k==="end")seek(S.duration)});
 $("undoB").onclick=undo;$("redoB").onclick=redo;
 addEventListener("resize",()=>{if(S){fitPv();updPreview(true)}});
+$("fsB").onclick=()=>{const c=$("center");if(document.fullscreenElement)document.exitFullscreen();else if(c.requestFullscreen)c.requestFullscreen().catch(()=>toast("Bu brauzer to'liq ekranni qo'llamaydi"))};
+document.addEventListener("fullscreenchange",()=>{setTimeout(()=>{if(S){fitPv();updPreview(true)}},60)});
+(function(){const g=document.createElement("div");g.id="tlgrip";g.title="Taymlayn balandligini o'zgartirish uchun torting";$("tl").appendChild(g);
+  try{const v=+localStorage.getItem("mtlh");if(v>=150)$("app").style.setProperty("--tlh",v+"px")}catch(_){}
+  g.onpointerdown=e=>{g.setPointerCapture(e.pointerId);g.classList.add("on");const mv=ev=>{const h=clamp(innerHeight-ev.clientY-8,150,innerHeight-260);$("app").style.setProperty("--tlh",h+"px");if(S){fitPv();updPreview(true)}};
+    g.onpointermove=mv;g.onpointerup=()=>{g.onpointermove=null;g.classList.remove("on");try{localStorage.setItem("mtlh",parseInt($("app").style.getPropertyValue("--tlh")))}catch(_){}}}})();
 /* ---------- mobil: pastki panel ---------- */
 const isM=()=>matchMedia("(max-width:760px)").matches;
 function mSheet(kind,tab){const b=document.body,was=b.classList.contains("m-lib")?"lib:"+LTAB:b.classList.contains("m-insp")?"insp":"";
@@ -1512,8 +1524,10 @@ function gapCuts(pmax){const w=S.words,pad=0.1,now=Date.now(),D=S.duration,out=[
     for(let i=0;i<w.length-1;i++){const g=w[i+1].s-w[i].e;if(g>pmax)add(w[i].e+pad,w[i+1].s-pad)}
     if(D-w[w.length-1].e>Math.max(pmax,0.5))add(w[w.length-1].e+0.3,D)}
   S.removes=S.removes.filter(r=>r.type!=="pauza").concat(out);return out.length}
+const SENS=/(payg.?ambar|пайғамбар|пророк|rasul|расул|muhammad|мухаммад|муҳаммад|alloh|аллоҳ|аллах|xudo|худо|qur.?on|қуръон|коран|oyat|оят|hadis|ҳадис|sahoba|саҳоба|farishta|jannat|жаннат|namoz|намоз|masjid|масжид|vafot|вафот|\bo.?lim\b|ўлим|janoza|qabr)/i;
+function sensAt(t){return S.words.some(w=>Math.abs(w.s-t)<3&&SENS.test(w.w))}
 function autoStickers(n){const pos=[[0.22,0.3],[0.78,0.32],[0.24,0.62],[0.8,0.6],[0.5,0.24]];let last=-99,c=0;
-  for(const w of S.words){if(c>=n)break;const kw=w.w.toLowerCase().replace(/[^\w']/g,"");if(kw.length<3||w.s-last<1.6||remAt(w.s))continue;
+  for(const w of S.words){if(c>=n)break;const kw=w.w.toLowerCase().replace(/[^\w']/g,"");if(kw.length<3||w.s-last<1.6||remAt(w.s)||sensAt(w.s))continue;
     for(const emo in EMAP){if(EMAP[emo].some(k=>kw===k||(k.length>=4&&kw.includes(k)))){const p=pos[c%pos.length];
       S.stickers.push({emo,time:+w.s.toFixed(2),dur:1.5,x:p[0],y:p[1],size:0.16,rot:0,op:1,in:["pop","bounce","spin","drop"][c%4],out:"shrink",loop:c%2?"wobble":"none",_n:Date.now()});last=w.s;c++;break}}}
   return c}
@@ -1543,7 +1557,7 @@ async function runAnalyze(){if(BUSY)return false;busy(true);let ok=false;
 async function genImage(prompt){const {job}=await api("/api/broll_image",{project:S.project,prompt});return waitJob(job)}
 async function runBroll(n){if(BUSY)return;if(!S.analyzed){toast("Avval transkripsiya kerak (⚡ Avto montaj)");return}busy(true);
   try{ag("broll-01","G'oyalar tuzilyapti…","run");
-    const {job}=await api("/api/broll_suggest",{project:S.project,n:n||4});const r=await waitJob(job);const items=r.items||[];let done=0;hist();
+    const {job}=await api("/api/broll_suggest",{project:S.project,n:n||4,words:S.words});const r=await waitJob(job);const items=r.items||[];let done=0;hist();
     for(const it of items){agLive("broll-01",`Rasm chizilyapti ${done+1}/${items.length}…`);
       try{const im=await genImage(it.prompt);S.brolls.push({image:im.image,image_url:im.image_url,prompt:it.prompt,time:+clamp(it.at-1.25,0,Math.max(0,S.duration-2.5)).toFixed(2),dur:2.5,y:0.72,w:0.78,_n:Date.now()});done++;renderAll()}
       catch(e){ag("broll-01",e.message,"err");break}}
