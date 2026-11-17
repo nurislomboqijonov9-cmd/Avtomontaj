@@ -12,7 +12,12 @@ from fastapi.staticfiles import StaticFiles
 import montaj
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.environ.get("DATA_DIR", os.path.join(HERE, "data"))
+# Ma'lumotlar (akkauntlar, loyihalar) doimiy diskda turishi kerak. DATA_DIR berilmagan bo'lsa,
+# Railway Volume ulangan joy avtomatik ishlatiladi; aks holda har deploy'da hammasi o'chib ketadi.
+_VOL = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+DATA = os.environ.get("DATA_DIR") or (os.path.join(_VOL, "vizen") if _VOL else os.path.join(HERE, "data"))
+PERSIST = bool(os.environ.get("DATA_DIR") or _VOL) or not os.environ.get("RAILWAY_ENVIRONMENT")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 PROJ = os.path.join(DATA, "projects")
 os.makedirs(PROJ, exist_ok=True)
 
@@ -187,7 +192,8 @@ def index():
 
 @app.get("/api/config")
 def config():
-    return {"vertex": montaj.have_vertex(), "ai": bool(montaj.have_vertex() or montaj.GEMINI_KEY), "stock": bool(montaj.PEXELS_KEY), "voices": list(montaj.TTS_VOICES)}
+    return {"vertex": montaj.have_vertex(), "ai": bool(montaj.have_vertex() or montaj.GEMINI_KEY), "stock": bool(montaj.PEXELS_KEY), "voices": list(montaj.TTS_VOICES),
+            "google_client_id": GOOGLE_CLIENT_ID, "persist": PERSIST}
 
 # ---------- AUTH ----------
 def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 120
@@ -212,6 +218,31 @@ async def signup(req: Request):
         ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
     return {"token": token, "user": user_public(u)}
 
+@app.post("/api/auth/google")
+async def auth_google(req: Request):
+    """Google akkaunt bilan kirish: brauzer bergan ID tokenni Google kaliti bilan tekshiramiz."""
+    if not GOOGLE_CLIENT_ID: raise HTTPException(400, "Google bilan kirish sozlanmagan")
+    _rate("gl:" + _ip(req), 20, 600)
+    b = await req.json(); cred = str(b.get("credential") or "")
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as g_requests
+        info = id_token.verify_oauth2_token(cred, g_requests.Request(), GOOGLE_CLIENT_ID)
+    except Exception:
+        raise HTTPException(401, "Google tasdig'i o'tmadi — qayta urinib ko'ring")
+    email = str(info.get("email") or "").strip().lower()
+    if not email or not info.get("email_verified"): raise HTTPException(401, "Google akkaunt emaili tasdiqlanmagan")
+    with _lock:
+        us = users(); u = us.get(email)
+        if not u:
+            salt = secrets.token_hex(16)
+            u = {"id": uuid.uuid4().hex[:12], "email": email, "name": str(info.get("name") or "")[:60], "salt": salt,
+                 "hash": _hash_pw(secrets.token_urlsafe(32), salt), "created": int(time.time()), "plan": "free", "google": True}
+            us[email] = u; _save(USERS_F, us)
+        token = secrets.token_urlsafe(24)
+        ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)
+    return {"token": token, "user": user_public(u)}
+
 @app.post("/api/auth/login")
 async def auth_login(req: Request):
     b = await req.json()
@@ -219,8 +250,9 @@ async def auth_login(req: Request):
     pw = b.get("password") or ""
     _rate("li:" + _ip(req) + ":" + email[:80], 10, 600)
     u = users().get(email)
-    if not u or not hmac.compare_digest(u["hash"], _hash_pw(pw, u["salt"])):
-        raise HTTPException(401, "Email yoki parol noto'g'ri")
+    if not u: raise HTTPException(401, "Bu email bilan akkaunt topilmadi — ro'yxatdan o'ting")
+    if not hmac.compare_digest(u["hash"], _hash_pw(pw, u["salt"])):
+        raise HTTPException(401, "Parol noto'g'ri" + (" — bu akkaunt Google orqali ochilgan, «Google bilan kirish» ni bosing" if u.get("google") else ""))
     with _lock:
         token = secrets.token_urlsafe(24)
         ss = sessions(); ss[token] = {"email": email, "created": int(time.time())}; _save(SESS_F, ss)

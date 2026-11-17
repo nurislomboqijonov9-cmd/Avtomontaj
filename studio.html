@@ -400,6 +400,8 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
 #center:fullscreen{background:#000;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) 44px}#center:fullscreen #pvwrap{height:100%}
 @media (max-width:760px){#tlgrip{display:none}}
 .refbtn{width:100%;margin:2px 0 8px;padding:9px;border-style:dashed}
+.orl{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:11px;margin:12px 0 10px}.orl:before,.orl:after{content:"";flex:1;height:1px;background:var(--line)}#gbtn{display:flex;justify-content:center;min-height:40px}
+.warnb{background:color-mix(in srgb,var(--yellow) 16%,var(--panel));border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -497,6 +499,7 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
   <input type="password" id="aPw" placeholder="Parol (kamida 6 belgi)" autocomplete="current-password">
   <div class="err" id="aErr"></div>
   <button class="pri wide" id="aGo">Kirish</button>
+  <div id="gwrap" style="display:none"><div class="orl"><span>yoki</span></div><div id="gbtn"></div></div>
   <p class="hint" style="margin-top:12px;text-align:center"><a href="#" id="aSw" style="color:var(--lime)">Akkaunt yo'qmi? Ro'yxatdan o'tish</a></p>
 </div></div>
 
@@ -599,14 +602,23 @@ function agLive(id,msg){const el=$("ag_"+id);if(el)el.querySelector("span").text
 
 /* ---------- auth ---------- */
 let authMode="login";
-function showAuth(){$("auth").classList.add("show")}
+async function authDone(d){TOKEN=d.token;localStorage.setItem("mtoken",TOKEN);$("auth").classList.remove("show");boot()}
+let _gInit=false;
+async function gSetup(){if(_gInit)return;_gInit=true;let c;try{c=await (await fetch("/api/config")).json()}catch(_){_gInit=false;return}
+  if(!c.google_client_id)return;const sc=document.createElement("script");sc.src="https://accounts.google.com/gsi/client";sc.async=true;
+  sc.onload=()=>{try{google.accounts.id.initialize({client_id:c.google_client_id,callback:async r=>{$("aErr").textContent="";
+        try{const q=await fetch("/api/auth/google",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credential:r.credential})});const d=await q.json();if(!q.ok)throw new Error(d.detail||"xato");authDone(d)}
+        catch(e){$("aErr").textContent=e.message}}});
+      google.accounts.id.renderButton($("gbtn"),{theme:(window.__TH||{}).t==="qum"?"outline":"filled_black",size:"large",width:334,text:"continue_with",shape:"pill",locale:"uz"});$("gwrap").style.display="block"}catch(_){}};
+  document.head.appendChild(sc)}
+function showAuth(){$("auth").classList.add("show");gSetup()}
 $("aSw").onclick=e=>{e.preventDefault();authMode=authMode==="login"?"signup":"login";const s=authMode==="signup";
   $("authT").textContent=s?"Ro'yxatdan o'tish":"Kirish";$("aGo").textContent=s?"Ro'yxatdan o'tish":"Kirish";$("aName").style.display=s?"block":"none";
   $("aSw").textContent=s?"Akkaunt bormi? Kirish":"Akkaunt yo'qmi? Ro'yxatdan o'tish"};
 $("aGo").onclick=async()=>{$("aErr").textContent="";
   try{const r=await fetch("/api/auth/"+authMode,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("aEmail").value,password:$("aPw").value,name:$("aName").value})});
     const d=await r.json();if(!r.ok)throw new Error(d.detail||"xato");
-    TOKEN=d.token;localStorage.setItem("mtoken",TOKEN);$("auth").classList.remove("show");boot();
+    authDone(d);
   }catch(e){$("aErr").textContent=e.message}};
 $("aPw").onkeydown=e=>{if(e.key==="Enter")$("aGo").click()};
 $("logoutB").onclick=async()=>{try{await api("/api/auth/logout",{})}catch(_){}TOKEN="";localStorage.removeItem("mtoken");showAuth()};
@@ -727,6 +739,7 @@ function renderPage(){
   renderSide(ready.length);let h="";const cs=curStyle(),d=DEFS();
   if(PG==="home"){const f=HF.file,q=HF.sq.toLowerCase(),SL2=allStyles().filter(x=>!q||(x.name+" "+(x.notes||"")).toLowerCase().includes(q));
     const hr=new Date().getHours(),gr=hr<5?"Xayrli tun":hr<11?"Xayrli tong":hr<18?"Xayrli kun":"Xayrli kech",TY=[["ai","✦ AI montaj"],["subs","㏄ Faqat subtitr"],["0","＋ Bo'sh loyiha"],["script","✎ Skriptdan video"]];
+    if(CFG.persist===false)h+=`<div class="warnb">⚠ Serverda doimiy disk ulanmagan: har yangilanishda akkauntlar va loyihalar o'chib ketadi. Railway'da xizmatga <b>Volume</b> ulang.</div>`;
     h+=`<div class="greet"><h1>${gr}${ME.name?", "+esc(ME.name.split(" ")[0]):""}</h1><p>Videoni yuklang, nima xohlashingizni yozing — qolganini AI qiladi. Siz faqat tuzatasiz.</p></div>
     <div class="hero"><div class="comp" id="comp"><h2>Nima montaj qilamiz?</h2>
         <div class="seg2">${TY.map(o=>`<button data-ptype="${o[0]}" class="${HF.type===o[0]?"on":""}">${o[1]}</button>`).join("")}</div>
