@@ -92,3 +92,14 @@ python app.py                        # http://localhost:8080
 | `GEMINI_API_KEY` | — | Vertex bo'lmasa: tarjima, AI ovoz, kliplar |
 
 Xavfsizlik: kirishga urinishlar cheklangan (10 daqiqada 10 ta), sessiya 90 kun amal qiladi, loyiha amallari faqat egasiga ruxsat etiladi, xato matnlarida kalit va ichki manzillar ko'rsatilmaydi.
+
+### Akkauntlar yo'qolmasligi uchun (muhim)
+
+Railway har yangilanishda konteynerni noldan yig'adi. Doimiy disk ulanmagan bo'lsa, akkauntlar va loyihalar o'chib ketadi.
+Railway → xizmat → **Settings → Volumes → Add Volume**, mount path: `/data`. Boshqa sozlama kerak emas — ilova ulangan diskni o'zi topadi.
+
+### Google bilan kirish
+
+1. Google Cloud Console → **APIs & Services → Credentials → Create credentials → OAuth client ID** → turi **Web application**.
+2. **Authorized JavaScript origins** ga sayt manzilini yozing (masalan `https://avtomontaj-production.up.railway.app`).
+3. Chiqqan **Client ID** ni Railway → Variables ga `GOOGLE_CLIENT_ID` nomi bilan qo'ying.
