@@ -580,11 +580,38 @@ def subtract_ranges(segs, removes):
         if b-cur>0.15: out.append((cur,b))
     return out
 
+def ffps(p):
+    c,o=run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=r_frame_rate","-of","csv=p=0",p],capture=True)
+    try:
+        a,b=o.strip().split("\n")[0].split("/"); f=float(a)/float(b); return f if 5<=f<=120 else 30.0
+    except Exception: return 30.0
+
 def cut_video(inp,outp,segs):
+    """Bo'laklarni kesib ulaydi. Kesim kadr chegarasiga tortiladi (video va ovoz bir xil joydan kesiladi, sinxron siljimaydi);
+    har ulanishda ovozga 8 ms silliq o'tish beriladi — 'chiq' etgan tovush bo'lmaydi."""
     full=ffdur(inp)
     if not segs or (len(segs)==1 and segs[0][0]<=0.02 and segs[0][1]>=full-0.06):
         shutil.copy(inp,outp); return [(0,full)]
-    sel="+".join("between(t,%.3f,%.3f)"%(a,b) for a,b in segs)
+    fps=ffps(inp); snap=[]
+    for a,b in segs:
+        fa=int(round(max(0.0,a)*fps)); fb=int(round(min(full,b)*fps))
+        if fb-fa>=2: snap.append((fa,fb))
+    if not snap: shutil.copy(inp,outp); return [(0,full)]
+    out=[(fa/fps,fb/fps) for fa,fb in snap]
+    if len(snap)<=220:
+        vsel="+".join("between(n,%d,%d)"%(fa,fb-1) for fa,fb in snap); n=len(snap); fd=0.008
+        parts=["[0:v]select='%s',setpts=N/FRAME_RATE/TB[v]"%vsel,"[0:a]aresample=48000,asplit=%d%s"%(n,"".join("[s%d]"%i for i in range(n)))]
+        for i,(a,b) in enumerate(out):
+            d=b-a
+            parts.append("[s%d]atrim=%.5f:%.5f,asetpts=PTS-STARTPTS,afade=t=in:d=%.3f,afade=t=out:st=%.5f:d=%.3f[c%d]"%(i,a,b,fd,max(0.0,d-fd),fd,i))
+        parts.append("".join("[c%d]"%i for i in range(n))+"concat=n=%d:v=0:a=1[a]"%n)
+        scr=outp+".fc.txt"; open(scr,"w").write(";\n".join(parts))
+        c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",inp,"-filter_complex_script",scr,"-map","[v]","-map","[a]",
+            "-c:v","libx264","-preset","veryfast","-crf","20","-c:a","aac","-ar","48000","-b:a","160k",outp])
+        try: os.remove(scr)
+        except Exception: pass
+        if c==0 and os.path.exists(outp) and os.path.getsize(outp)>1000: return out
+    sel="+".join("between(t,%.3f,%.3f)"%(a,b) for a,b in segs)          # zaxira: eski usul
     fc=("[0:v]select='%s',setpts=N/FRAME_RATE/TB[v];"
         "[0:a]aselect='%s',asetpts=N/SR/TB[a]"%(sel,sel))
     c,_=run(["ffmpeg","-y","-hide_banner","-loglevel","error","-i",inp,
@@ -592,6 +619,19 @@ def cut_video(inp,outp,segs):
         "-c:v","libx264","-preset","veryfast","-crf","20","-c:a","aac","-b:a","160k",outp])
     if c!=0: shutil.copy(inp,outp)
     return segs
+
+def fine_silences(p, dur):
+    """Zich kesim uchun jimliklar. Chegara videoga moslashadi: shovqinli yozuvda balandroq, toza yozuvda pastroq."""
+    best=None
+    for dB in (-40,-35,-30,-26):
+        try: sl=[(a,(b if b else dur)) for a,b in detect_silences(p,dB=dB,mind=0.2)]
+        except Exception: continue
+        ratio=sum(b-a for a,b in sl)/max(0.1,dur)
+        if best is None: best=(dB,sl,ratio)
+        if 0.06<=ratio<=0.6: best=(dB,sl,ratio); break        # eng past (ishonchli) chegara, yetarli jimlik topilsa
+        if ratio>best[2] and ratio<=0.6: best=(dB,sl,ratio)
+    if not best: return [], -33
+    return [[round(a,2),round(b,2)] for a,b in best[1]], best[0]
 
 def ffsize(p):
     c,o=run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","csv=p=0:s=x",p],capture=True)
@@ -1740,7 +1780,7 @@ def analyze(video_path, work, lang="uz"):
     # SO'Z ustidan kesmaslik uchun filtr (gapни kesmaydi)
     silence_removes=safe_silence_removes(raw_sil, words, margin=0.12)
     dup_removes=[[round(a,2),round(b,2)] for a,b in duplicate_ranges(sents)]
-    try: fine=[[round(a,2),round(b if b else dur,2)] for a,b in detect_silences(video_path, dB=-33, mind=0.22)]
+    try: fine,_thr=fine_silences(video_path, dur)
     except Exception: fine=[]
     return {"duration":round(dur,2),"words":words,"full_text":full,"engine":eng,"silences":fine,
             "silence_removes":silence_removes,"dup_removes":dup_removes,

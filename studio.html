@@ -1003,8 +1003,9 @@ function setSegSpeed(v,rev){const g=SEGS[SEL.i];if(!g)return;const old=propAt((g
   S.speeds=S.speeds.filter(q=>q.e<=g[0]+0.001||q.s>=g[1]-0.001);if(Math.abs(v-1)>0.001||rev)S.speeds.push({s:g[0],e:g[1],v:+v,rev:!!rev})}
 function cutList(){const D=S.duration;return merged().filter(r=>r[0]>0.05&&r[1]<D-0.05).map(r=>{const m=S.removes.find(x=>x.on!==false&&Math.abs(x.s-r[0])<0.011);
   return{c:mapT(r[0]),type:m&&m.tr&&m.tr!=="default"?m.tr:S.trans.type}}).filter(x=>x.type!=="none")}
-function sfxList(){const v=S.sfx.vol,o=[];if(S.sfx.trans)cutList().forEach(q=>o.push({t:Math.max(0,q.c-0.22),type:"whoosh",vol:v}));
-  if(S.sfx.stk)S.stickers.concat(S.texts).forEach(x=>{if(!remAt(x.time))o.push({t:mapT(x.time),type:"pop",vol:v})});
+function sfxList(){const v=S.sfx.vol,o=[];if(S.sfx.trans&&S.trans.type!=="none")cutList().forEach(q=>o.push({t:Math.max(0,q.c-0.22),type:"whoosh",vol:v}));
+  if(S.sfx.trans)S.brolls.forEach(b=>{if(b.full&&b.on!==false&&!remAt(b.time))o.push({t:Math.max(0,mapT(b.time)-0.18),type:"whoosh",vol:v*0.8})});
+  if(S.sfx.stk){let lp=-9;S.stickers.concat(S.texts).filter(x=>!x.bar&&!x.fixed&&!remAt(x.time)).sort((a,b)=>a.time-b.time).forEach(x=>{const tt=mapT(x.time);if(tt-lp>0.35){o.push({t:tt,type:"pop",vol:v*0.8});lp=tt}})}
   S.sfxItems.forEach(x=>{if(!remAt(x.time))o.push({t:mapT(x.time),type:x.type,vol:v})});return o.slice(0,40)}
 let ACX=null;
 function sfxPlay(type,vol){try{ACX=ACX||new (window.AudioContext||window.webkitAudioContext)();const t=ACX.currentTime,g=ACX.createGain();g.connect(ACX.destination);
@@ -1078,7 +1079,7 @@ function ckUrl(o){const key=o.image_url+"|"+o.ckc+"|"+o.cks;const hit=CKC.get(ke
     for(let i=0;i<p.length;i+=4){const m=Math.max(Math.abs(p[i]-R),Math.abs(p[i+1]-G),Math.abs(p[i+2]-B));const a=m<=lim?0:m>=lim+soft?255:(m-lim)/soft*255;if(a<p[i+3])p[i+3]=a}
     g.putImageData(d,0,0);CKC.set(key,c.toDataURL("image/png"));if(CKC.size>40)CKC.delete(CKC.keys().next().value);updPreview(true)}catch(_){}};im.src=o.image_url;return o.image_url}
 function drawLayers(t,W,k){const ov=$("ovl"),Hh=$("pv").clientHeight,seen=new Set();
-  const put=(key,o,kind,i,make)=>{const tReal=t;if(o.bar){t=mapT(tReal);o.dur=+Math.max(0.5,mapT(S.duration)).toFixed(2);if(o.keys&&o.keys[1])o.keys[1].t=o.dur}
+  const put=(key,o,kind,i,make)=>{const tReal=t;if(o.fixed&&!o.bar){t=Math.min(mapT(tReal),o.dur-0.6)}if(o.bar){t=mapT(tReal);o.dur=+Math.max(0.5,mapT(S.duration)).toFixed(2);if(o.keys&&o.keys[1])o.keys[1].t=o.dur}
     try{return put0(key,o,kind,i,make,t)}finally{t=tReal}};
   const put0=(key,o,kind,i,make,t)=>{if(t<o.time||t>=o.time+o.dur)return;seen.add(key);let el=LAY.get(key);
     if(!el){el=document.createElement("div");el.className="lay";LAY.set(key,el);ov.appendChild(el)}
@@ -1650,6 +1651,8 @@ function gapCuts(pmax){const w=S.words,now=Date.now(),D=S.duration,out=[],padA=0
   }else if(w.length){if(w[0].s>pmax)add(0,w[0].s-0.15);
     for(let i=0;i<w.length-1;i++){const g=w[i+1].s-w[i].e;if(g>pmax)add(w[i].e+0.1,w[i+1].s-0.1)}
     if(D-w[w.length-1].e>Math.max(pmax,0.5))add(w[w.length-1].e+0.3,D)}
+  out.sort((a,b)=>a.s-b.s);for(let i=0;i<out.length-1;i++){const g0=out[i].e,g1=out[i+1].s;           // ikki kesim orasida so'zsiz mayda bo'lak qolsa, uni ham olib tashlaymiz
+    if(g1-g0<0.3&&!w.some(x=>(x.s+x.e)/2>g0&&(x.s+x.e)/2<g1)){out[i].e=out[i+1].e;out.splice(i+1,1);i--}}
   S.removes=S.removes.filter(r=>r.type!=="pauza").concat(out);return out.length}
 const SENS=/(payg.?ambar|пайғамбар|пророк|rasul|расул|muhammad|мухаммад|муҳаммад|alloh|аллоҳ|аллах|xudo|худо|qur.?on|қуръон|коран|oyat|оят|hadis|ҳадис|sahoba|саҳоба|farishta|jannat|жаннат|namoz|намоз|masjid|масжид|vafot|вафот|\bo.?lim\b|ўлим|janoza|qabr)/i;
 function sensAt(t){return S.words.some(w=>Math.abs(w.s-t)<3&&SENS.test(w.w))}
@@ -1658,13 +1661,17 @@ function autoStickers(n){const pos=[[0.22,0.3],[0.78,0.32],[0.24,0.62],[0.8,0.6]
     for(const emo in EMAP){if(EMAP[emo].some(k=>kw===k||(k.length>=4&&kw.includes(k)))){const p=pos[c%pos.length];
       S.stickers.push({emo,time:+w.s.toFixed(2),dur:1.5,x:p[0],y:p[1],size:0.16,rot:0,op:1,in:["pop","bounce","spin","drop"][c%4],out:"shrink",loop:c%2?"wobble":"none",_n:Date.now()});last=w.s;c++;break}}}
   return c}
-function autoZooms(){calcSegs();let n=0;const now=Date.now(),add=(a,b,sc,rp)=>{if(remAt(a)||b-a<0.5)return;S.zooms.push({time:+a.toFixed(2),dur:+(b-a).toFixed(2),scale:sc,ramp:rp,_n:now});n++};
+function autoZooms(){calcSegs();let n=0;const now=Date.now(),slow=!!S.auto.zslow,add=(a,b,sc,rp)=>{if(slow){sc=1.08;rp=Math.min(1.2,(b-a)*0.6);b=Math.max(b,a+2.4)}if(remAt(a)||b-a<0.5)return;S.zooms.push({time:+a.toFixed(2),dur:+(b-a).toFixed(2),scale:sc,ramp:rp,_n:now});n++};
   if((S.emph||[]).length){S.emph.forEach((e,i)=>add(e[0]-0.05,Math.min(e[1]+0.25,e[0]+3.2),i%2?1.16:1.12,i%2?0:0.35))}      // urg'u joylariga: navbat bilan zarba va sekin yaqinlashish
   else if(SEGS.length>=3){SEGS.forEach((g,i)=>{if(i%2===1&&g[1]-g[0]>=0.8)add(g[0],Math.min(g[1],g[0]+4),i%4===1?1.14:1.1,i%4===1?0:0.4)})}
   else{CUES.forEach((c,i)=>{if(i%3===1){const a=S.words[c[0]].s,b=S.words[c[c.length-1]].e;add(a,b+0.15,1.13,0)}})}
   return n}
 /* ---------- montaj turlari: bir xil kesim, har xil ko'rinish ---------- */
 const MODES=[["classic","Klassik","Subtitr va to'liq ekran rasmlar"],["motion","Motion grafika","Animatsiyali kalit so'z kartochkalari, belgilar, progress chizig'i — rasmsiz"],
+  ["bold","Zarbdor","Katta ikki so'zli sariq subtitr, belgilar, keskin zoom — viral reels uslubi"],
+  ["cinema","Kino","Qora hoshiyalar, kino rangi, sekin yaqinlashish, kichik subtitr"],
+  ["headline","Sarlavhali","Tepada doimiy sarlavha tasmasi, progress chizig'i — ta'limiy va yangilik videolar uchun"],
+  ["podcast","Podkast","Asosiy fikrlar iqtibos kartochkasi bo'lib chiqadi, sokin temp"],
   ["kinetic","Kinetik matn","Ekran o'rtasida katta so'zma-so'z matn, zoom zarbalari"],["doc","Dokumental","Ko'p b-roll, sokin subtitr, kino rangi"],["minimal","Minimal","Faqat toza kesim va kichik subtitr"]];
 function accHex(){const v=getComputedStyle(document.documentElement).getPropertyValue("--lime").trim();return /^#[0-9a-f]{6}$/i.test(v)?v:"#a78bfa"}
 const ORD=[[/^(birinchi(dan|si)?|avvalo|первое|во-первых|first(ly)?)$/i,1],[/^(ikkinchi(dan|si)?|второе|во-вторых|second(ly)?)$/i,2],[/^(uchinchi(dan|si)?|третье|в-третьих|third(ly)?)$/i,3],[/^(to'rtinchi(dan|si)?|tortinchi(dan|si)?|четв[её]ртое|fourth)$/i,4],[/^(beshinchi(dan|si)?|пятое|fifth)$/i,5]];
@@ -1694,10 +1701,28 @@ async function autoBar(){try{const c=document.createElement("canvas");c.width=10
     const blob=await new Promise(r=>c.toBlob(r,"image/png"));const d=await upFile("/api/studio/image",new File([blob],"progress.png",{type:"image/png"}),{project:S.project});
     const D=S.duration,k=(t,x)=>({t,x,y:0.004,s:1,rot:0,op:1,ease:"linear"});
     S.stickers.push({image:d.image,image_url:d.image_url,time:0,dur:+D.toFixed(2),x:0.5,y:0.004,size:1,rot:0,op:1,in:"none",out:"none",loop:"none",keys:[k(0,-0.5),k(+D.toFixed(2),0.5)],auto:1,bar:1,_n:Date.now()});return true}catch(_){return false}}
-async function applyMode(){const m=S.auto.mode||"classic",su=S.sub,a=S.auto;
+async function autoBars(){try{const c=document.createElement("canvas");c.width=1080;c.height=150;const g=c.getContext("2d");g.fillStyle="#000";g.fillRect(0,0,1080,150);
+    const blob=await new Promise(r=>c.toBlob(r,"image/png"));const d=await upFile("/api/studio/image",new File([blob],"bar.png",{type:"image/png"}),{project:S.project});
+    [0.039,0.961].forEach(y=>S.stickers.push({image:d.image,image_url:d.image_url,time:0,dur:+S.duration.toFixed(2),x:0.5,y,size:1,rot:0,op:1,in:"none",out:"none",loop:"none",auto:1,fixed:1,_n:Date.now()}));return true}catch(_){return false}}
+function hookText(){return (S.hook||S.words.filter(w=>!remAt((w.s+w.e)/2)).slice(0,5).map(w=>w.w.replace(/[.,!?;:]+$/,"")).join(" ")).slice(0,42)}
+function autoQuotes(){const now=Date.now();let n=0,last=-9;(S.emph||[]).forEach(e=>{if(e[0]-last<4||remAt(e[0])||sensAt(e[0]))return;const ws=S.words.filter(w=>w.s>=e[0]-0.01&&w.e<=e[1]+0.01&&!remAt((w.s+w.e)/2)).slice(0,9);if(ws.length<2)return;
+    let tx=ws.map(w=>w.w).join(" ").replace(/[.,;:]+$/,"");if(tx.length>26){const k=tx.lastIndexOf(" ",Math.ceil(tx.length/2)+4);if(k>4)tx=tx.slice(0,k)+"\n"+tx.slice(k+1)}
+    S.texts.push({text:'"'+tx+'"',font:S.sub.font,size:66,color:"#ffffff",outline:"#000000",border:0,bg:"#111111",upper:false,fx:"none",time:+Math.max(0,e[0]-0.1).toFixed(2),dur:+clamp(e[1]-e[0]+1.3,2.2,4.5).toFixed(2),x:0.5,y:0.26,rot:0,op:0.96,in:"rise",out:"rise",loop:"none",auto:1,_n:now});last=e[0];n++});return n}
+function autoEmoji(){const now=Date.now();let n=0,last=-9;(S.cards||[]).forEach(c=>{if(!c.emoji||c.s-last<2.5||remAt(c.s)||sensAt(c.s))return;
+    S.stickers.push({emo:c.emoji,time:+Math.max(0,c.s-0.05).toFixed(2),dur:1.8,x:0.5,y:0.56,size:0.17,rot:0,op:1,in:"elastic",out:"popout",loop:"none",auto:1,_n:now});last=c.s;n++});return n}
+async function applyMode(){const m=S.auto.mode||"classic",su=S.sub,a=S.auto;a.zslow=false;
   S.texts=S.texts.filter(o=>!o.auto);S.stickers=S.stickers.filter(o=>!o.auto);              // oldingi avto bezaklar tozalanadi, qo'lda qo'shilganlar qoladi
   if(m==="motion"){a.brolls=0;S.brolls=S.brolls.filter(b=>!b.prompt);Object.assign(su,{on:true,layout:"line",words:3,size:104,margin:420,upper:true,anim:"pop"});
     const r=await autoCards(),b=await autoBar();ag("style-01",`Motion grafika: ${r.cards} ta kartochka${r.counters?", "+r.counters+" ta sanagich":""}${r.lists?", "+r.lists+" ta band nishoni":""}${b?", progress chizig'i":""}`)}
+  else if(m==="bold"){S.grade=Object.assign({},DEF.grade);a.brolls=Math.min(Math.max(a.brolls,2),3);a.zooms=true;a.hook=true;Object.assign(su,{on:true,layout:"line",words:2,size:138,margin:560,upper:true,anim:"pop",active:"#ffe14a",base:"#ffffff"});S.trans.type="none";
+    const n=autoEmoji();ag("style-01",`Zarbdor uslub${n?": "+n+" ta belgi":""}`)}
+  else if(m==="cinema"){a.brolls=Math.max(a.brolls,3);a.zooms=true;a.zslow=true;a.hook=false;S.hook="";Object.assign(su,{on:true,layout:"line",words:5,size:62,margin:215,upper:false,anim:"fade",base:"#f3efe6",active:"#f3efe6"});
+    S.grade=Object.assign({},G0,{sat:0.9,con:1.12,temp:0.1,vig:0.45,fade:0.25,grain:0.2});S.trans.type="dip";const b=await autoBars();ag("style-01","Kino uslubi"+(b?": qora hoshiyalar":""))}
+  else if(m==="headline"){a.brolls=Math.max(a.brolls,3);a.hook=false;const ht=hookText();S.hook="";Object.assign(su,{on:true,layout:"line",words:3,size:96,margin:400,upper:true,anim:"pop"});S.trans.type="none";S.grade=Object.assign({},DEF.grade);
+    if(ht)S.texts.push({text:ht,font:su.font,size:ht.length>26?50:62,color:"#ffffff",outline:"#000000",border:0,bg:accHex(),upper:true,fx:"none",time:0,dur:+S.duration.toFixed(2),x:0.5,y:0.085,rot:0,op:1,in:"slide_d",out:"none",loop:"none",auto:1,fixed:1,_n:Date.now()});
+    const b=await autoBar();ag("style-01","Sarlavhali uslub"+(b?": tasma va progress chizig'i":""))}
+  else if(m==="podcast"){a.brolls=0;S.brolls=S.brolls.filter(b=>!b.prompt);a.zooms=true;a.zslow=true;a.hook=false;S.hook="";Object.assign(su,{on:true,layout:"line",words:4,size:80,margin:330,upper:false,anim:"fade"});S.trans.type="none";
+    const n=autoQuotes();ag("style-01",`Podkast uslubi${n?": "+n+" ta iqtibos":""}`)}
   else if(m==="kinetic"){a.brolls=0;S.brolls=S.brolls.filter(b=>!b.prompt);Object.assign(su,{on:true,layout:"line",words:1,size:168,margin:860,upper:true,anim:"zoomin"});S.trans.type="flash";a.zooms=true;a.hook=false;S.hook="";ag("style-01","Kinetik matn uslubi")}
   else if(m==="doc"){a.brolls=Math.max(a.brolls,6);Object.assign(su,{on:true,layout:"line",words:4,size:92,margin:360,upper:false,anim:"fade"});S.grade=Object.assign({},G0,{sat:0.94,con:1.08,temp:0.12,vig:0.35});S.trans.type="dip";ag("style-01","Dokumental uslub")}
   else if(m==="minimal"){a.brolls=0;S.brolls=S.brolls.filter(b=>!b.prompt);a.zooms=false;a.hook=false;S.hook="";S.zooms=[];Object.assign(su,{on:true,layout:"line",words:4,size:84,margin:340,upper:false,anim:"fade"});S.trans.type="none";ag("style-01","Minimal uslub")}
@@ -1756,7 +1781,7 @@ $("autoB").onclick=()=>autoMontage();
 
 /* ---------- eksport ---------- */
 $("expX").onclick=()=>{$("exp").classList.remove("show");$("expvid").pause()};
-$("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();S.stickers.forEach(o=>{if(o.bar){o.time=0;o.dur=+Math.max(0.5,mapT(S.duration)).toFixed(2);if(o.keys&&o.keys[1])o.keys[1].t=o.dur}});await save();busy(true);
+$("expB").onclick=async()=>{if(BUSY||!S)return;vid.pause();S.stickers.concat(S.texts).forEach(o=>{if(o.bar||o.fixed){o.time=0;o.dur=+Math.max(0.5,mapT(S.duration)).toFixed(2);if(o.keys&&o.keys[1])o.keys[1].t=o.dur}});await save();busy(true);
   $("exp").classList.add("show");$("expT").textContent="Eksport qilinyapti…";$("expvid").style.display="none";$("expDl").style.display="none";$("expbar").firstChild.style.width="0";$("expS").textContent="";
   const su=S.sub,rm=merged(),pcs=keptPieces(),spd=pcs.some(q=>Math.abs(q[2]-1)>0.001||q[3]);
   const body={project:S.project,subtitle_on:su.on,
