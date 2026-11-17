@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Montaj AI Studio</title>
+<title>VIZEN — AI video montaj</title>
 <link rel="icon" href="/assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -393,13 +393,15 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
 @media (max-width:900px){#shell{grid-template-columns:minmax(0,1fr)}#sidescroll,#side #sq{display:none!important}
   #side{padding:4px 6px calc(4px + env(safe-area-inset-bottom))}.hero{grid-template-columns:minmax(0,1fr)}.comp-bot .pri{margin-left:0;flex:1 1 100%}.sech{flex-wrap:wrap;gap:8px}}
 #side{background:color-mix(in srgb,var(--panel) 70%,var(--bg))}#newB{border-radius:12px;padding:12px;font-size:13.5px}
+.logo img{width:26px;height:26px;border-radius:26%;display:block;box-shadow:0 4px 14px color-mix(in srgb,var(--lime) 40%,transparent)}.logo{letter-spacing:.06em;font-weight:800}#side .logo{font-size:18px;gap:10px}
+#auth{background:radial-gradient(900px 500px at 50% 0%,color-mix(in srgb,var(--lime) 22%,var(--bg)),var(--bg) 70%)}#auth .modal{box-shadow:var(--shadow);border-radius:20px}
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><filter id="gradeF" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncR type="table" tableValues="0 1"/><feFuncG type="table" tableValues="0 1"/><feFuncB type="table" tableValues="0 1"/></feComponentTransfer></filter></svg>
 <div id="app">
   <header id="top">
-    <a class="logo" href="/"><i></i>MONTAJ <b>AI</b></a>
+    <a class="logo" href="/"><img src="/assets/logo.png" alt="">VIZEN</a>
     <a class="back hidem" href="/#projects">‹ Loyihalar</a>
     <div class="proj"><h1 id="pname" title="Nomini o'zgartirish uchun bosing">—</h1><p><em id="saveDot">●</em> <span id="saveTxt">saqlangan</span> · <span id="layers">0</span> qatlam</p></div>
     <button class="ai" id="autoB" title="Transkripsiya, kesish, subtitr, stiker, b-roll — tanlangan uslubda">⚡ Avto montaj</button>
@@ -466,7 +468,7 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
 
 <div class="ovr" id="home"><div id="shell">
   <aside id="side">
-    <a class="logo" href="/"><i style="width:20px;height:20px"></i>MONTAJ <b>AI</b></a>
+    <a class="logo" href="/"><img src="/assets/logo.png" alt="" style="width:34px;height:34px">VIZEN</a>
     <button class="pri" id="newB">＋ Yangi loyiha</button>
     <nav id="nav"></nav>
     <input type="text" id="sq" placeholder="🔍 Loyiha qidirish…">
@@ -481,6 +483,8 @@ html[data-theme=qum] .logo,html[data-theme=qum] button.pri{color:var(--onacc)}ht
 </div></div>
 
 <div class="ovr" id="auth"><div class="modal">
+  <div class="logo" style="justify-content:center;font-size:20px;margin:0 0 6px"><img src="/assets/logo.png" alt="" style="width:44px;height:44px">VIZEN</div>
+  <p class="hint" style="text-align:center;margin-bottom:14px">Videoni yuklang — montajni AI qiladi, siz faqat tuzatasiz.</p>
   <h2 id="authT">Kirish</h2>
   <input type="text" id="aName" placeholder="Ism" style="display:none" autocomplete="name">
   <input type="email" id="aEmail" placeholder="Email" autocomplete="email">
@@ -665,7 +669,7 @@ function styleFromS(){const su=S.sub;return{subtitle:{present:su.on,layout:su.la
     stickers:S.auto.stickers,hook:S.auto.hook,trans:S.trans.type,exact:{sub:Object.assign({},su),trans:S.trans,sfx:S.sfx},notes:"«"+S.name+"» loyihasidan saqlangan."}}
 $("moreB").onclick=e=>{e.stopPropagation();$("pmenu").classList.toggle("open")};
 document.addEventListener("click",()=>$("pmenu").classList.remove("open"));
-async function renameProj(){const n=prompt("Loyiha nomi:",S.name);if(n&&n.trim()){try{const r=await api("/api/studio/rename",{project:S.project,name:n.trim()});S.name=r.name;$("pname").textContent=S.name;document.title=S.name+" — Montaj AI Studio";renderLib()}catch(x){toast(x.message)}}}
+async function renameProj(){const n=prompt("Loyiha nomi:",S.name);if(n&&n.trim()){try{const r=await api("/api/studio/rename",{project:S.project,name:n.trim()});S.name=r.name;$("pname").textContent=S.name;document.title=S.name+" — VIZEN";renderLib()}catch(x){toast(x.message)}}}
 $("pname").onclick=()=>{if(S)renameProj()};
 $("pmenu").addEventListener("click",async e=>{const m=e.target.dataset.m;if(!m||!S)return;
   if(m==="rename")renameProj();
@@ -842,7 +846,7 @@ async function openProject(pid,auto){
   if(r.state){for(const k of SAVE_KEYS)if(r.state[k]!==undefined)S[k]=r.state[k];S.sub=Object.assign({},DEF.sub,S.sub);S.grade=Object.assign({},DEF.grade,S.grade);S.auto=Object.assign({},DEF.auto,S.auto);S.trans=Object.assign({},DEF.trans,S.trans);S.sfx=Object.assign({},DEF.sfx,S.sfx);S.frame=Object.assign({},DEF.frame,S.frame)}
   else{const df=DEFS();S.quality=df.quality;S.ratio=RAT[df.ratio]?df.ratio:"9:16";if(!r.lang)S.lang=df.lang;S.words=r.words||[];S.removes=r.removes||[];S.brolls=(r.brolls||[]).map(b=>Object.assign({y:0.72,w:0.78},b))}
   S.stickers=(S.stickers||[]).map(normStk);
-  $("home").classList.remove("show");$("pname").textContent=S.name;document.title=S.name+" — Montaj AI Studio";
+  $("home").classList.remove("show");$("pname").textContent=S.name;document.title=S.name+" — VIZEN";
   vid.src=S.videoUrl;if(S.music)mus.src=S.music.url;
   HIST=[];REDO=[];SEL=null;reindex();
   await new Promise(res=>{if(vid.readyState>=1)res();else{vid.onloadedmetadata=res;setTimeout(res,4000)}});
