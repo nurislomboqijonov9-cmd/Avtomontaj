@@ -1044,9 +1044,9 @@ def gen_image(prompt, dest, aspect="16:9"):
 # ================= ANIMATSIYALI QATLAMLAR (stiker / rasm / matn): In + Out + Loop =================
 # Bu formulalar studio.html dagi animState() bilan AYNAN bir xil -> preview eksportga mos keladi.
 import math as _m
-ANIM_IN=("none","fade","pop","grow","zoomin","slide_l","slide_r","slide_u","slide_d","spin","bounce","drop","flip")
-ANIM_OUT=("none","fade","shrink","zoomout","slide_l","slide_r","slide_u","slide_d","spin","fall")
-ANIM_LOOP=("none","pulse","shake","wobble","float","spin","swing","heartbeat","blink","jelly")
+ANIM_IN=("none","fade","pop","grow","zoomin","slide_l","slide_r","slide_u","slide_d","spin","bounce","drop","flip","elastic","swingin","roll","rise","stretch","wipe","type")
+ANIM_OUT=("none","fade","shrink","zoomout","slide_l","slide_r","slide_u","slide_d","spin","fall","popout","roll","rise","flip","wipe")
+ANIM_LOOP=("none","pulse","shake","wobble","float","spin","swing","heartbeat","blink","jelly","bounce","tilt","zoom","glitch","flash")
 def _clip01(v): return 0.0 if v<0 else (1.0 if v>1 else v)
 def _back_out(p): c1=1.70158; c3=c1+1; return 1+c3*(p-1)**3+c1*(p-1)**2
 def _bounce_out(p):
@@ -1075,6 +1075,11 @@ def anim_state(tau, d, a_in="pop", a_out="fade", a_loop="none", in_d=0.35, out_d
         elif a_in=="bounce": k=_bounce_out(p); sx*=k; sy*=k
         elif a_in=="drop": dy-=(1-_bounce_out(p))*0.9; al*=min(1.0,p*4)
         elif a_in=="flip": sx*=e; al*=min(1.0,p*3)
+        elif a_in=="elastic": k=1-_m.cos(p*_m.pi*4.5)*_m.exp(-p*5.5); sx*=k; sy*=k; al*=min(1.0,p*4)
+        elif a_in=="swingin": rot-=(1-e)*80*_m.cos(p*_m.pi*1.5); al*=min(1.0,p*3)
+        elif a_in=="roll": dx-=(1-e)*0.9; rot-=(1-e)*200; al*=e
+        elif a_in=="rise": dy+=(1-e)*0.35; al*=p
+        elif a_in=="stretch": sx*=1+(1-e)*1.2; sy*=0.25+0.75*e; al*=min(1.0,p*3)
     q=0.0 if out_d<=0 else _clip01((tau-(d-out_d))/out_d)
     if q>0 and a_out!="none":
         e=q**3
@@ -1087,6 +1092,10 @@ def anim_state(tau, d, a_in="pop", a_out="fade", a_loop="none", in_d=0.35, out_d
         elif a_out=="slide_d": dy+=e*0.7; al*=1-e
         elif a_out=="spin": rot+=e*270; sx*=1-e; sy*=1-e
         elif a_out=="fall": dy+=e*0.9; rot+=e*40; al*=1-q
+        elif a_out=="popout": k=(1+0.25*_m.sin(q*_m.pi))*(1-e); sx*=k; sy*=k
+        elif a_out=="roll": dx+=e*0.9; rot+=e*200; al*=1-e
+        elif a_out=="rise": dy-=e*0.35; al*=1-q
+        elif a_out=="flip": sx*=1-e; al*=1-e
     T=2*_m.pi*tau
     if a_loop=="pulse": k=1+0.08*_m.sin(T*1.5); sx*=k; sy*=k
     elif a_loop=="shake": dx+=0.04*_m.sin(T*9); dy+=0.03*_m.cos(T*11)
@@ -1098,7 +1107,24 @@ def anim_state(tau, d, a_in="pop", a_out="fade", a_loop="none", in_d=0.35, out_d
         h=(tau*1.2)%1.0; k=1+(0.16*max(0.0,_m.sin(T*1.2*2)) if h<0.5 else 0.0); sx*=k; sy*=k
     elif a_loop=="blink": al*=0.55+0.45*(0.5+0.5*_m.sin(T*2))
     elif a_loop=="jelly": j=0.07*_m.sin(T*2); sx*=1+j; sy*=1-j
+    elif a_loop=="bounce": dy-=0.16*abs(_m.sin(T*1.1))
+    elif a_loop=="tilt": rot+=4*_m.sin(T*0.35)
+    elif a_loop=="zoom": k=1+0.12*_clip01(tau/max(0.1,d)); sx*=k; sy*=k
+    elif a_loop=="glitch":
+        g=int(tau*12); r1=((g*7919)%13)/13.0
+        if r1>0.72: dx+=(r1-0.86)*0.3; sx*=1+(r1-0.86)*0.2
+    elif a_loop=="flash": al*=1.0 if int(tau*6)%2==0 else 0.35
     return sx,sy,rot,_clip01(al),dx,dy
+
+def anim_clip(tau, d, a_in="none", a_out="none", in_d=0.35, out_d=0.3, steps=0):
+    """Ochilish (reveal): chapdan qancha qismi ko'rinadi (0..1). 'wipe' silliq, 'type' harfma-harf. JS animClip bilan bir xil."""
+    cl=1.0
+    if a_in in ("wipe","type"):
+        idur=min(max(0.05,(in_d*1.6 if a_in=="wipe" else max(in_d*2,0.045*max(1,steps)))), d*0.6); p=_clip01(tau/idur)
+        cl=(1-(1-p)**3) if a_in=="wipe" else (_m.ceil(p*max(1,steps))/max(1,steps))
+    if a_out=="wipe":
+        od=min(max(0.05,out_d*1.6), d*0.4); q=_clip01((tau-(d-od))/od); cl=min(cl,1-q**3)
+    return cl
 
 def kf_ease(p, kind=None):
     """Keyframe orasidagi harakat egri chizig'i (JS kfEase bilan bir xil)."""
@@ -1137,6 +1163,8 @@ def layer_frames(img, outdir, dur, L, fps=30, frame=None):
     in_d=float(L.get("in_d",0.35)); out_d=float(L.get("out_d",0.3))
     rot0=float(L.get("rot",0) or 0); op=_clip01(float(L.get("op",1) if L.get("op") is not None else 1))
     sts=[anim_state(i/fps, dur, a_in, a_out, a_loop, in_d, out_d) for i in range(n)]
+    steps=int(L.get("steps",0) or 0)
+    clips=[anim_clip(i/fps, dur, a_in, a_out, in_d, out_d, steps) for i in range(n)] if (a_in in ("wipe","type") or a_out=="wipe") else None
     kfs=[_kf_at(keys,i/fps) for i in range(n)] if keys else None
     if kfs:   # keyframe: masshtab/burilish/shaffoflik holatga qo'shiladi, joylashuv butun ekranda
         sts=[(sx*k["s"],sy*k["s"],rot+k["rot"],al*_clip01(k["op"]),dx,dy) for (sx,sy,rot,al,dx,dy),k in zip(sts,kfs)]
@@ -1158,15 +1186,18 @@ def layer_frames(img, outdir, dur, L, fps=30, frame=None):
                 if tt<gend: break
             img=srcs[gi][0]
         ox,oy=(kfs[i]["x"]*cw, kfs[i]["y"]*ch) if kfs else (cw/2, ch/2)
-        key=(round(sx,3),round(sy,3),round(rot,2),round(al,3),round(dx,4),round(dy,4),gi,round(ox,1),round(oy,1))
+        cl=clips[i] if clips else 1.0
+        key=(round(sx,3),round(sy,3),round(rot,2),round(al,3),round(dx,4),round(dy,4),gi,round(ox,1),round(oy,1),round(cl,3))
         if key==prev_key and prev_path:
             try: os.link(prev_path,path)
             except Exception: shutil.copy(prev_path,path)
             continue
         canvas=Image.new("RGBA",(cw,ch),(0,0,0,0))
         ww=int(round(w0*sx)); hh=int(round(h0*sy)); a=al*op
-        if ww>=2 and hh>=2 and a>0.004:
+        if ww>=2 and hh>=2 and a>0.004 and cl>0.004:
             fr=img if (ww==w0 and hh==h0) else img.resize((ww,hh), Image.BILINEAR)
+            if cl<0.999:                                   # chapdan ochilish
+                cwid=max(1,int(round(fr.size[0]*cl))); m_=Image.new("RGBA",fr.size,(0,0,0,0)); m_.paste(fr.crop((0,0,cwid,fr.size[1])),(0,0)); fr=m_
             if abs(rot+rot0)>0.01: fr=fr.rotate(-(rot+rot0), expand=True, resample=Image.BICUBIC)
             if a<0.999:
                 fr=fr.copy(); fr.putalpha(fr.getchannel("A").point(lambda v,a=a:int(v*a)))
@@ -1216,9 +1247,23 @@ def text_png(L, k, lang="uz"):
     w=int(x1-x0)+2*pad; h=int(y1-y0)+2*pad
     img=Image.new("RGBA",(w+w%2,h+h%2),(0,0,0,0)); d=ImageDraw.Draw(img)
     if bg: d.rounded_rectangle((0,0,img.size[0]-1,img.size[1]-1), radius=int(px*0.22), fill=_rgb(bg,(0,0,0))+(235,))
+    fx=L.get("fx")
+    if fx=="3d":                       # hajmli (ekstruziya): matn ostiga pastga-o'ngga siljigan to'q qatlamlar
+        dep=max(3,int(px*0.11)); ext=Image.new("RGBA",(img.size[0]+dep,img.size[1]+dep),(0,0,0,0))
+        if bg: ext.alpha_composite(img)
+        de=ImageDraw.Draw(ext); c3=_rgb(L.get("fxc"),(40,20,90))
+        for kk in range(dep,0,-1):
+            de.multiline_text((pad-x0+kk,pad-y0+kk),txt,font=font,fill=c3+(255,),stroke_width=bw,stroke_fill=c3+(255,),align="center",spacing=sp)
+        img=ext; d=ImageDraw.Draw(img)
     d.multiline_text((pad-x0,pad-y0),txt,font=font,fill=_rgb(L.get("color"))+(255,),stroke_width=bw,
                      stroke_fill=_rgb(L.get("outline"),(0,0,0))+(255,),align="center",spacing=sp)
-    fx=L.get("fx")
+    if fx=="grad":                     # ikki rangli gradient (tepadan pastga)
+        mk=Image.new("L",img.size,0); ImageDraw.Draw(mk).multiline_text((pad-x0,pad-y0),txt,font=font,fill=255,align="center",spacing=sp)
+        c1=_rgb(L.get("color")); c2=_rgb(L.get("fxc"),(255,79,163)); hh_=img.size[1]
+        gr=Image.new("RGBA",(1,hh_)); gp=gr.load()
+        for yy in range(hh_):
+            t_=yy/max(1,hh_-1); gp[0,yy]=tuple(int(c1[j]+(c2[j]-c1[j])*t_) for j in range(3))+(255,)
+        gr=gr.resize(img.size); img.paste(gr,(0,0),mk)
     if fx in ("shadow","glow"):     # soya yoki porlash: matn ostiga xiralashtirilgan nusxa
         from PIL import ImageFilter
         m=int(px*0.45); big=Image.new("RGBA",(img.size[0]+2*m,img.size[1]+2*m),(0,0,0,0))
@@ -1230,6 +1275,29 @@ def text_png(L, k, lang="uz"):
         else: al=al.point(lambda v:int(v*0.75))
         under.putalpha(al); big.alpha_composite(under); big.alpha_composite(img,(m,m)); img=big
     return img
+
+def count_text(L, p):
+    """Sanagich matni: p (0..1) bo'yicha from -> to. Matndagi {n} o'rniga qo'yiladi (bo'lmasa oxiriga)."""
+    c=L.get("count") or {}; a=float(c.get("from",0)); b=float(c.get("to",100)); dec=int(c.get("dec",0) or 0)
+    e=1-(1-_clip01(p))**3; v=a+(b-a)*e
+    num=("%.*f"%(dec,v)) if dec>0 else "{:,}".format(int(round(v))).replace(","," ")
+    t=str(L.get("text") or "{n}")
+    return t.replace("{n}",num) if "{n}" in t else (num+" "+t).strip()
+
+def counter_frames(L, k, lang, dur, steps=24):
+    """Sanagich: har qadam uchun alohida matn rasmi -> [(img, davomiylik)] (bir xil o'lchamga keltiriladi)."""
+    from PIL import Image
+    cd=min(max(0.4,float((L.get("count") or {}).get("dur",1.2))), max(0.4,dur*0.8)); fr=[]
+    for i in range(steps+1):
+        im=text_png(dict(L,text=count_text(L,i/steps)),k,lang)
+        if im is not None: fr.append(im)
+    if not fr: return None
+    W=max(f.size[0] for f in fr); H=max(f.size[1] for f in fr); out=[]
+    for i,f in enumerate(fr):
+        c=Image.new("RGBA",(W+W%2,H+H%2),(0,0,0,0)); c.alpha_composite(f,((c.size[0]-f.size[0])//2,(c.size[1]-f.size[1])//2))
+        acc=(cd*(i+1)/steps) if i<len(fr)-1 else dur+1.0          # (rasm, shu kadr tugash vaqti) — GIF kadrlari bilan bir xil format
+        out.append((c, acc))
+    return out
 
 # ---------- OVOZ EFFEKTLARI (sintez — litsenziya kerak emas) ----------
 SFX={"whoosh":("anoisesrc=d=0.5:c=pink:a=0.9,highpass=f=350,lowpass=f=5000,afade=t=in:d=0.28:curve=qsin,afade=t=out:st=0.28:d=0.22,volume=1.6",None),
@@ -1367,6 +1435,36 @@ def _fx_parts(fx, il, ol, tw, th, dur, strong=1):
         return [f"{il}hue=s=0,curves=r='0/0.05 1/1':b='0/0.15 1/0.9',eq=contrast=1.15:saturation=1.4{ol}"]
     if fx=="dream":                      # yumshoq bloom (beauty/story)
         return [f"{il}split[dA][dB];[dB]gblur=sigma={3*s:.1f}[dbb];[dA][dbb]blend=all_mode=lighten:all_opacity=0.4,eq=saturation=1.1:brightness=0.03{ol}"]
+    if fx=="bw":                         # oq-qora
+        return [f"{il}hue=s=0,curves=preset=medium_contrast{ol}"]
+    if fx=="sepia":                      # eski foto
+        return [f"{il}colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131,eq=contrast=1.05{ol}"]
+    if fx=="oldfilm":                    # eski kino: sepia + dona + miltillash + chiziqlar
+        return [f"{il}colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131,noise=alls={int(14*s)}:allf=t,eq=brightness='0.03*sin(t*31)',vignette=PI/4,"
+                f"drawbox=x='mod(t*{int(tw*1.7)}\\,iw)':y=0:w=2:h=ih:color=white@0.12:t=fill{ol}"]
+    if fx=="pixel":                      # piksel (mozaika)
+        f_=10+6*strong
+        return [f"{il}scale=iw/{f_}:ih/{f_}:flags=neighbor,scale={tw}:{th}:flags=neighbor{ol}"]
+    if fx=="poster":                     # plakat (kam rang)
+        return [f"{il}elbg=codebook_length={12-3*strong}:nb_steps=1,eq=saturation=1.3{ol}"]
+    if fx=="invert":                     # negativ
+        return [f"{il}negate{ol}"]
+    if fx=="edge":                       # chizgi (kontur)
+        return [f"{il}edgedetect=low=0.08:high=0.25:mode=colormix{ol}"]
+    if fx=="rgb":                        # rang ajralishi (xromatik aberratsiya) pulsi
+        return [f"{il}rgbashift=rh='{2+2*strong}*sin(t*5)':bh='-{2+2*strong}*sin(t*5)':gv='{1+strong}*cos(t*4)'{ol}"]
+    if fx=="mirror":                     # ko'zgu (chap yarmi o'ngga aks etadi)
+        return [f"{il}crop=iw/2:ih:0:0,split[mA][mB];[mB]hflip[mC];[mA][mC]hstack,scale={tw}:{th}{ol}"]
+    if fx=="tilt":                       # tilt-shift: tepa va past xira
+        return [f"{il}split[tA][tB];[tB]gblur=sigma={6*s:.1f}[tC];[tA][tC]blend=all_expr='A*(1-min(1\\,pow(abs(Y/H-0.5)*2.3\\,3)))+B*min(1\\,pow(abs(Y/H-0.5)*2.3\\,3))',eq=saturation=1.25{ol}"]
+    if fx=="scan":                       # skaner chiziqlari (CRT)
+        return [f"{il}drawgrid=w=iw:h=4:t=1:c=black@0.28,eq=contrast=1.12:saturation=1.15{ol}"]
+    if fx=="pulse":                      # ritmik zoom pulsi
+        return [f"{il}scale=iw*1.06:ih*1.06,crop={tw}:{th}:x='(iw-{tw})/2':y='(ih-{th})/2',zoompan=z='1+0.03*abs(sin(in/30*3.2))':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={tw}x{th}:fps=30{ol}"]
+    if fx=="sunset":                     # iliq quyosh botishi
+        return [f"{il}curves=r='0/0.05 0.5/0.6 1/1':b='0/0 0.5/0.42 1/0.85',eq=saturation=1.2,vignette=PI/5{ol}"]
+    if fx=="cyber":                      # kiberpank: binafsha-firuza
+        return [f"{il}curves=r='0/0.1 0.5/0.55 1/1':g='0/0 0.5/0.42 1/0.9':b='0/0.18 0.5/0.62 1/1',eq=contrast=1.2:saturation=1.45{ol}"]
     return [f"{il}null{ol}"]
 
 FX_MAP={  # oila -> effekt

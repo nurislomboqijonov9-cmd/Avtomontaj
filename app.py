@@ -556,7 +556,9 @@ async def render(req: Request, x_auth: str = Header("")):
                             if L.get("mask") or L.get("chroma"):
                                 img = [(montaj.img_fx(f_, L), t_) for f_, t_ in img] if isinstance(img, list) else montaj.img_fx(img, L)
                     elif kind == "text":
-                        img = montaj.text_png(L, min(tw_, th_) / 1080.0, lang)
+                        if L.get("in") == "type": L["steps"] = max(1, len(str(L.get("text") or "")))
+                        if isinstance(L.get("count"), dict): img = montaj.counter_frames(L, min(tw_, th_) / 1080.0, lang, ldur)
+                        else: img = montaj.text_png(L, min(tw_, th_) / 1080.0, lang)
                     if img is None: continue
                     fdir = os.path.join(ldir, f"L{i}")
                     haskf = bool(L.get("keys"))
