@@ -2070,6 +2070,74 @@ def script_video(text, wav, outp, size=(1080,1920)):
         dd=span*(len(tk)+1)/tot; words.append({"w":tk,"s":round(t,3),"e":round(t+dd-0.02,3)}); t+=dd
     return ffdur(outp), words
 
+# ================= FON MUSIQA (sintez — litsenziya kerak emas) =================
+MUSIC_KINDS={"calm":("Sokin",72),"lofi":("Lo-fi",80),"energy":("Energiya",122),"cinema":("Kino",64),"happy":("Quvnoq",108),"corp":("Biznes",100)}
+def gen_music(kind, dest, bars=16):
+    """Oddiy, mualliflik huquqisiz fon musiqa: akkord yostig'i + bas + (ixtiyoriy) baraban. numpy bilan sintez -> WAV (stereo, 44.1k)."""
+    import numpy as np, wave
+    if kind not in MUSIC_KINDS: kind="calm"
+    bpm=MUSIC_KINDS[kind][1]; sr=44100; beat=60.0/bpm; bar=beat*4; n=int(bars*bar*sr); t=np.arange(n)/sr
+    A=220.0; nt=lambda k: A*2**(k/12.0)
+    PROG={"calm":[(0,4,7,11),(-3,0,4,7),(-7,-3,0,4),(-5,-1,2,5)],            # Cmaj7 Am7 Fmaj7 G
+          "lofi":[(-3,0,4,7),(-7,-3,0,4),(0,4,7,11),(-5,-1,2,5)],
+          "energy":[(-3,0,4),(-7,-3,0),(0,4,7),(-5,-1,2)],
+          "cinema":[(-3,0,4),(-3,0,4),(-7,-3,0),(-8,-5,-1)],
+          "happy":[(0,4,7),(-5,-1,2),(-3,0,4),(-7,-3,0)],
+          "corp":[(0,4,7),(-3,0,4),(-7,-3,0),(-5,-1,2)]}[kind]
+    base=3 if kind!="cinema" else -9                       # C4 atrofida (kino pastroq)
+    L=np.zeros(n); R=np.zeros(n)
+    def tone(f,tt,ph=0.0,harm=(1,0.35,0.15)):
+        return sum(a*np.sin(2*np.pi*f*(i+1)*tt+ph) for i,a in enumerate(harm))
+    for b in range(bars):
+        ch=PROG[b%len(PROG)]; i0=int(b*bar*sr); i1=min(n,int((b+1)*bar*sr)); seg=slice(i0,i1); m=i1-i0
+        env=np.minimum(1,np.arange(m)/(0.25*sr))*np.minimum(1,(m-np.arange(m))/(0.35*sr))     # har takt silliq kiradi/chiqadi
+        for j,k in enumerate(ch):
+            f=nt(base+k); w=(tone(f,t[seg])+0.6*tone(f*1.004,t[seg],0.7))*env*0.055
+            pan=0.5+0.28*(j-(len(ch)-1)/2)/max(1,len(ch)-1); L[seg]+=w*(1-pan)*2; R[seg]+=w*pan*2
+        root=nt(base+ch[0]-12)                               # bas
+        if kind in ("energy","happy","corp"):
+            for q in range(8):
+                a=i0+int(q*beat/2*sr); e=min(n,a+int(beat/2*sr)); tt=np.arange(e-a)/sr
+                w=np.sin(2*np.pi*root*tt)*np.exp(-tt*7)*0.16; L[a:e]+=w; R[a:e]+=w
+        else:
+            w=np.sin(2*np.pi*root*t[seg])*env*0.11; L[seg]+=w; R[seg]+=w
+        if kind in ("happy","lofi","corp"):                  # arpedjio
+            notes=[ch[i%len(ch)]+(12 if kind=="happy" else 0) for i in range(8)]
+            for q,k in enumerate(notes):
+                if kind=="lofi" and q%2: continue
+                a=i0+int(q*beat/2*sr); e=min(n,a+int(beat*0.9*sr)); tt=np.arange(e-a)/sr
+                w=np.sin(2*np.pi*nt(base+k+12)*tt)*np.exp(-tt*5)*0.06; pan=0.3 if q%2 else 0.7; L[a:e]+=w*(1-pan)*2; R[a:e]+=w*pan*2
+    rng=np.random.default_rng(7)
+    def hit(at,kindh):
+        a=int(at*sr)
+        if a>=n: return
+        if kindh=="kick":
+            ln=int(0.22*sr); e=min(n,a+ln); tt=np.arange(e-a)/sr; w=np.sin(2*np.pi*(48+70*np.exp(-tt*28))*tt)*np.exp(-tt*13)*0.5
+        elif kindh=="snare":
+            ln=int(0.16*sr); e=min(n,a+ln); tt=np.arange(e-a)/sr; w=(rng.standard_normal(e-a)*0.5+np.sin(2*np.pi*190*tt)*0.4)*np.exp(-tt*24)*0.2
+        else:
+            ln=int(0.05*sr); e=min(n,a+ln); tt=np.arange(e-a)/sr; w=rng.standard_normal(e-a)*np.exp(-tt*90)*0.07
+        L[a:e]+=w; R[a:e]+=w
+    if kind in ("energy","happy","lofi","corp"):
+        for b in range(bars):
+            for q in range(4):
+                tb=b*bar+q*beat
+                if kind=="energy" or q in (0,2): hit(tb,"kick")
+                if q in (1,3): hit(tb,"snare")
+                hit(tb+beat/2,"hat")
+                if kind=="energy": hit(tb,"hat")
+    if kind=="cinema":                                       # sekin puls
+        for b in range(bars):
+            hit(b*bar,"kick")
+    mx=max(1e-6,float(max(np.abs(L).max(),np.abs(R).max()))); g=0.8/mx
+    fade=int(0.02*sr)
+    for ch_ in (L,R):
+        ch_[:fade]*=np.linspace(0,1,fade); ch_[-fade:]*=np.linspace(1,0,fade)
+    pcm=(np.stack([L,R],axis=1)*g*32767).astype("<i2")
+    with wave.open(dest,"wb") as wf:
+        wf.setnchannels(2); wf.setsampwidth(2); wf.setframerate(sr); wf.writeframes(pcm.tobytes())
+    return dest
+
 # ================= RITM (beat) ANIQLASH — musiqaga kesimlarni moslash uchun =================
 def detect_beats(path, limit=240):
     """Musiqadagi zarbalar vaqtlari (soniya). Sof Python: energiya o'zgarishi + avtokorrelyatsiya bilan temp."""

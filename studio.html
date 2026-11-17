@@ -1196,6 +1196,7 @@ function renderLib(){
   }else if(LTAB==="audio"){
     h+=S.music?`<div class="media"><div class="th">🎵</div><div><b>${esc(S.music.name)}</b><span>fon musiqa</span></div></div>`:`<p class="hint">Fon musiqa hali qo'shilmagan.</p>`;
     h+=`<div class="mbtns" style="margin-bottom:10px"><button class="sm" id="addMusB">＋ ${S.music?"Musiqani almashtirish":"Musiqa yuklash"}</button><button class="sm" id="addAudB" title="Audio fayl yoki video — videodan faqat ovozi olinadi">＋ Audio / videodan ovoz</button><button class="sm ${REC?"rec":""}" id="recB">${REC?"■ To'xtatish":"🎙 Ovoz yozish"}</button></div>`;
+    h+=`<div class="lbl">Tayyor fon musiqa</div><div class="mbtns" style="margin:6px 0 10px">${(CFG.music||[]).map(m=>`<button class="sm" data-mgen="${m[0]}">♪ ${m[1]}</button>`).join("")}</div>`;
     S.audios.forEach((a,i)=>h+=`<div class="media ${SEL&&SEL.k==="aud"&&SEL.i===i?"on":""}" data-ak="${i}"><div class="th">🔊</div><div><b>${esc(a.name)}</b><span>audio · ${tc(a.time)} · ${a.dur.toFixed(1)}s</span></div></div>`);
     h+=sld("Ovoz","S.origVol",0,2,0.01,"%")+sld("Musiqa","S.musicVol",0,1,0.01,"%")+sw("Musiqa fade","S.musicFade")+sw("Gap paytida musiqani pasaytirish","S.duck")+sw("Musiqadan vokalni olib tashlash","S.musicNoVocal")+sw("Ovozni tozalash","S.audioClean")+selc("Ovoz o'zgartirgich","S.voiceFx",VFX);
     if(S.music)h+=`<div class="mbtns"><button class="sm" id="beatB">🥁 Ritmni aniqlash</button>${S.beats&&S.beats.beats.length?`<button class="sm ai" id="beatSnap">✂ Kesimlarni ritmga moslash</button>`:""}</div>${S.beats?`<p class="hint" style="margin-top:6px">${S.beats.bpm} BPM · ${S.beats.beats.length} ta zarba — musiqa trekida belgilar ko'rinadi.</p>`:""}`;
@@ -1386,6 +1387,7 @@ function onClick(e){const wi=e.target.closest("i[data-wi]");if(wi){wordTap(+wi.d
   else if(b.id==="beatB")findBeats();
   else if(b.id==="ttsGo")doTTS();
   else if(d.shape)addShape(d.shape);
+  else if(d.mgen){toast("Musiqa tayyorlanmoqda…");api("/api/studio/music_gen",{project:S.project,kind:d.mgen}).then(r=>{S.music={name:r.name,url:r.url};mus.src=r.url;S.beats=null;if(S.musicVol>0.5)S.musicVol=0.3;renderAll();dirty();toast("Fon musiqa qo'shildi — gap paytida o'zi pasayadi")}).catch(x=>toast(x.message))}
   else if(d.blk)addBlock(d.blk);
   else if(d.mode){S.auto.mode=d.mode;renderLib();dirty()}
   else if(b.id==="modeGo"){if(S.analyzed&&S.words.length){(async()=>{hist();S.zooms=[];await applyMode();autoApply(true);reindex();renderAll();dirty();if(VERTEX&&S.auto.brolls>0&&!S.brolls.length)await runBroll(S.auto.brolls);toast("Montaj turi qo'llandi")})()}else autoMontage(true)}

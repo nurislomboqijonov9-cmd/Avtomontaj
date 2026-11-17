@@ -233,7 +233,7 @@ def terms():
 @app.get("/api/config")
 def config():
     return {"vertex": montaj.have_vertex(), "ai": bool(montaj.have_vertex() or montaj.GEMINI_KEY), "stock": bool(montaj.PEXELS_KEY), "voices": list(montaj.TTS_VOICES),
-            "google_client_id": GOOGLE_CLIENT_ID, "persist": PERSIST}
+            "google_client_id": GOOGLE_CLIENT_ID, "persist": PERSIST, "music": [[k, v[0]] for k, v in montaj.MUSIC_KINDS.items()]}
 
 # ---------- AUTH ----------
 def _valid_email(e): return "@" in e and "." in e.split("@")[-1] and len(e) <= 120
@@ -384,6 +384,23 @@ async def music_upload(file: UploadFile = File(...), project: str = Form(...), x
             f.write(chunk)
     meta["music"] = os.path.basename(mp); save_meta(project, meta)
     return {"ok": True, "name": file.filename or "music", "url": f"/media/{project}/{os.path.basename(mp)}"}
+
+@app.post("/api/studio/music_gen")
+async def studio_music_gen(req: Request, x_auth: str = Header("")):
+    """Tayyor fon musiqa (serverda sintez qilinadi, mualliflik huquqi muammosi yo'q)."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); meta = _own(pid, usr)
+    kind = str(b.get("kind") or "calm")
+    if kind not in montaj.MUSIC_KINDS: raise HTTPException(400, "bunday musiqa turi yo'q")
+    d = pdir(pid)
+    for old in os.listdir(d):
+        if old.startswith("music."):
+            try: os.remove(os.path.join(d, old))
+            except Exception: pass
+    name = "music.wav"
+    try: montaj.gen_music(kind, os.path.join(d, name))
+    except Exception as e: raise HTTPException(500, "musiqa yaratilmadi: " + str(e)[:80])
+    meta = load_meta(pid); meta["music"] = name; save_meta(pid, meta)
+    return {"ok": True, "name": "Fon musiqa: " + montaj.MUSIC_KINDS[kind][0], "url": f"/media/{pid}/{name}?v={int(time.time())}"}
 
 # ---------- 2) TAHLIL ----------
 @app.post("/api/analyze")
