@@ -5,3 +5,4 @@ requests
 google-auth
 fonttools
 pillow
+numpy
