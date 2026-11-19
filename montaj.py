@@ -1355,7 +1355,25 @@ SFX={"whoosh":("anoisesrc=d=0.5:c=pink:a=0.9,highpass=f=350,lowpass=f=5000,afade
      "pop":(None,"aevalsrc='0.7*sin(2*PI*(900-3600*t)*t)*exp(-26*t)':d=0.14:s=48000"),
      "ding":(None,"aevalsrc='0.45*sin(2*PI*1318*t)*exp(-5*t)+0.2*sin(2*PI*2637*t)*exp(-7*t)':d=0.9:s=48000"),
      "boom":(None,"aevalsrc='0.9*sin(2*PI*(70-40*t)*t)*exp(-5*t)':d=0.8:s=48000"),
-     "click":(None,"aevalsrc='0.6*sin(2*PI*2200*t)*exp(-90*t)':d=0.05:s=48000")}
+     "click":(None,"aevalsrc='0.6*sin(2*PI*2200*t)*exp(-90*t)':d=0.05:s=48000"),
+     "riser":(None,"aevalsrc='0.5*sin(2*PI*(200+900*t*t)*t)*min(1,t*1.2)*(1-max(0,t-1.1)*10)':d=1.2:s=48000"),
+     "swish":("anoisesrc=d=0.28:c=white:a=0.8,highpass=f=1800,afade=t=in:d=0.1,afade=t=out:st=0.1:d=0.18",None),
+     "impact":(None,"aevalsrc='0.95*sin(2*PI*(110-70*t)*t)*exp(-9*t)+0.3*(random(0)-0.5)*exp(-40*t)':d=0.6:s=48000"),
+     "drop":(None,"aevalsrc='0.8*sin(2*PI*(600*exp(-4*t)+40)*t)*exp(-2.2*t)':d=1.0:s=48000"),
+     "tick":(None,"aevalsrc='0.5*sin(2*PI*3200*t)*exp(-140*t)':d=0.04:s=48000"),
+     "snap":(None,"aevalsrc='0.7*(random(0)-0.5)*exp(-70*t)+0.3*sin(2*PI*1800*t)*exp(-60*t)':d=0.1:s=48000"),
+     "success":(None,"aevalsrc='0.4*sin(2*PI*784*t)*exp(-6*t)*lt(t,0.14)+0.4*sin(2*PI*1175*t)*exp(-5*(t-0.14))*gte(t,0.14)':d=0.7:s=48000"),
+     "error":(None,"aevalsrc='0.4*sin(2*PI*220*t)*lt(mod(t,0.22),0.14)*exp(-2*t)':d=0.5:s=48000"),
+     "notify":(None,"aevalsrc='0.4*sin(2*PI*1568*t)*exp(-9*t)+0.35*sin(2*PI*2093*(t-0.12))*exp(-8*(t-0.12))*gte(t,0.12)':d=0.7:s=48000"),
+     "coin":(None,"aevalsrc='0.4*sin(2*PI*988*t)*lt(t,0.08)+0.4*sin(2*PI*1319*t)*exp(-7*(t-0.08))*gte(t,0.08)':d=0.6:s=48000"),
+     "laser":(None,"aevalsrc='0.5*sin(2*PI*(2400*exp(-9*t)+200)*t)*exp(-6*t)':d=0.4:s=48000"),
+     "heart":(None,"aevalsrc='0.9*sin(2*PI*55*t)*exp(-22*mod(t,0.8))+0.7*sin(2*PI*50*t)*exp(-22*mod(t+0.56,0.8))':d=1.6:s=48000"),
+     "glitch":(None,"aevalsrc='0.45*(random(0)-0.5)*gt(sin(2*PI*31*t),0.2)+0.3*sin(2*PI*(300+2000*mod(t*9,1))*t)*gt(sin(2*PI*17*t),0)':d=0.35:s=48000"),
+     "shutter":(None,"aevalsrc='0.7*(random(0)-0.5)*(exp(-90*t)+exp(-90*abs(t-0.09))*gte(t,0.09))':d=0.2:s=48000"),
+     "type":(None,"aevalsrc='0.5*(random(0)-0.5)*exp(-120*mod(t,0.085))':d=0.6:s=48000"),
+     "tape":(None,"aevalsrc='0.5*sin(2*PI*(700*exp(-3.2*t))*t)*(1-t/0.9)':d=0.9:s=48000"),
+     "wind":("anoisesrc=d=1.4:c=brown:a=1,highpass=f=200,lowpass=f=2400,afade=t=in:d=0.6,afade=t=out:st=0.7:d=0.7,volume=2.2",None),
+     "bell":(None,"aevalsrc='0.4*sin(2*PI*880*t)*exp(-3*t)+0.25*sin(2*PI*2217*t)*exp(-4*t)+0.15*sin(2*PI*3520*t)*exp(-6*t)':d=1.4:s=48000")}
 def sfx_file(kind, cache_dir):
     if kind not in SFX: return None
     os.makedirs(cache_dir, exist_ok=True); p=os.path.join(cache_dir, kind+".wav")

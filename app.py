@@ -198,6 +198,14 @@ main{{max-width:760px;margin:0 auto;padding:40px 22px 80px}}h1{{font-size:28px}}
 <body><main><a class="b" href="/"><img src="/assets/logo.png" alt="">VIZEN</a><h1>{title}</h1>{body}
 <p style="margin-top:36px;font-size:13px">Oxirgi yangilanish: 2026-yil 17-noyabr · <a href="/">Bosh sahifa</a> · <a href="/privacy">Maxfiylik</a> · <a href="/terms">Shartlar</a></p></main></body></html>""")
 
+@app.get("/sfx/{kind}.wav")
+def sfx_preview(kind: str):
+    """Ovoz effektini tinglab ko'rish uchun (serverda sintez qilinadi va keshlanadi)."""
+    if kind not in montaj.SFX: raise HTTPException(404, "yo'q")
+    f = montaj.sfx_file(kind, os.path.join(DATA, "sfx"))
+    if not f: raise HTTPException(500, "yaratilmadi")
+    return FileResponse(f, media_type="audio/wav", headers={"Cache-Control": "public, max-age=86400"})
+
 @app.get("/privacy")
 def privacy():
     return _doc("Maxfiylik siyosati", """
