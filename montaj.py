@@ -694,7 +694,11 @@ def remap_words(words,segs):
         for w in words:
             if w["s"]>=a-0.05 and w["s"]<b+0.05:
                 ns=cut+(max(a,w["s"])-a); ne=cut+(min(b,w["e"])-a)
-                if ne>ns: out.append({"w":w["w"],"s":round(ns,3),"e":round(ne,3)})
+                if ne>ns:
+                    o={"w":w["w"],"s":round(ns,3),"e":round(ne,3)}
+                    if "c" in w: o["c"]=w["c"]                    # blok raqami (muharrirdagi bo'linish saqlanadi)
+                    if w.get("em"): o["em"]=1                     # urg'u so'zi
+                    out.append(o)
         cut+=(b-a)
     out.sort(key=lambda x:x["s"]); return out
 
@@ -710,6 +714,13 @@ def split_rows(n):
     return c
 
 def group_cues(words,n):
+    if words and all("c" in w for w in words):               # muharrir bergan bo'linish: pleyerdagi bilan aynan bir xil
+        cues=[];cur=[]
+        for w in words:
+            if cur and w["c"]!=cur[-1]["c"]: cues.append(cur);cur=[]
+            cur.append(w)
+        if cur: cues.append(cur)
+        return cues
     cues=[];cur=[]
     for w in words:
         if cur and (len(cur)>=n or w["s"]-cur[-1]["e"]>0.7): cues.append(cur);cur=[]
@@ -733,7 +744,7 @@ def build_ass(words, sub, lang="uz", hook=None, res=None):
     font=pick_font(sub.get("font","Anton"), lang); size=int(sub.get("size",90)); border=sub.get("border",4)
     mv=int(sub.get("margin_v",660)); off=float(sub.get("delay",0.20)); n=int(sub.get("words",3))
     anim=sub.get("anim","pop")
-    stack=(sub.get("layout")=="stack3")
+    stack=(sub.get("layout")=="stack3"); emc=hexass(sub.get("emph")) if sub.get("emph") else None
     lscale=[float(x) for x in (sub.get("line_scale") or [0.62,1.0,0.78])][:3] or [1.0]
     lcols=[hexass(sub.get(k) or sub.get("base","#FFFFFF")) for k in ("c1","c2","c3")]
     ANIMS={
@@ -793,11 +804,11 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
                 fs=max(10,int(round(size*lscale[min(li,len(lscale)-1)]))); lc=lcols[min(li,len(lcols)-1)]
                 toks=[]
                 for j in range(k,k+cnt):
-                    toks.append("{\\c%s}%s{\\c%s}"%(acc,disp[j],lc) if j==wi else disp[j])
+                    toks.append("{\\c%s}%s{\\c%s}"%(acc,disp[j],lc) if j==wi else ("{\\c%s}%s{\\c%s}"%(emc,disp[j],lc) if (emc and cue[j].get("em")) else disp[j]))
                 rows.append("{\\fs%d\\c%s}%s"%(fs,lc," ".join(toks))); k+=cnt
             text="\\N".join(rows)
         else:
-            parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else d for j,d in enumerate(disp)]
+            parts=["{\\c%s}%s{\\c%s}"%(acc,d,base) if j==wi else ("{\\c%s}%s{\\c%s}"%(emc,d,base) if (emc and cue[j].get("em")) else d) for j,d in enumerate(disp)]
             text=" ".join(parts)
         lines.append("Dialogue: 0,%s,%s,Main,0,0,0,,%s%s"%(ts(start+off),ts(end+off),ov,text))
     return head+"\n".join(lines0+lines)+"\n"
@@ -979,8 +990,8 @@ def broll_suggest(full_text, dur, n=4, words=None):
         if not lines: return []
         prompt=("Bu videoning vaqt belgili gaplari:\n"+json.dumps(lines,ensure_ascii=False)+"\n"
                 f"Shu gaplardan ko'pi bilan {n} tasini tanlab, har biriga B-ROLL rasm g'oyasini ber. {rules} "
-                "Har biri uchun 'i' = gap raqami, 'prompt' = INGLIZCHA aniq tasviriy rasm prompti. Butun video bo'ylab tarqat. "
-                "JSON qaytar: [{\"i\":0,\"prompt\":\"...\"}].")
+                "Har biri uchun 'i' = gap raqami, 'prompt' = INGLIZCHA aniq tasviriy rasm prompti, 'q' = stok video qidirish uchun 2-3 so'zli INGLIZCHA kalit ibora (masalan: \"city traffic night\"). Butun video bo'ylab tarqat. "
+                "JSON qaytar: [{\"i\":0,\"prompt\":\"...\",\"q\":\"...\"}].")
     else:
         prompt=(f"Video transkripti: \"{full_text[:1500]}\"\nVideo uzunligi: {int(dur)} soniya.\n"
                 f"Mazmunga mos ko'pi bilan {n} ta B-ROLL rasm g'oyasini ber. {rules} "
@@ -1000,7 +1011,7 @@ def broll_suggest(full_text, dur, n=4, words=None):
         else:
             at=max(0.0,min(1.0,float(it.get("at",0) or 0)))*dur
             if words and is_sensitive(" ".join(w["w"] for w in words if at-3<=w["s"]<=at+3)): continue
-        out.append({"prompt":q,"at":round(at,2)})
+        out.append({"prompt":q,"at":round(at,2),"q":" ".join(str(it.get("q") or "").split()[:4])[:40]})
     return out[:n]
 
 def gemini_image_vertex(prompt, dest, raw=False):

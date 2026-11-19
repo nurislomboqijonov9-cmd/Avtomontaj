@@ -530,7 +530,7 @@ async def render(req: Request, x_auth: str = Header("")):
             keep = montaj.subtract_ranges([(0.0, float(cdur))], [tuple(r) for r in removes])
             keep = [(a, b) for a, b in keep if b - a > 0.1] or [(0.0, float(cdur))]
             tmp = os.path.join(d, "render_src.mp4")
-            montaj.cut_video(cut, tmp, keep)
+            keep = montaj.cut_video(cut, tmp, keep) or keep          # kadrga tortilgan aniq chegaralar
             if os.path.exists(tmp):
                 words = montaj.remap_words(words, keep)   # bitta bo'lak qolsa ham vaqt siljiydi
                 cut = tmp
