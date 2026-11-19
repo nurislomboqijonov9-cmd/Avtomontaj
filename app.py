@@ -236,6 +236,7 @@ def terms():
 <h2>Akkaunt</h2><p>Akkauntingiz xavfsizligi uchun o'zingiz javobgarsiz. Shartlar buzilganda akkaunt cheklanishi yoki o'chirilishi mumkin.</p>
 <h2>Cheklovlar</h2><p>Xizmatni buzishga, ortiqcha yuklashga yoki boshqa foydalanuvchilar ma'lumotiga ruxsatsiz kirishga urinish taqiqlanadi.</p>
 <h2>O'zgarishlar</h2><p>Shartlar yangilanishi mumkin; yangi tahrir shu sahifada e'lon qilinadi.</p>
+<h2>Uchinchi tomon materiallari</h2><p>Animatsiyali stikerlar: <a href="https://googlefonts.github.io/noto-emoji-animation/">Noto Emoji Animation</a>, Google — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> litsenziyasi. Stok rasm va videolar: Pexels.</p>
 <h2>Aloqa</h2><p><a href="mailto:nurislomboqijonov9@gmail.com">nurislomboqijonov9@gmail.com</a></p>""")
 
 @app.get("/api/config")
@@ -1007,6 +1008,40 @@ async def studio_cutout(req: Request, x_auth: str = Header("")):
     name = f"broll_c{uuid.uuid4().hex[:8]}.png"
     try: montaj.cutout_plain_bg(src, os.path.join(PROJ, pid, name), tol=int(b.get("tol", 38)))
     except Exception as e: raise HTTPException(400, "fonni olib bo'lmadi: " + str(e)[:80])
+    return {"image": name, "image_url": f"/media/{pid}/{name}"}
+
+@app.post("/api/studio/anim_sticker")
+async def studio_anim_sticker(req: Request, x_auth: str = Header("")):
+    """Animatsiyali stiker (Noto Emoji Animation, Google, CC BY 4.0) — GIF loyihaga yuklab olinadi."""
+    usr = check_auth(x_auth); b = await req.json(); pid = b.get("project", ""); _own(pid, usr)
+    cp = str(b.get("cp") or "").lower()
+    if not _re.fullmatch(r"[0-9a-f]{4,6}(_[0-9a-f]{4,6}){0,6}", cp): raise HTTPException(400, "noto'g'ri belgi")
+    cache = os.path.join(DATA, "anim"); os.makedirs(cache, exist_ok=True); cf = os.path.join(cache, cp + ".gif")
+    if not (os.path.exists(cf) and os.path.getsize(cf) > 500):
+        import requests as _rq
+        try:
+            base = f"https://fonts.gstatic.com/s/e/notoemoji/latest/{cp}/512."
+            r = _rq.get(base + "gif", timeout=30, stream=True); ext = "gif"
+            if r.status_code != 200:
+                r = _rq.get(base + "webp", timeout=30, stream=True); ext = "webp"
+            if r.status_code != 200: raise HTTPException(404, "Bu belgi uchun animatsiya yo'q")
+            size = 0; part = cf + ".part"
+            with open(part, "wb") as f:
+                for ch in r.iter_content(1024 * 128):
+                    size += len(ch)
+                    if size > 12 * 1024 * 1024: raise HTTPException(400, "fayl juda katta")
+                    f.write(ch)
+            if ext == "webp":                    # GIF bo'lmasa, animatsiyali WebP ni GIF ga o'giramiz
+                from PIL import Image, ImageSequence
+                im = Image.open(part); frames = [fr.convert("RGBA").resize((360, 360)) for fr in ImageSequence.Iterator(im)]
+                durs = [fr.info.get("duration", 40) for fr in ImageSequence.Iterator(im)] or [40]
+                frames[0].save(cf, save_all=True, append_images=frames[1:], duration=durs, loop=0, disposal=2)
+                os.remove(part)
+            else:
+                os.replace(part, cf)
+        except HTTPException: raise
+        except Exception: raise HTTPException(502, "Animatsiyani yuklab bo'lmadi — birozdan keyin urinib ko'ring")
+    name = f"broll_g{uuid.uuid4().hex[:8]}.gif"; shutil.copy(cf, os.path.join(PROJ, pid, name))
     return {"image": name, "image_url": f"/media/{pid}/{name}"}
 
 @app.post("/api/studio/stock")
